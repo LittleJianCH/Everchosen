@@ -1,0 +1,20 @@
+# Generated artifacts and local dependencies
+**/build/
+**/dist/
+.lua-env/
+.luarocks/
+*.pack
+*.luac
+__pycache__/
+*.py[cod]
+
+# Local game extracts, saves, diagnostics, and machine configuration
+/references/
+.local/
+*.save
+*.log
+.env
+.env.*
+!.env.example
+Thumbs.db
+.DS_Store
