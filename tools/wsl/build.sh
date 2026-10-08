@@ -39,7 +39,7 @@ for mod in "${targets[@]}"; do
             exit 1
         fi
         mkdir -p -- "$(dirname -- "$destination")"
-        fennel --globals cm,core,out --compile "$source" > "$destination"
+        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals cm,core,out --compile "$source" > "$destination"
         count=$((count + 1))
     done < <(find "$source_dir/src" -type f -name '*.fnl' -print0)
     # Check all Lua, including any deliberately authored Lua assets.
