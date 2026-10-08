@@ -1,0 +1,42 @@
+{
+  "target_culture": "wh_main_chs_chaos",
+  "target_subculture": "wh_main_sc_chs_chaos",
+  "categories": [
+    "weapon",
+    "armour",
+    "talisman",
+    "enchanted_item",
+    "arcane_item",
+    "mount"
+  ],
+  "sources": [
+    {
+      "culture": "wh3_main_kho_khorne",
+      "subculture": "wh3_main_sc_kho_khorne"
+    },
+    {
+      "culture": "wh3_main_nur_nurgle",
+      "subculture": "wh3_main_sc_nur_nurgle"
+    },
+    {
+      "culture": "wh3_main_tze_tzeentch",
+      "subculture": "wh3_main_sc_tze_tzeentch"
+    },
+    {
+      "culture": "wh3_main_sla_slaanesh",
+      "subculture": "wh3_main_sc_sla_slaanesh"
+    },
+    {
+      "culture": "wh_dlc08_nor_norsca",
+      "subculture": "wh_dlc08_sc_nor_norsca"
+    },
+    {
+      "culture": "wh_dlc03_bst_beastmen",
+      "subculture": "wh_dlc03_sc_bst_beastmen"
+    },
+    {
+      "culture": "wh3_dlc23_chd_chaos_dwarfs",
+      "subculture": "wh3_dlc23_sc_chd_chaos_dwarfs"
+    }
+  ]
+}

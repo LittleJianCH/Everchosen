@@ -8,7 +8,9 @@ This repository contains Total War: WARHAMMER III mods. Use the neighboring `../
 | --- | --- |
 | **Archaon: The Everchosen** — main mod | `mods/archaon-everchosen/` |
 | **Tamurkhan Chieftain Progression** — separate submod | `mods/tamurkhan-chieftains/` |
+| **Chaos Equipment for Warriors of Chaos** — separate submod | `mods/chaos-equipment/` |
 
+- Equipment eligibility covers Khorne, Nurgle, Tzeentch, Slaanesh, Norsca, Beastmen, and Chaos Dwarfs, and adds Warriors of Chaos culture eligibility for weapons, armour, talismans, enchanted/arcane items, and mounts. Preserve native access and character/skill/rank restrictions; do not grant items or bypass acquisition quests. Keep this data patch out of the other products.
 - Keep all other gameplay in the main mod, including blessings, subjugation, portals, Beastmen hordes, and Norscan outposts. Split out another submod only when the user explicitly selects it; future submods stay in this repository.
 - Give each product distinct build outputs and packaging boundaries. A separate submod does not by itself imply a dependency on the main mod. Define dependencies and coexistence when implementing them, and prevent duplicate listeners or rewards when both packs are loaded.
 - Share helpers when needed, without duplicating gameplay or building a general framework ahead of requirements.
@@ -27,9 +29,11 @@ Normal saving and loading within a campaign created with the current version rem
 ## Implementation and toolchain
 
 - Write new campaign logic in **Fennel**, compile ahead of time to **Lua 5.1-compatible source**, and package the generated Lua with DB, localization, and UI assets. Players must not need Fennel or development dependencies.
-- Use WSL 2 Ubuntu with a normal user account. The Lua 5.1 dependency tree is `~/.local/share/everchosen/lua51`; activate it with `source tools/wsl/activate.sh`. Setup/check scripts and pinned dependency versions are maintained in `tools/wsl/`. Build both mods with `tools/build.ps1` from PowerShell or `bash tools/wsl/build.sh` from WSL; this stages pack contents without creating or installing a `.pack`. Check relevant tools before changing the environment; do not reinstall it by default.
+- Use WSL 2 Ubuntu with a normal user account. The Lua 5.1 dependency tree is `~/.local/share/everchosen/lua51`; activate it with `source tools/wsl/activate.sh`. Setup/check scripts and pinned dependency versions are maintained in `tools/wsl/`. Build the mods with `tools/build.ps1` from PowerShell or `bash tools/wsl/build.sh` from WSL; this stages pack contents without creating or installing a `.pack`. Check relevant tools before changing the environment; do not reinstall it by default.
+- Equipment eligibility and chieftain progression are independently loadable. Enable the equipment submod alongside progression when chieftains in Warriors of Chaos need their native equipment permissions; do not duplicate the permission patch in progression.
 - Keep authored source separate from generated Lua and `.pack` output. Edit source and rebuild. Use UTF-8 and LF, and handle Windows/WSL paths explicitly.
 - Validate emitted syntax with Lua 5.1. Fennel compilation alone does not establish runtime library or game API availability. Declare expected WH3 globals explicitly; use the game's loader, paths, and load order rather than relying on desktop LuaRocks search paths.
+- Keep per-mod Fennel helpers in `lib/` and use namespaced `include` modules to bundle them into the Lua entry points. Helpers must not become separate campaign auto-load scripts.
 - Prefer small modules with explicit dependencies. Separate pure rules from game-event adapters where that makes the implementation easier to reason about.
 - Preserve original game packs and Workshop inputs; extract references for inspection. Do not commit proprietary dumps or credentials. Check redistribution permission before publishing reused assets or code.
 - When installing a requested build, confirm the game is closed, retain an appropriate previous artifact, and verify the installed pack matches the build. A build request alone is not a publishing request.

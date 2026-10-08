@@ -7,12 +7,12 @@ source "$script_dir/activate.sh"
 cd -- "$root"
 target=${1:-all}
 if (($# > 1)); then
-    printf 'Usage: bash tools/wsl/build.sh [all|archaon-everchosen|tamurkhan-chieftains]\n' >&2
+    printf 'Usage: bash tools/wsl/build.sh [all|archaon-everchosen|tamurkhan-chieftains|chaos-equipment]\n' >&2
     exit 2
 fi
 case "$target" in
-    all) targets=(archaon-everchosen tamurkhan-chieftains) ;;
-    archaon-everchosen|tamurkhan-chieftains) targets=("$target") ;;
+    all) targets=(archaon-everchosen tamurkhan-chieftains chaos-equipment) ;;
+    archaon-everchosen|tamurkhan-chieftains|chaos-equipment) targets=("$target") ;;
     *) printf 'Unknown mod: %s\n' "$target" >&2; exit 2 ;;
 esac
 command -v fennel >/dev/null
@@ -30,6 +30,9 @@ for mod in "${targets[@]}"; do
         mkdir -p -- "$stage/$(dirname -- "$relative")"
         cp -- "$asset" "$stage/$relative"
     done < <(find "$source_dir/assets" -type f ! -name .gitkeep -print0)
+    if [[ "$mod" == chaos-equipment ]]; then
+        python3 "$root/tools/generate-equipment.py" --vanilla "${EVERCHOSEN_VANILLA_DB:-$root/.local/vanilla}" --output "$stage"
+    fi
     count=0
     while IFS= read -r -d '' source; do
         relative=${source#"$source_dir/src/"}
