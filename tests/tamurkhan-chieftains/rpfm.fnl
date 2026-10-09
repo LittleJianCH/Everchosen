@@ -83,6 +83,40 @@
   (rpfm.assert_called :spawn_unique_agent_at_character
                      100 subtype (anchor:command_queue_index) true))
 
+;; Expected observations are supplied independently of the command mocks.
+;; This checks the adapter protocol, not the engine's equipment/rank changes.
+(local equipment
+       [[:wh3_dlc25_anc_talisman_icon_of_decay
+         :wh3_dlc25_anc_weapon_sword_of_filth]
+        [:wh3_dlc25_anc_talisman_unkind_taint]
+        [:wh3_dlc25_anc_talisman_virulent_boon]
+        [:wh3_dlc25_anc_talisman_reeking_talisman]
+        [:wh3_dlc25_anc_talisman_sigil_of_madness]
+        [:wh3_dlc25_anc_talisman_cursed_yhetee_jawbone]])
+(local traits
+       [:wh3_dlc25_trait_chieftain_kazyk_antitrait
+        :wh3_dlc25_trait_chieftain_werekin_antitrait
+        :wh3_dlc25_trait_chieftain_exalted_hero_antitrait
+        :wh3_dlc25_trait_chieftain_bray_shaman_antitrait
+        :wh3_dlc25_trait_chieftain_fimir_balefiend_antitrait
+        :wh3_dlc25_trait_chieftain_castellan_antitrait])
+
+(fn observe-initialization [hero index rank]
+  (let [observed {}]
+    (rpfm.mock hero :has_ancillary #(or (. observed $1) false))
+    (advance)
+    (each [_ key (ipairs (. equipment index))]
+      (rpfm.assert_called :force_add_ancillary hero key true true)
+      (tset observed key true)
+      (rpfm.advance_time 1.3))
+    (rpfm.assert_called :force_add_trait (lookup hero) (. traits index) true)
+    (rpfm.mock hero :trait_points #(if (= $1 (. traits index)) 1 0))
+    (rpfm.advance_time 1.3)
+    (when (> rank 1)
+      (rpfm.assert_called :level_up_agent_rank (lookup hero) (- rank 1)))
+    (rpfm.mock hero :rank rank)
+    (rpfm.advance_time 1.5)))
+
 (rpfm.test "without owned Tamurkhan no chieftain is requested"
   (fn []
     (advance)
@@ -96,25 +130,25 @@
       (rpfm.assert_not_called :force_add_ancillary)
       (rpfm.assert_not_called :force_add_trait)
       (let [hero (spawned (. heroes 1))]
-        (advance)
+        (observe-initialization hero 1 1)
         (rpfm.assert_called :force_add_ancillary hero
                            :wh3_dlc25_anc_talisman_icon_of_decay true true)
         (rpfm.assert_called :force_add_ancillary hero
                            :wh3_dlc25_anc_weapon_sword_of_filth true true)
         (rpfm.assert_called :force_add_trait (lookup hero)
                            :wh3_dlc25_trait_chieftain_kazyk_antitrait true)
-        (rpfm.assert_called :level_up_agent_rank (lookup hero) 1)
+        (rpfm.assert_not_called :level_up_agent_rank)
         (spawn-count 1)))))
 
 (rpfm.test "rank 25 fills six missing chieftains sequentially and caps initial rank at 7"
   (fn []
     (let [tam (add-tam 25)]
       (advance)
-      (each [_ subtype (ipairs heroes)]
+      (each [index subtype (ipairs heroes)]
         (request-for subtype tam)
         (let [hero (spawned subtype)]
-          (advance)
-          (rpfm.assert_called :level_up_agent_rank (lookup hero) 7)))
+          (observe-initialization hero index 7)
+          (rpfm.assert_called :level_up_agent_rank (lookup hero) 6)))
       (spawn-count 6)
       (rpfm.assert_equal (length (rpfm.calls_to :force_add_trait)) 6)
       (rpfm.assert_equal (length (rpfm.calls_to :force_add_ancillary)) 7)
@@ -168,8 +202,7 @@
       (advance)
       (request-for (. heroes 3) tam)
       (spawn-count 1)
-      (spawned (. heroes 3))
-      (advance)
+      (observe-initialization (spawned (. heroes 3)) 3 7)
       (spawn-count 1)
       (rpfm.fire :FactionTurnStart {:faction host})
       (advance)
@@ -208,8 +241,9 @@
       (for [_ 1 3] (rpfm.fire :CharacterRankUp {:character tam}))
       (advance)
       (spawn-count 1)
-      (spawn-event (spawned (. heroes 1)))
-      (advance)
+      (let [hero (spawned (. heroes 1))]
+        (spawn-event hero)
+        (observe-initialization hero 1 1))
       (spawn-count 1)
       (rpfm.assert_equal (length (rpfm.calls_to :force_add_ancillary)) 2))))
 
@@ -230,6 +264,7 @@
     (rpfm.fire :FactionTurnStart {:faction other})
     (advance)
     (spawn-count 1)
+    (set rpfm.world.turn (+ rpfm.world.turn 1))
     (rpfm.fire :FactionTurnStart {:faction host})
     (advance)
     (spawn-count 2)
@@ -240,8 +275,7 @@
     (add-tam 1)
     (advance)
     (rpfm.advance_time 5.1)
-    (spawned (. heroes 1))
-    (advance)
+    (observe-initialization (spawned (. heroes 1)) 1 1)
     (spawn-count 1)
     (rpfm.assert_equal (length (rpfm.calls_to :force_add_ancillary)) 2)))
 
@@ -260,3 +294,80 @@
       (rpfm.fire :MctFinalized)
       (advance)
       (request-for (. heroes 2) tam))))
+
+(local ticket-key :everchosen_tamurkhan_chieftains_active_ticket)
+
+(fn next-host-turn []
+  (set rpfm.world.turn (+ rpfm.world.turn 1))
+  (rpfm.fire :FactionTurnStart {:faction host})
+  (advance))
+
+(rpfm.test "failed trait initialization resumes without reissuing observed equipment"
+  (fn []
+    (add-tam 1)
+    (advance)
+    (rpfm.mock (GAME) :force_add_trait #(error "injected trait failure"))
+    (let [hero (spawned (. heroes 1))]
+      (advance)
+      ;; Supply an observed equipment result independently of the commands.
+      (rpfm.mock hero :has_ancillary true)
+      (rpfm.advance_time 5.1)
+      (rpfm.assert_equal (length (rpfm.calls_to :force_add_trait)) 1)
+      (let [equipment-count (length (rpfm.calls_to :force_add_ancillary))]
+        (rpfm.mock (GAME) :force_add_trait (fn []))
+        (next-host-turn)
+        (rpfm.assert_equal (length (rpfm.calls_to :force_add_trait)) 2)
+        (rpfm.assert_equal (length (rpfm.calls_to :force_add_ancillary))
+                           equipment-count)
+        (spawn-count 1)
+        ;; A successful command alone must not mark initialization complete.
+        (rpfm.assert_equal (type (cm:get_saved_value ticket-key)) :table)
+        (rpfm.mock hero :trait_points 1)
+        (rpfm.advance_time 1.3)
+        (rpfm.assert_equal (cm:get_saved_value ticket-key) false)
+        (spawn-count 1)))))
+
+(fn reload-mod []
+  ;; Exercise native saved-value serialization and fresh module locals.
+  ;; This is not a simulation of the engine's save/load lifecycle.
+  (let [saved (cm:saved_values_to_string)
+        first-tick cm.add_first_tick_callback]
+    (each [_ suffix (ipairs [:spawn :rank :turn :MctInitialized :MctFinalized
+                             :subjugation])]
+      (core:remove_listener (.. "everchosen_tamurkhan_chieftains_" suffix)))
+    (set cm.saved_values {})
+    (cm:load_values_from_string saved)
+    (set cm.add_first_tick_callback (fn [_ callback] (callback)))
+    (dofile "script/campaign/mod/everchosen_tamurkhan_chieftains.lua")
+    (set cm.add_first_tick_callback first-tick)))
+
+(rpfm.test "reload restores spawn and initialization without repeating uncertain commands"
+  (fn []
+    (let [tam (add-tam 4)]
+      (advance)
+      (rpfm.advance_time 5.1)
+      (reload-mod)
+      (advance)
+      (spawn-count 1)
+      (rpfm.mock tam :faction other)
+      (next-host-turn)
+      (spawn-count 1)
+      (rpfm.mock tam :faction host))
+    (let [hero (spawned (. heroes 1))]
+      (advance)
+      (rpfm.mock hero :has_ancillary true)
+      (rpfm.mock hero :trait_points 1)
+      (rpfm.advance_time 5.1)
+      (rpfm.assert_called :level_up_agent_rank (lookup hero) 3)
+      (rpfm.assert_equal (type (cm:get_saved_value ticket-key)) :table)
+      (reload-mod)
+      (advance)
+      (next-host-turn)
+      (rpfm.advance_time 5.1)
+      (rpfm.assert_equal (length (rpfm.calls_to :level_up_agent_rank)) 1)
+      (rpfm.assert_equal (type (cm:get_saved_value ticket-key)) :table)
+      (spawn-count 1)
+      (rpfm.mock hero :rank 4)
+      (next-host-turn)
+      (rpfm.assert_equal (cm:get_saved_value ticket-key) false)
+      (spawn-count 1))))

@@ -3,6 +3,18 @@
 (local data (include :everchosen_chieftains.data))
 (local rules (include :everchosen_chieftains.rules))
 
+(fn next-init-action [character hero target-rank]
+  "Next missing initialization result, or nil when all are observed."
+  ;; WH3 9.0.3: these are character queries in the Assembly Kit API docs.
+  (if (not (character:has_ancillary hero.ancillary))
+      {:kind :ancillary :key hero.ancillary}
+      (and hero.extra (not (character:has_ancillary hero.extra)))
+      {:kind :ancillary :key hero.extra}
+      (< (character:trait_points hero.trait) 1)
+      {:kind :trait :key hero.trait}
+      (< (character:rank) target-rank)
+      {:kind :experience :amount (- target-rank (character:rank))}))
+
 (fn valid? [object]
   (and object (not (object:is_null_interface))))
 
@@ -65,4 +77,4 @@
         (let [region (fallback-region faction)]
           (if (valid? region) {: region})))))
 
-{: valid? : items : ours? : owned : spawn-location}
+{: valid? : items : ours? : owned : spawn-location : next-init-action}

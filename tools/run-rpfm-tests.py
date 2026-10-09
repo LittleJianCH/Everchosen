@@ -85,7 +85,7 @@ def test_source(path, distribution):
     # Arguments are passed separately; paths are never interpolated into shell code.
     compiled=subprocess.run(
         ['wsl.exe','-d',distribution,'--exec','bash','-c',
-         'set -e; source "$1"; fennel --globals rpfm,GAME --correlate --compile "$2"',
+         'set -e; source "$1"; fennel --globals rpfm,GAME,cm,core --correlate --compile "$2"',
          'compile-test',activate,source],cwd=ROOT,
         check=True,capture_output=True).stdout.decode('utf-8')
     subprocess.run(['wsl.exe','-d',distribution,'--exec','luac5.1','-p','-'],

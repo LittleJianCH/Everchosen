@@ -1,55 +1,84 @@
-;;; Game-event adapter: keeps the host faction's chieftains at the target
-;;; count by spawning one missing hero at a time.
+;;; Game-event adapter: create and initialize one missing hero at a time.
 
 (local data (include :everchosen_chieftains.data))
 (local rules (include :everchosen_chieftains.rules))
 (local settings (include :everchosen_chieftains.settings))
 (local world (include :everchosen_chieftains.world))
+(local ticket-key (.. data.mod-key "_active_ticket"))
 
+;; Configuration can change when MCT finalizes its settings.
 (var config nil)
-;; The spawn in flight, as {: subtype : rank}. Only one runs at a time; it is
-;; an in-flight guard, not saved progression.
+;; The saved intent survives ordinary loads of this version's campaigns.
 (var pending nil)
+;; Runtime guards coalesce events and allow a command's result to settle.
 (var queued? false)
+(var waiting? false)
 
-;; Forward declaration: a finished spawn requests the next reconcile.
+;; Forward declaration: a confirmed result requests the next reconcile.
 (var request nil)
 
 (fn log [message]
   (out (.. "[" data.mod-key "] " message)))
 
+(fn keep-ticket [ticket]
+  (set pending ticket)
+  ;; Native 9.0.3 campaign_manager saves primitive tables automatically.
+  (cm:set_saved_value ticket-key (or ticket false)))
+
 (fn host-faction []
   (let [faction (cm:get_faction data.faction)]
     (if (world.valid? faction) faction)))
 
+(fn issue-init [character action]
+  (let [lookup (cm:char_lookup_str (character:command_queue_index))]
+    (if (= action.kind :ancillary)
+        (cm:force_add_ancillary character action.key true true)
+        (= action.kind :trait)
+        (cm:force_add_trait lookup action.key true 1)
+        ;; Native 9.0.3 wraps level_up_agent_rank: this is a level increment.
+        (cm:add_agent_experience lookup action.amount true))))
+
+(fn verify-init [ticket]
+  (when (= pending ticket)
+    (set waiting? false)
+    (request)))
+
 (fn initialize [character ticket]
   (let [hero (. rules.by-subtype ticket.subtype)
-        lookup (cm:char_lookup_str (character:command_queue_index))]
-    (cm:force_add_ancillary character hero.ancillary true true)
-    (when hero.extra
-      (cm:force_add_ancillary character hero.extra true true))
-    (cm:force_add_trait lookup hero.trait 1)
-    (cm:add_agent_experience lookup ticket.rank true)))
+        action (world.next-init-action character hero ticket.rank)
+        attempt ticket.attempt
+        turn (cm:turn_number)]
+    (if (not action)
+        (do (keep-ticket nil) (request))
+        (or (and (= action.kind :experience) ticket.rank-issued?)
+            (and attempt (= attempt.kind action.kind)
+                 (= attempt.key action.key) (= attempt.turn turn)))
+        (log (.. "Initialization awaiting observed " action.kind
+                 " result: " ticket.subtype))
+        (do
+          ;; Persist before issuing any command. Retry missing equipment or
+          ;; traits at most once per turn, including across save/load.
+          (set ticket.attempt {:kind action.kind :key action.key : turn})
+          ;; Level increments cannot be safely retried after an uncertain
+          ;; result, even if a command threw or the campaign was reloaded.
+          (when (= action.kind :experience)
+            (set ticket.rank-issued? true))
+          (keep-ticket ticket)
+          (set waiting? true)
+          (let [(ok? err) (pcall issue-init character action)]
+            (when (not ok?)
+              (log (.. "Initialization command failed: " (tostring err)))))
+          (cm:callback #(verify-init ticket) 1)))))
 
 (fn finish [character ticket]
-  (when (and (= pending ticket) (world.ours? character ticket.subtype))
-    ;; Keep the guard while initialization itself raises rank-up events.
-    (let [(ok? err) (pcall initialize character ticket)]
-      (set pending nil)
-      (if ok?
-          (request)
-          (log (.. "Chieftain initialization failed: " (tostring err)))))))
-
-(fn confirm [ticket]
-  (when (= pending ticket)
-    (let [owner (host-faction)
-          character (and owner (. (world.owned owner) ticket.subtype))]
-      (if character
-          (finish character ticket)
-          (do
-            ;; Preserve correlation with late spawn events until the next turn.
-            (set ticket.unconfirmed? true)
-            (log (.. "Spawn not confirmed: " ticket.subtype)))))))
+  (when (and (= pending ticket) (= ticket.phase :spawning)
+             (world.ours? character ticket.subtype))
+    (set ticket.phase :initializing)
+    ;; Initialization belongs to this character, not a later same-subtype
+    ;; transfer or replacement. Always re-query ownership before commands.
+    (set ticket.character-cqi (character:command_queue_index))
+    (keep-ticket ticket)
+    (request)))
 
 (fn issue-spawn [owner subtype location]
   (let [owner-cqi (owner:command_queue_index)]
@@ -59,45 +88,61 @@
         (cm:spawn_unique_agent_at_region
           owner-cqi subtype (location.region:cqi) true))))
 
-(fn spawn [owner subtype location rank]
-  (let [ticket {: subtype :rank (math.min data.spawn-rank-cap rank)}]
-    (set pending ticket)
-    (let [(ok? err) (pcall issue-spawn owner subtype location)]
-      (when (not ok?)
-        (log (.. "Spawn command failed: " (tostring err)))))
-    ;; The command has no success return; only the event/world confirms
-    ;; ownership.
-    (cm:callback #(confirm ticket) 5)))
+(fn confirm-spawn [ticket]
+  (when (and (= pending ticket) (= ticket.phase :spawning))
+    (request)))
+
+(fn spawn [owner ticket characters]
+  (let [turn (cm:turn_number)
+        ;; Restoring an intent must not bypass the host ownership rule.
+        location (and (. characters data.tamurkhan)
+                      (not= ticket.spawn-turn turn)
+                      (world.spawn-location owner characters))]
+    (when location
+      (set ticket.spawn-turn turn)
+      (keep-ticket ticket)
+      (let [(ok? err) (pcall issue-spawn owner ticket.subtype location)]
+        (when (not ok?)
+          (log (.. "Spawn command failed: " (tostring err)))))
+      ;; A command's return is not proof of ownership. Keep the saved intent
+      ;; for late events, loads, or a retry on a later host turn.
+      (cm:callback #(confirm-spawn ticket) 5))))
+
+(fn reconcile-ticket [owner characters ticket]
+  (let [character (. characters ticket.subtype)]
+    (if (= ticket.phase :spawning)
+        (if character
+            (finish character ticket)
+            (spawn owner ticket characters))
+        (when (and character (not waiting?)
+                   (= (character:command_queue_index) ticket.character-cqi))
+          (initialize character ticket)))))
 
 (fn reconcile []
-  (let [owner (and (not pending) (host-faction))
+  (let [owner (host-faction)
         characters (and owner (world.owned owner))
         tamurkhan (and characters (. characters data.tamurkhan))]
-    (when tamurkhan
-      (let [rank (tamurkhan:rank)
-            subtype (rules.next-missing rank config characters)
-            location (and subtype
-                          (world.spawn-location owner characters))]
-        (when location
-          (spawn owner subtype location rank))))))
+    (when owner
+      (if pending
+          (reconcile-ticket owner characters pending)
+          (when tamurkhan
+            (let [rank (tamurkhan:rank)
+                  subtype (rules.next-missing rank config characters)]
+              (when subtype
+                (let [ticket {: subtype :phase :spawning
+                              :rank (math.min data.spawn-rank-cap rank)}]
+                  (keep-ticket ticket)
+                  (spawn owner ticket characters)))))))))
 
 (set request
      (fn []
        (when (not queued?)
          (set queued? true)
-         ;; Native ownership transfers can finish after the triggering event.
+         ;; Native transfers and spawn events can precede settled ownership.
          (cm:callback (fn []
                         (set queued? false)
                         (reconcile))
                       0.2))))
-
-(fn expire-unconfirmed []
-  "Give an unconfirmed spawn one last check, then release the guard."
-  (when (and pending pending.unconfirmed?)
-    (let [ticket pending]
-      (confirm ticket)
-      (when (= pending ticket)
-        (set pending nil)))))
 
 (fn reload-config []
   (set config (settings.read))
@@ -110,22 +155,25 @@
 (fn start []
   (when (host-faction)
     (set config (settings.read))
+    (set pending (or (cm:get_saved_value ticket-key) nil))
     (listen :spawn :UniqueAgentSpawned
             (fn [context]
               (let [details (context:unique_agent_details)]
-                (and pending
+                (and pending (= pending.phase :spawning)
                      (world.ours? (details:character) pending.subtype))))
             (fn [context]
               (let [details (context:unique_agent_details)]
                 (finish (details:character) pending))))
     (listen :rank :CharacterRankUp
-            #(world.ours? ($1:character) data.tamurkhan)
+            (fn [context]
+              (let [character (context:character)]
+                (or (world.ours? character data.tamurkhan)
+                    (and pending
+                         (world.ours? character pending.subtype)))))
             #(request))
     (listen :turn :FactionTurnStart
             #(= (: ($1:faction) :name) data.faction)
-            (fn []
-              (expire-unconfirmed)
-              (request)))
+            #(request))
     (each [_ event (ipairs [:MctInitialized :MctFinalized])]
       (listen event event true reload-config))
     (listen :subjugation :ScriptEventArchaonSubjugatesChaosFaction true
