@@ -76,9 +76,7 @@
     (when tamurkhan
       (let [rank (tamurkhan:rank)
             subtype (rules.next-missing rank config characters)
-            ;; Do not clone a unique hero owned by another faction.
             location (and subtype
-                          (not (world.held-elsewhere? subtype))
                           (world.spawn-location owner characters))]
         (when location
           (spawn owner subtype location rank))))))

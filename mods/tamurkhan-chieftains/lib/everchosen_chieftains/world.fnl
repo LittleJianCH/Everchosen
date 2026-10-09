@@ -45,14 +45,6 @@
       (track (agent:character)))
     result))
 
-(fn held-elsewhere? [subtype]
-  (let [world (: (cm:model) :world)]
-    (accumulate [found false
-                 faction (items (world:faction_list))
-                 &until found]
-      (and (not= (faction:name) data.faction)
-           (not= nil (. (owned faction) subtype))))))
-
 (fn usable? [character]
   (and (valid? character) (not (character:is_wounded)) (character:has_region)))
 
@@ -73,4 +65,4 @@
         (let [region (fallback-region faction)]
           (if (valid? region) {: region})))))
 
-{: valid? : items : ours? : owned : held-elsewhere? : spawn-location}
+{: valid? : items : ours? : owned : spawn-location}
