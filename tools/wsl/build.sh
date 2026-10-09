@@ -30,8 +30,8 @@ for mod in "${targets[@]}"; do
         mkdir -p -- "$stage/$(dirname -- "$relative")"
         cp -- "$asset" "$stage/$relative"
     done < <(find "$source_dir/assets" -type f ! -name .gitkeep -print0)
-    if [[ "$mod" == chaos-equipment ]]; then
-        python3 "$root/tools/generate-equipment.py" --vanilla "${EVERCHOSEN_VANILLA_DB:-$root/.local/vanilla}" --output "$stage"
+    if [[ -f "$source_dir/generator/generate.py" ]]; then
+        python3 "$source_dir/generator/generate.py" --vanilla "${EVERCHOSEN_VANILLA_DB:-$root/.local/vanilla}" --output "$stage"
     fi
     count=0
     while IFS= read -r -d '' source; do
@@ -42,7 +42,7 @@ for mod in "${targets[@]}"; do
             exit 1
         fi
         mkdir -p -- "$(dirname -- "$destination")"
-        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals cm,core,out --compile "$source" > "$destination"
+        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals cm,core,out,common,nurgle_plagues --compile "$source" > "$destination"
         count=$((count + 1))
     done < <(find "$source_dir/src" -type f -name '*.fnl' -print0)
     # Check all Lua, including any deliberately authored Lua assets.

@@ -26,15 +26,32 @@ function Invoke-Rpfm([string[]]$Arguments) {
 
 try {
     $native = $null
-    if ($mods -contains 'chaos-equipment') {
-        if (-not $GameData) { throw 'Equipment packaging requires -GameData or WH3_DATA.' }
-        $gamePack = (Resolve-Path -LiteralPath (Join-Path $GameData 'db.pack')).Path
-        $native = Join-Path $work 'vanilla'
-        $extract = @('pack', 'extract', '-p', $gamePack, '-t', $Schema)
-        foreach ($table in @('ancillaries', 'faction_sets', 'faction_set_items', 'factions', 'cultures')) {
-            $extract += @('-F', "db/$($table)_tables;$native")
+    $inputs = @{}
+    foreach ($item in $mods) {
+        $generator = "mods/$item/generator/generate.py"
+        if (Test-Path -LiteralPath (Join-Path $projectRoot $generator)) {
+            Push-Location $projectRoot
+            try {
+                $inputDescription = & wsl.exe -d $Distribution --exec python3 $generator --print-inputs
+                if ($LASTEXITCODE -ne 0) { throw "Cannot read native inputs for $item." }
+            } finally { Pop-Location }
+            $requirements = ($inputDescription -join "`n") | ConvertFrom-Json -AsHashtable
+            foreach ($packName in $requirements.Keys) {
+                $inputs[$packName] = @($inputs[$packName]) + @($requirements[$packName])
+            }
         }
-        Invoke-Rpfm $extract
+    }
+    if ($inputs.Count) {
+        if (-not $GameData) { throw 'These generators require -GameData or WH3_DATA.' }
+        $native = Join-Path $work 'vanilla'
+        foreach ($packName in ($inputs.Keys | Sort-Object)) {
+            $gamePack = (Resolve-Path -LiteralPath (Join-Path $GameData $packName)).Path
+            $extract = @('pack', 'extract', '-p', $gamePack, '-t', $Schema)
+            foreach ($path in ($inputs[$packName] | Where-Object { $_ } | Sort-Object -Unique)) {
+                $extract += @('-F', "$path;$native")
+            }
+            Invoke-Rpfm $extract
+        }
     }
 
     & (Join-Path $PSScriptRoot 'build.ps1') -Mod $Mod -Distribution $Distribution -VanillaDb $native
