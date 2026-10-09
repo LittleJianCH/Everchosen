@@ -8,6 +8,11 @@
  :income-lock :everchosen_inheritance_infections_locked
  :nur-flag :everchosen_inheritance_unlocked_nur
  :tze-bundle :everchosen_inheritance_tze
+ :ui-controls {:button_nurgle_plagues :nur
+               :nurgle_infections_holder :nur
+               :button_changing_of_the_ways :tze
+               :button_great_game_rituals :gg
+               :dae_ascendant_race_holder :gg}
  :subcultures {:wh3_main_sc_sla_slaanesh :sla
                :wh3_main_sc_nur_nurgle :nur
                :wh3_main_sc_tze_tzeentch :tze

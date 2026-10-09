@@ -25,13 +25,14 @@
               (when (= god :gg)
                 (mechanics.record-ascendant))
               (mechanics.sync-income faction)
-              (mechanics.refresh-ui)
+              (mechanics.refresh-ui-after-layout)
               (log (.. "Unlocked " god " from " (source:name))))
             (log (.. "Setup failed for " god ": " (tostring err))))))))
 
 (fn check-lords []
   (let [faction (world.host)
-        config _G.archaon_subjugation_config]
+        environment (core:get_env)
+        config environment.archaon_subjugation_config]
     (when (and faction config)
       (let [owned (world.owned faction)]
         (each [source entry (pairs config.faction_key_to_leader_subtype_list)]
@@ -112,12 +113,16 @@
             vassalage-established? request)
     (listen :vassal_removed :NegativeDiplomaticEvent
             vassalage-broken? request)
-    (listen :ui :PanelClosedCampaign true mechanics.refresh-ui)
+    (listen :ui :PanelClosedCampaign true mechanics.refresh-ui-after-layout)
+    (listen :ui_open :PanelOpenedCampaign true
+            mechanics.refresh-ui-after-layout)
     (listen :ascendance :ScriptEventNewGodAscendant true mechanics.ascendance)
     (listen :battle_start :PendingBattle true mechanics.begin-battle)
     (listen :battle_end :BattleCompleted true mechanics.reward-battle)
     (core:add_static_object :everchosen_inheritance {: status})
     (portals.start)
-    (reconcile)))
+    (reconcile)
+    ;; The HUD may not exist until the first layout after campaign startup.
+    (cm:callback mechanics.refresh-ui 0.5)))
 
 {: prepare : start}

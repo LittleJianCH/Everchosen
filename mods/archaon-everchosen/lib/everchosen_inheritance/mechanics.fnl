@@ -46,13 +46,17 @@
 (fn install []
   (plagues.install)
   (when (not native-has-manifestations)
-    (set native-has-manifestations _G.faction_has_great_game_rituals)
-    (set native-unlock-manifestations _G.unlock_gg_rituals)
-    (assert (and (= (type native-has-manifestations) :function)
-                 (= (type native-unlock-manifestations) :function))
-            "Native manifestation functions unavailable")
-    (set _G.faction_has_great_game_rituals has-manifestations)
-    (set _G.unlock_gg_rituals unlock-manifestations)))
+    ;; CA's campaign functions belong to its script environment, not _G.
+    (let [environment (core:get_env)
+          has-rituals environment.faction_has_great_game_rituals
+          unlock-rituals environment.unlock_gg_rituals]
+      (assert (and (= (type has-rituals) :function)
+                   (= (type unlock-rituals) :function))
+              "Native manifestation functions unavailable")
+      (set native-has-manifestations has-rituals)
+      (set native-unlock-manifestations unlock-rituals)
+      (set environment.faction_has_great_game_rituals has-manifestations)
+      (set environment.unlock_gg_rituals unlock-manifestations))))
 
 (fn apply [faction god]
   "First acquisition only. Never run this as a save/load restore routine."
@@ -75,7 +79,18 @@
   (when (world.host)
     (each [_ god (ipairs data.gods)]
       (common.set_context_value (.. data.prefix "ui_" god)
-                                (if (unlocked? god) 1 0)))))
+                                (if (unlocked? god) 1 0)))
+    ;; Native HUD layout can show DB-enabled controls before the context gate
+    ;; updates. Touch only our five controls, leaving native button states alone.
+    (let [root (core:get_ui_root)]
+      (when root
+        (each [id god (pairs data.ui-controls)]
+          (let [component (find_uicomponent root id)]
+            (when component (component:SetVisible (unlocked? god)))))))))
+
+(fn refresh-ui-after-layout []
+  (refresh-ui)
+  (cm:callback refresh-ui 0.2))
 
 (fn ascendant-god []
   (or (cm:get_saved_value :great_game_ascendant_god) false))
@@ -113,5 +128,6 @@
   ;; This persisted guard survives the battle's campaign-script reload.
   (cm:set_saved_value rewarded-key false))
 
-{: unlocked? : apply : install : refresh-ui : sync-income : record-ascendant
+{: unlocked? : apply : install : refresh-ui : refresh-ui-after-layout
+ : sync-income : record-ascendant
  : ascendance : reward-battle : begin-battle}

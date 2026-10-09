@@ -18,6 +18,7 @@ local function sandbox(saved, player)
     s.effects = {[host] = s.bundles}
     s.nodes = {}
     s.province = "wh3_main_combi_province_albion"
+    s.ui = {}
     local function record(kind, value)
         s.calls[#s.calls + 1] = {kind, value}
     end
@@ -28,6 +29,19 @@ local function sandbox(saved, player)
         end
         return count
     end
+    function s:create_hud()
+        for _, id in ipairs({"button_nurgle_plagues",
+            "button_changing_of_the_ways", "button_great_game_rituals",
+            "nurgle_infections_holder", "dae_ascendant_race_holder"}) do
+            local component = {visible = true, state = "inactive"}
+            function component:SetVisible(visible)
+                self.visible = visible
+                record("visibility", id)
+            end
+            self.ui[id] = component
+        end
+    end
+    s:create_hud()
     function s:faction(key, subculture)
         local f = {key = key, sc = subculture, absorbed_by = nil}
         function f:is_null_interface() return false end
@@ -173,19 +187,24 @@ local function sandbox(saved, player)
         end,
     }
     local env = setmetatable({cm = cm, core = {
+        get_ui_root = function() return s.ui end,
         add_listener = function(_, key, event, condition, callback)
             s.listeners[key] = {event, condition, callback}
         end,
         add_static_object = function(_, key, value) s.objects[key] = value end,
         get_static_object = function(_, key) return s.objects[key] end,
     }, common = {set_context_value = function(key, value) s.contexts[key] = value end},
+        find_uicomponent = function(root, id) return root[id] end,
         out = function(value) s.logs[#s.logs + 1] = value end,
         archaon_subjugation_config = {faction_key_to_leader_subtype_list = {
             wh3_dlc20_chs_festus = {subtype_key = "wh3_dlc20_nur_festus"},
             wh3_dlc20_chs_vilitch = {subtype_key = "wh3_dlc20_tze_vilitch"},
             wh3_main_chs_shadow_legion = {subtype_key = "wh3_main_dae_belakor"},
         }}}, {__index = _G})
-    env._G = env
+    -- CA loads campaign/mod chunks into core:get_env(), not the Lua registry.
+    -- lib_campaign_manager exposes that environment as _G.campaign_env.
+    env._G = setmetatable({campaign_env = env}, {__index = _G})
+    env.core.get_env = function() return env end
     -- Fennel's include bundles loaders in package.preload. Each simulated
     -- campaign session has a fresh module cache, just like a new Lua state.
     env.package = {preload = {}, loaded = {}}
@@ -205,6 +224,7 @@ local function sandbox(saved, player)
         for _, fn in ipairs(self.pre_first) do fn() end
         env.nurgle_plagues:initialise()
         for _, fn in ipairs(self.first) do fn() end
+        if self.late_hud then self:create_hud() end
         self:flush()
     end
     function s:emit(event, context)
@@ -241,6 +261,35 @@ local function sandbox(saved, player)
 end
 
 describe("Archaon inheritance", function()
+    it("hides unearned HUD controls after layout and opens each earned mechanic", function()
+        local s = sandbox()
+        s.ui, s.late_hud = {}, true
+        s:start()
+        for _, component in pairs(s.ui) do assert.is_false(component.visible) end
+        s:own("wh3_dlc20_nur_festus"); s:turn()
+        assert.is_true(s.ui.button_nurgle_plagues.visible)
+        assert.is_true(s.ui.nurgle_infections_holder.visible)
+        assert.is_false(s.ui.button_changing_of_the_ways.visible)
+        assert.is_false(s.ui.button_great_game_rituals.visible)
+        assert.is_false(s.ui.dae_ascendant_race_holder.visible)
+        s:create_hud() -- A panel/layout refresh reapplied the native defaults.
+        s:emit("PanelClosedCampaign", {})
+        assert.is_true(s.ui.button_nurgle_plagues.visible)
+        assert.is_false(s.ui.button_changing_of_the_ways.visible)
+        assert.is_false(s.ui.button_great_game_rituals.visible)
+        s:own("wh3_dlc20_tze_vilitch"); s:turn()
+        assert.is_true(s.ui.button_changing_of_the_ways.visible)
+        assert.is_false(s.ui.button_great_game_rituals.visible)
+        s:own("wh3_main_dae_belakor"); s:turn()
+        assert.is_true(s.ui.button_great_game_rituals.visible)
+        assert.is_true(s.ui.dae_ascendant_race_holder.visible)
+        local loaded = s:reload()
+        for _, component in pairs(loaded.ui) do
+            assert.is_true(component.visible)
+            assert.equals("inactive", component.state) -- Keep native cooldown/turn locks.
+        end
+    end)
+
     it("requires verified ownership, counts wounded lords and unlocks once", function()
         local s = sandbox(); s:start()
         assert.is_false(s.env.faction_has_great_game_rituals(s.factions[host]))
@@ -295,6 +344,9 @@ describe("Archaon inheritance", function()
         s:own("wh3_dlc20_nur_festus"); s:turn()
         local manager = s.env.nurgle_plagues
         local info = manager.plague_faction_info[host]
+        assert.equals(18, #s.contexts["random_plague_component_list_" .. host])
+        assert.equals(3, s.contexts["random_plague_creation_count_" .. host])
+        assert.equals(1, s.contexts[prefix .. "ui_nur"])
         assert.equals(47, s.balances.wh3_main_nur_infections)
         assert.is_nil(s.bundles[prefix .. "infections_locked"])
         assert.equals(2, s:count("component"))
@@ -304,6 +356,9 @@ describe("Archaon inheritance", function()
         info = loaded.env.nurgle_plagues.plague_faction_info[host]
         assert.equals(1, info.plague_creation_counter)
         assert.equals("saved_recipe", info.current_symptoms_list[1])
+        assert.equals("saved_recipe",
+            loaded.contexts["random_plague_component_list_" .. host][1])
+        assert.equals(1, loaded.contexts["random_plague_creation_count_" .. host])
         assert.equals(0, loaded:count("component"))
         assert.equals(47, loaded.balances.wh3_main_nur_infections)
         manager = loaded.env.nurgle_plagues
@@ -359,6 +414,7 @@ describe("Archaon inheritance", function()
             assert.equals(0, s:count("features"))
             assert.is_nil(s.bundles[prefix .. "infections_locked"])
             assert.equals(0, s:count("portal"))
+            assert.equals(0, s:count("visibility"))
         end
     end)
 
