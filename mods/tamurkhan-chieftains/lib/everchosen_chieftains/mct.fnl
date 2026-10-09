@@ -2,28 +2,31 @@
 (local rules (include :everchosen_chieftains.rules))
 (local settings (include :everchosen_chieftains.settings))
 
+;; MCT resolves these keys through .loc, allowing text-only translations.
+(fn text-key [suffix] (.. "mct_" data.mod-key "_" suffix))
+
 (fn add-level-options [mod]
-  (mod:add_new_section :levels "Target count / 目标人数")
+  (mod:add_new_section :levels (text-key :levels_section_text))
   ;; The first chieftain has no rank requirement, so it has no option.
   (for [slot 2 (length data.heroes)]
-    (let [option (mod:add_new_option (rules.level-key slot) :slider)]
-      (option:set_text (.. "Chieftain " slot " rank / 第 " slot " 名酋长等级"))
-      (option:set_tooltip_text
-        "Rank thresholds determine total count, not hero identity. Equal thresholds unlock multiple slots; the first slot has no rank requirement.\n阈值决定总人数，不绑定英雄；相同阈值同时解锁，首名无等级要求。")
+    (let [key (rules.level-key slot)
+          option (mod:add_new_option key :slider)]
+      (option:set_text (text-key (.. key "_text")))
+      (option:set_tooltip_text (text-key :levels_tooltip))
       (option:slider_set_min_max 1 data.max-rank)
       (option:slider_set_step_size 1)
       (option:slider_set_precision 0)
       (option:set_default_value (. data.levels slot)))))
 
 (fn add-priority-options [mod]
-  (mod:add_new_section :priority "Recruitment priority / 补充顺序")
+  (mod:add_new_section :priority (text-key :priority_section_text))
   (let [choices (icollect [_ hero (ipairs data.heroes)]
-                  {:key hero.subtype :text hero.name})]
+                  {:key hero.subtype :text hero.name-key})]
     (each [slot hero (ipairs data.heroes)]
-      (let [option (mod:add_new_option (rules.priority-key slot) :dropdown)]
-        (option:set_text (.. "Priority " slot " / 优先级 " slot))
-        (option:set_tooltip_text
-          "Duplicates keep their first position; omitted heroes follow in default order.\n重复项保留首次位置，遗漏英雄按默认顺序补在末尾。")
+      (let [key (rules.priority-key slot)
+            option (mod:add_new_option key :dropdown)]
+        (option:set_text (text-key (.. key "_text")))
+        (option:set_tooltip_text (text-key :priority_tooltip))
         (option:add_dropdown_values choices)
         (option:set_default_value hero.subtype)))))
 
@@ -31,9 +34,8 @@
   (let [mct (settings.get-mct)]
     (when mct
       (let [mod (mct:register_mod data.mod-key)]
-        (mod:set_title "Tamurkhan Chieftain Progression / 塔木尔汗酋长成长")
-        (mod:set_description
-          "Tamurkhan's rank determines Archaon's target chieftain count. Wounded heroes count; only missing heroes are added.\n塔木尔汗等级决定艾查恩应拥有的酋长人数。受伤酋长计入人数，只补缺、不删除。")
+        (mod:set_title (text-key :title))
+        (mod:set_description (text-key :description))
         (add-level-options mod)
         (add-priority-options mod)))))
 
