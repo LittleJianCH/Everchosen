@@ -1,0 +1,4 @@
+member	context	max_range	min_range
+#campaign_group_member_criteria_numeric_ranges_tables;1;db/campaign_group_member_criteria_numeric_ranges_tables/everchosen_inheritance			
+everchosen_inheritance_nur_active	VALUE	1	1
+everchosen_inheritance_captive	VALUE	1	1

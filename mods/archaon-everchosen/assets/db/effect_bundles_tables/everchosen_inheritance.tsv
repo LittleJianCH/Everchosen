@@ -1,0 +1,8 @@
+key	localised_description	localised_title	bundle_target	priority	ui_icon	is_global_effect	show_in_3d_space	owner_only
+#effect_bundles_tables;4;db/effect_bundles_tables/everchosen_inheritance								
+everchosen_inheritance_vassal_sla			faction	10		false	false	true
+everchosen_inheritance_vassal_nur			faction	10		false	false	true
+everchosen_inheritance_vassal_kho			faction	10		false	false	true
+everchosen_inheritance_vassal_tze			faction	10		false	false	true
+everchosen_inheritance_infections_locked			faction	0		false	false	true
+everchosen_inheritance_tze			faction	0		false	false	true
