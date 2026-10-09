@@ -33,11 +33,10 @@
   (let [host (world.host)]
     (when host
       (let [tracked (or (cm:get_saved_value recipients-key) {})
-            generated (core:get_static_object :everchosen_inheritance_data)
-            factions (: (: (cm:model) :world) :faction_list)]
+            generated (core:get_static_object :everchosen_inheritance_data)]
         ;; Include extinct former recipients when removing our effects.
         (cm:set_saved_value recipients-key
-          (collect [faction (world.items factions)]
+          (collect [faction (world.factions)]
             (when (and (world.valid? faction)
                        (or (. tracked (faction:name))
                            (eligible? faction host)))

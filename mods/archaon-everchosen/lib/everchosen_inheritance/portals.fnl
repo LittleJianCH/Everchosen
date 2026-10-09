@@ -4,8 +4,9 @@
 (local opened-key (.. data.prefix "starting_portal"))
 
 (fn network [config]
-  (: (: (: (cm:model) :world) :teleportation_network_system)
-     :lookup_network config.network))
+  (let [game-world (world.game-world)
+        system (game-world:teleportation_network_system)]
+    (system:lookup_network config.network)))
 
 (fn opened? [config key]
   (let [net (network config)]

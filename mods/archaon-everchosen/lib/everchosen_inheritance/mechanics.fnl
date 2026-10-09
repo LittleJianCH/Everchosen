@@ -7,6 +7,9 @@
 (var native-has-manifestations nil)
 (var native-unlock-manifestations nil)
 
+(local ascendant-key (.. data.prefix "ascendant"))
+(local rewarded-key (.. data.prefix "battle_rewarded"))
+
 (fn unlocked? [god]
   (= true (cm:get_saved_value (rules.state-key god))))
 
@@ -74,36 +77,41 @@
       (common.set_context_value (.. data.prefix "ui_" god)
                                 (if (unlocked? god) 1 0)))))
 
+(fn ascendant-god []
+  (or (cm:get_saved_value :great_game_ascendant_god) false))
+
+(fn record-ascendant []
+  "Remember which god the manifestation rituals were last synced for."
+  (cm:set_saved_value ascendant-key (ascendant-god)))
+
 (fn ascendance []
   (let [faction (world.host)
-        ascendant (or (cm:get_saved_value :great_game_ascendant_god) false)
-        key (.. data.prefix "ascendant")]
+        ascendant (ascendant-god)]
     ;; Repeated events and ordinary loads do not reopen ritual locks.
     (when (and faction (unlocked? :gg)
-               (not= ascendant (cm:get_saved_value key)))
+               (not= ascendant (cm:get_saved_value ascendant-key)))
       (sync-manifestations faction)
-      (cm:set_saved_value key ascendant))))
+      (cm:set_saved_value ascendant-key ascendant))))
 
 (fn defeated-culture? [culture]
   (cm:pending_battle_cache_faction_won_battle_against_culture
     data.host culture))
 
 (fn reward-battle []
-  (let [key (.. data.prefix "battle_rewarded")]
-    (when (and (world.host) (unlocked? :gg)
-               (not (cm:get_saved_value key))
-               (cm:pending_battle_cache_faction_won_battle data.host))
-      (let [index (accumulate [found nil i culture (ipairs data.cultures)
-                              &until found]
-                    (if (defeated-culture? culture) i))]
-        (when index
-          (cm:faction_add_pooled_resource
-            data.host (.. (rules.manifestation-key index) "_uses") :other 1)
-          (cm:set_saved_value key true))))))
+  (when (and (world.host) (unlocked? :gg)
+             (not (cm:get_saved_value rewarded-key))
+             (cm:pending_battle_cache_faction_won_battle data.host))
+    (let [index (accumulate [found nil i culture (ipairs data.cultures)
+                            &until found]
+                  (if (defeated-culture? culture) i))]
+      (when index
+        (cm:faction_add_pooled_resource
+          data.host (.. (rules.manifestation-key index) "_uses") :other 1)
+        (cm:set_saved_value rewarded-key true)))))
 
 (fn begin-battle []
   ;; This persisted guard survives the battle's campaign-script reload.
-  (cm:set_saved_value (.. data.prefix "battle_rewarded") false))
+  (cm:set_saved_value rewarded-key false))
 
-{: unlocked? : apply : install : refresh-ui : sync-income : ascendance
- : reward-battle : begin-battle}
+{: unlocked? : apply : install : refresh-ui : sync-income : record-ascendant
+ : ascendance : reward-battle : begin-battle}

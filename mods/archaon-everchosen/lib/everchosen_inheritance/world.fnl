@@ -11,6 +11,15 @@
     (set index (+ index 1))
     (if (< index (list:num_items)) (list:item_at index))))
 
+(fn game-world []
+  (let [model (cm:model)]
+    (model:world)))
+
+(fn factions []
+  "Iterate every faction in the campaign, living or dead."
+  (let [model-world (game-world)]
+    (items (model-world:faction_list))))
+
 (fn host? [faction]
   (and (valid? faction) (= (faction:name) data.host)
        (faction:is_human) (= (cm:get_campaign_name) data.campaign)
@@ -33,4 +42,5 @@
     (assert (valid? value) (.. "Missing inherited resource: " key))
     value))
 
-{: valid? : items : host? : host : owned : resource}
+{: valid? : items : game-world : factions : host? : host : owned
+ : resource}

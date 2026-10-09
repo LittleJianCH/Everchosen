@@ -5,6 +5,8 @@
 (local blessings (include :everchosen_inheritance.blessings))
 (local portals (include :everchosen_inheritance.portals))
 
+(local pending-key (.. data.prefix "pending_confederations"))
+
 ;; Guards listener registration within this script session.
 (var started? false)
 
@@ -21,9 +23,7 @@
             (do
               (cm:set_saved_value (rules.state-key god) true)
               (when (= god :gg)
-                (cm:set_saved_value (.. data.prefix "ascendant")
-                                    (or (cm:get_saved_value
-                                          :great_game_ascendant_god) false)))
+                (mechanics.record-ascendant))
               (mechanics.sync-income faction)
               (mechanics.refresh-ui)
               (log (.. "Unlocked " god " from " (source:name))))
@@ -39,15 +39,14 @@
             (unlock (cm:get_faction source))))))))
 
 (fn check-confederations []
-  (let [key (.. data.prefix "pending_confederations")
-        pending (or (cm:get_saved_value key) {})]
+  (let [pending (or (cm:get_saved_value pending-key) {})]
     (each [source _ (pairs pending)]
       (let [faction (cm:get_faction source)]
         (when (and (world.valid? faction)
                    (faction:was_confederated_by_faction (world.host)))
           (unlock faction))))
     ;; Retain only requests whose corresponding mechanic is not yet acquired.
-    (cm:set_saved_value key
+    (cm:set_saved_value pending-key
       (collect [source _ (pairs pending)]
         (let [faction (cm:get_faction source)
               god (and (world.valid? faction)
@@ -72,10 +71,9 @@
   (let [source (context:faction)
         god (rules.classify (source:name) (source:subculture))]
     (when god
-      (let [key (.. data.prefix "pending_confederations")
-            pending (or (cm:get_saved_value key) {})]
+      (let [pending (or (cm:get_saved_value pending-key) {})]
         (tset pending (source:name) true)
-        (cm:set_saved_value key pending)
+        (cm:set_saved_value pending-key pending)
         (request)))))
 
 (fn listen [suffix event condition callback]
@@ -93,7 +91,7 @@
 
 (fn status []
   (collect [_ god (ipairs data.gods)]
-    (values god (mechanics.unlocked? god))))
+    god (mechanics.unlocked? god)))
 
 (fn prepare []
   ;; CA initializes its managers on first tick. Register adapters before that
