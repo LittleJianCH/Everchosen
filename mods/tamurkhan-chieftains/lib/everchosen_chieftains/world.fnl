@@ -1,52 +1,76 @@
+;;; Queries against the campaign model.
+
 (local data (include :everchosen_chieftains.data))
 (local rules (include :everchosen_chieftains.rules))
 
-(fn valid [object] (and object (not (object:is_null_interface))))
+(fn valid? [object]
+  (and object (not (object:is_null_interface))))
+
+(fn items [list]
+  "Iterate a game list interface, which is zero-indexed."
+  (let [count (list:num_items)]
+    (var index -1)
+    (fn []
+      (set index (+ index 1))
+      (if (< index count) (list:item_at index)))))
+
+(fn faction-key [character]
+  (: (character:faction) :name))
+
+(fn ours? [character subtype]
+  "Whether CHARACTER is a SUBTYPE currently owned by the host faction."
+  (and (valid? character)
+       (= (faction-key character) data.faction)
+       (= (character:character_subtype_key) subtype)))
+
+(fn tracked? [subtype]
+  (or (not= nil (. rules.by-subtype subtype))
+      (= subtype data.tamurkhan)
+      (= subtype data.archaon)))
 
 (fn owned [faction]
-  (local result {})
-  (fn include-character [character]
-    (when (and (valid character)
-               (= (: (character:faction) :name) (faction:name)))
-      (local subtype (character:character_subtype_key))
-      (when (or (. rules.by-subtype subtype)
-                (= subtype data.tamurkhan) (= subtype data.archaon))
-        (tset result subtype character))))
-  ;; Wounded characters count; an unlocked registry entry without a character does not.
-  (local characters (faction:character_list))
-  (for [i 0 (- (characters:num_items) 1)]
-    (include-character (characters:item_at i)))
-  (local agents (faction:unique_agents))
-  (for [i 0 (- (agents:num_items) 1)]
-    (include-character (: (agents:item_at i) :character)))
-  result)
+  "Map each tracked subtype key to the character FACTION owns."
+  (let [key (faction:name)
+        result {}]
+    (fn track [character]
+      (when (and (valid? character) (= (faction-key character) key))
+        (let [subtype (character:character_subtype_key)]
+          (when (tracked? subtype)
+            (tset result subtype character)))))
+    ;; Wounded characters count; an unlocked registry entry without a
+    ;; character does not.
+    (each [character (items (faction:character_list))]
+      (track character))
+    (each [agent (items (faction:unique_agents))]
+      (track (agent:character)))
+    result))
 
 (fn held-elsewhere? [subtype]
-  (local factions (: (: (cm:model) :world) :faction_list))
-  (var found false)
-  (for [i 0 (- (factions:num_items) 1) &until found]
-    (local faction (factions:item_at i))
-    (when (and (not= (faction:name) data.faction)
-               (. (owned faction) subtype))
-      (set found true)))
-  found)
+  (let [world (: (cm:model) :world)]
+    (accumulate [found false
+                 faction (items (world:faction_list))
+                 &until found]
+      (and (not= (faction:name) data.faction)
+           (not= nil (. (owned faction) subtype))))))
 
 (fn usable? [character]
-  (and (valid character) (not (character:is_wounded)) (character:has_region)))
+  (and (valid? character) (not (character:is_wounded)) (character:has_region)))
+
+(fn fallback-region [faction]
+  (let [home (faction:home_region)
+        regions (faction:region_list)]
+    (if (and (valid? home) (= (: (home:owning_faction) :name) data.faction))
+        home
+        (> (regions:num_items) 0)
+        (regions:item_at 0))))
 
 (fn spawn-location [faction characters]
-  (local tamurkhan (. characters data.tamurkhan))
-  (local archaon (. characters data.archaon))
-  (if (usable? tamurkhan) {:character tamurkhan}
-      (usable? archaon) {:character archaon}
-      (do
-        (local home (faction:home_region))
-        (local regions (faction:region_list))
-        (local region
-          (if (and (valid home) (= (: (home:owning_faction) :name) data.faction))
-              home
-              (> (regions:num_items) 0) (regions:item_at 0)
-              nil))
-        (and (valid region) {: region}))))
+  "Where a new chieftain can appear: {: character}, {: region}, or nil."
+  (let [tamurkhan (. characters data.tamurkhan)
+        archaon (. characters data.archaon)]
+    (if (usable? tamurkhan) {:character tamurkhan}
+        (usable? archaon) {:character archaon}
+        (let [region (fallback-region faction)]
+          (if (valid? region) {: region})))))
 
-{: valid : owned : held-elsewhere? : spawn-location}
+{: valid? : items : ours? : owned : held-elsewhere? : spawn-location}

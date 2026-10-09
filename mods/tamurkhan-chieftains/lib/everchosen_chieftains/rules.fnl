@@ -1,43 +1,60 @@
+;;; Pure progression rules: no game interfaces are touched here.
+
 (local data (include :everchosen_chieftains.data))
-(local by-subtype {})
-(each [_ hero (ipairs data.heroes)] (tset by-subtype hero.subtype hero))
+
+(local by-subtype (collect [_ hero (ipairs data.heroes)] hero.subtype hero))
+
+;; Option keys shared by the MCT registration and the settings reader.
+(fn level-key [slot] (.. "level_" slot))
+(fn priority-key [slot] (.. "priority_" slot))
+
+(fn clamp-rank [value fallback]
+  (let [number (tonumber value)
+        ;; NaN is the only number that differs from itself.
+        rank (if (and number (= number number)) number fallback)]
+    (math.max 1 (math.min data.max-rank (math.floor rank)))))
+
+(fn thresholds [setting]
+  "Sorted ranks at which each chieftain slot unlocks; the first is free."
+  (let [levels (fcollect [slot 2 (length data.heroes) &into [0]]
+                 (let [fallback (. data.levels slot)]
+                   (clamp-rank (setting (level-key slot) fallback) fallback)))]
+    (table.sort levels)
+    levels))
+
+(fn priority-order [setting]
+  "Every hero subtype once: configured choices first, then the defaults."
+  (let [order []
+        seen {}]
+    (fn add [subtype]
+      (when (and (. by-subtype subtype) (not (. seen subtype)))
+        (table.insert order subtype)
+        (tset seen subtype true)))
+    (each [slot hero (ipairs data.heroes)]
+      (add (setting (priority-key slot) hero.subtype)))
+    (each [_ hero (ipairs data.heroes)]
+      (add hero.subtype))
+    order))
 
 (fn configure [setting]
-  (local levels [0])
-  (for [i 2 (# data.heroes)]
-    (local fallback (. data.levels i))
-    (var rank (tonumber (setting (.. :level_ i) fallback)))
-    (when (or (not rank) (not= rank rank)) (set rank fallback))
-    (tset levels i (math.max 1 (math.min 25 (math.floor rank)))))
-  (table.sort levels)
-  (local priority [])
-  (local seen {})
-  (fn append [subtype]
-    (when (and (. by-subtype subtype) (not (. seen subtype)))
-      (table.insert priority subtype)
-      (tset seen subtype true)))
-  (each [i hero (ipairs data.heroes)]
-    (append (setting (.. :priority_ i) hero.subtype)))
-  (each [_ hero (ipairs data.heroes)] (append hero.subtype))
-  {: levels : priority})
+  "Build a config from SETTING, a function of an option key and its fallback."
+  {:levels (thresholds setting) :priority (priority-order setting)})
 
 (fn target-count [rank levels]
-  (var count 0)
-  (each [_ threshold (ipairs levels)]
-    (when (>= rank threshold) (set count (+ count 1))))
-  count)
+  (accumulate [count 0 _ threshold (ipairs levels)]
+    (if (>= rank threshold) (+ count 1) count)))
+
+(fn owned-count [owned]
+  (accumulate [count 0 _ hero (ipairs data.heroes)]
+    (if (. owned hero.subtype) (+ count 1) count)))
 
 (fn next-missing [rank config owned]
-  (var count 0)
-  (each [_ hero (ipairs data.heroes)]
-    (when (. owned hero.subtype) (set count (+ count 1))))
-  (if (< count (target-count rank config.levels))
-      (do
-        (var missing nil)
-        (each [_ subtype (ipairs config.priority)]
-          (when (and (not missing) (not (. owned subtype)))
-            (set missing subtype)))
-        missing)
-      nil))
+  "The subtype to add next, or nil once the target count is met.
+OWNED maps subtype keys to characters."
+  (if (< (owned-count owned) (target-count rank config.levels))
+      (accumulate [missing nil _ subtype (ipairs config.priority)
+                   &until missing]
+        (if (. owned subtype) nil subtype))))
 
-{: configure : target-count : next-missing : by-subtype}
+{: by-subtype : level-key : priority-key : configure : target-count
+ : next-missing}

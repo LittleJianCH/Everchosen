@@ -2,7 +2,7 @@
 
 ## Repository and product boundaries
 
-This repository contains Total War: WARHAMMER III mods. Use the neighboring `../Everchosen/` workspace as technical reference material; do not import its implementation wholesale.
+This repository contains Total War: WARHAMMER III mods. The earlier prototype workspace, referred to below as `../Everchosen/`, is technical reference material and not part of this repository. Do not import its implementation wholesale; when it is absent from a checkout, do not guess at its contents.
 
 | Product | Source directory |
 | --- | --- |
@@ -13,6 +13,7 @@ This repository contains Total War: WARHAMMER III mods. Use the neighboring `../
 - Equipment eligibility covers Khorne, Nurgle, Tzeentch, Slaanesh, Norsca, Beastmen, and Chaos Dwarfs, and adds Warriors of Chaos culture eligibility for weapons, armour, talismans, enchanted/arcane items, and mounts. Preserve native access and character/skill/rank restrictions; do not grant items or bypass acquisition quests. Keep this data patch out of the other products.
 - Keep all other gameplay in the main mod, including blessings, subjugation, portals, Beastmen hordes, and Norscan outposts. Split out another submod only when the user explicitly selects it; future submods stay in this repository.
 - Give each product distinct build outputs and packaging boundaries. A separate submod does not by itself imply a dependency on the main mod. Define dependencies and coexistence when implementing them, and prevent duplicate listeners or rewards when both packs are loaded.
+- Equipment eligibility and chieftain progression are independently loadable. Enable the equipment submod alongside progression when chieftains in Warriors of Chaos need their native equipment permissions; do not duplicate the permission patch in progression.
 - Share helpers when needed, without duplicating gameplay or building a general framework ahead of requirements.
 - Do not add a README unless requested.
 - Do not record development progress, completion status, task checklists, session summaries, handoff notes, or temporary next steps in repository files, including documentation and code comments. Keep progress reports in the conversation. Repository guidance should describe durable rules, design decisions, usage contracts, and technical evidence with its limits.
@@ -30,18 +31,33 @@ Normal saving and loading within a campaign created with the current version rem
 
 - Write new campaign logic in **Fennel**, compile ahead of time to **Lua 5.1-compatible source**, and package the generated Lua with DB, localization, and UI assets. Players must not need Fennel or development dependencies.
 - Use WSL 2 Ubuntu with a normal user account. The Lua 5.1 dependency tree is `~/.local/share/everchosen/lua51`; activate it with `source tools/wsl/activate.sh`. Setup/check scripts and pinned dependency versions are maintained in `tools/wsl/`. Build the mods with `tools/build.ps1` from PowerShell or `bash tools/wsl/build.sh` from WSL; this stages pack contents without creating or installing a `.pack`. Check relevant tools before changing the environment; do not reinstall it by default.
-- Equipment eligibility and chieftain progression are independently loadable. Enable the equipment submod alongside progression when chieftains in Warriors of Chaos need their native equipment permissions; do not duplicate the permission patch in progression.
 - Package in PowerShell 7 with `tools/package.ps1 -Mod <product> -Rpfm <exe> -Schema <ron>`, adding `-GameData <game data directory>` for equipment. The equivalent path variables are `RPFM_CLI`, `WH3_SCHEMA`, and `WH3_DATA`. Packaging extracts native inputs into a disposable local directory, stages each product separately, encodes DB/Loc TSVs, verifies pack contents, and writes `.pack` files to `dist/` without installing them. For staging equipment alone, pass `-VanillaDb <extraction root>` to `tools/build.ps1` or set `EVERCHOSEN_VANILLA_DB` in WSL (default `.local/vanilla`).
 - Keep authored source separate from generated Lua and `.pack` output. Edit source and rebuild. Use UTF-8 and LF, and handle Windows/WSL paths explicitly.
-- Validate emitted syntax with Lua 5.1. Fennel compilation alone does not establish runtime library or game API availability. Declare expected WH3 globals explicitly; use the game's loader, paths, and load order rather than relying on desktop LuaRocks search paths.
+- Validate emitted syntax with Lua 5.1. Fennel compilation alone does not establish runtime library or game API availability. Declare expected WH3 globals explicitly in the `--globals` list in `tools/wsl/build.sh`, and reach optional globals such as MCT's through `_G`; use the game's loader, paths, and load order rather than relying on desktop LuaRocks search paths.
 - Keep per-mod Fennel helpers in `lib/` and use namespaced `include` modules to bundle them into the Lua entry points. Helpers must not become separate campaign auto-load scripts.
-- Prefer small modules with explicit dependencies. Separate pure rules from game-event adapters where that makes the implementation easier to reason about.
+- Prefer small modules with explicit dependencies. Separate pure rules from game-event adapters where that makes the implementation easier to reason about. In `tamurkhan-chieftains`, `data` holds keys and defaults, `rules` is pure, `world` queries the campaign model, `settings` and `mct` handle configuration, and `campaign` owns listeners and commands.
 - Preserve original game packs and Workshop inputs; extract references for inspection. Do not commit proprietary dumps or credentials. Check redistribution permission before publishing reused assets or code.
 - When installing a requested build, confirm the game is closed, retain an appropriate previous artifact, and verify the installed pack matches the build. A build request alone is not a publishing request.
+
+## Fennel style
+
+Follow the [Fennel style guide](https://fennel-lang.org/style). The rules below are the ones this codebase has needed; they describe idiomatic Fennel, not Lua transliterated into parentheses.
+
+- **Bindings.** Use `local` for top-level definitions and `let` inside functions. Use `var` only for state that really changes, keep it close to its use, and say in a comment what it guards.
+- **Building values.** Use `collect`, `icollect`, `fcollect`, and `accumulate` (with `&until` for an early exit) instead of a `var` or empty table mutated from an `each` loop.
+- **Conditionals.** `if` returns a value; `when` is for side effects. Rely on `nil`/`false` being falsy, as in `(or value fallback)`, instead of comparing against both, unless `false` is a meaningful value.
+- **Method and field access.** Write `(object:method)` and `table.field`. Use `(: expression :method)` and `(. table key)` only when the receiver is not a symbol or the key is computed. Use `(set table.field value)` for literal keys and `tset` for computed ones. When a call chain or a compound condition repeats, name it once in a helper such as `world.ours?`.
+- **Game lists.** List interfaces are zero-indexed `num_items`/`item_at` objects. Iterate them with `world.items` instead of hand-written index loops.
+- **Names.** Use kebab-case, with a `?` suffix for predicates and boolean flags. Use `:keyword` strings for opaque keys and quoted strings for player-facing text and anything that is concatenated.
+- **Functions.** Define functions at the top level of a module instead of nesting them in one long closure; keep module state in top-level `var`s. Mutual recursion gets one forward-declared `var` with a comment. Pass a named function and its arguments to `pcall` instead of wrapping an anonymous closure. Keep `#(...)` for single-expression callbacks.
+- **Shared constants.** Define keys, limits, and option names once (`data.fnl`, or a helper such as `rules.level-key`) and reference them from every module that needs them.
+- **Modules.** End each module with its export table. Give exported functions a docstring when the argument or return contract is not obvious from the name.
+- **Comments and layout.** Use `;;;` for section headings and `;;` for comments that explain why. Keep lines within 80 columns, except for player-facing text literals.
 
 ## Proportionate verification
 
 - **Do not create excessive, meaningless tests or test merely for testing's sake.** Choose checks that address a concrete failure risk or demonstrate required behavior. Documentation and other reversible, low-impact edits do not automatically need tests.
+- A behavior-preserving refactor is checked by comparing the old and new builds against the same scripted inputs; that comparison is disposable and does not belong in the repository.
 - Prefer a focused regression that exposes a real bug over large matrices of equivalent cases. Test observable outcomes; avoid repeating implementation logic, brittle source-string assertions, trivial constant checks, redundant snapshots, or mocks that predetermine success.
 - Run gameplay tests under Lua 5.1, using Busted where useful. Ground small game-interface mocks in native scripts or API evidence; do not recreate the engine. Python is suitable for data/resource validation and packaging, but should not become the default gameplay-test host or contain large embedded Lua test programs.
 - Check actual DB references and unintended scope changes. For engine-dependent behavior, use a focused new-campaign observation instead of expanding invented mocks. Include controls for unrelated actors when shared data or UI could affect them.

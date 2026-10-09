@@ -2,15 +2,16 @@
 (local rules (include :everchosen_chieftains.rules))
 
 (fn get-mct []
-  (and (= :function (type _G.get_mct)) (_G.get_mct)))
+  "The MCT interface, or nil when the Mod Configuration Tool is not loaded."
+  (if (= :function (type _G.get_mct)) (_G.get_mct)))
 
 (fn read []
-  (local mct (get-mct))
-  (local mod (and mct (mct:get_mod_by_key data.mod-key)))
-  (rules.configure
-    (fn [key fallback]
-      (local option (and mod (mod:get_option_by_key key)))
-      (local value (and option (option:get_finalized_setting)))
-      (if (or (= value nil) (= value false)) fallback value))))
+  "The current config; options MCT cannot supply use their defaults."
+  (let [mct (get-mct)
+        mod (and mct (mct:get_mod_by_key data.mod-key))]
+    (rules.configure
+      (fn [key fallback]
+        (let [option (and mod (mod:get_option_by_key key))]
+          (or (and option (option:get_finalized_setting)) fallback))))))
 
-{: read : get-mct}
+{: get-mct : read}
