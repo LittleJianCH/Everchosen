@@ -192,12 +192,6 @@ def adapt(tree, name, native_root, native):
             expression = element.get(EXPR, "")
             source = "PooledResourceList.FirstContext.IconPath"
             if source in expression:
-                icon = source
-                for god in GODS:
-                    icon = (f'GetIfElse(PooledResourceList.FirstContext.Key == '
-                            f'"{resource(god)}", '
-                            f'"ui/skins/wh3_dae_main_dae_daemons/icon_dae_{god}_points.png", '
-                            f'{icon})')
                 element.set(EXPR, conditional(expression,
                     'Format(Loc("everchosen_daemon_legion_requirement"), '
                     'LowerBound, PooledResourceContext.Name)'))
@@ -258,20 +252,6 @@ def adapt(tree, name, native_root, native):
                     'ScriptObjectContext("' + PREFIX + 'can_dedicate_" + '
                     'StoredContextFromParent("CcoCampaignPooledResource").Key)'
                     '.NumericValue == 1'))
-
-    # Unit recruitment tooltips embed the resource image inside their text.
-    for prop in root.iter("property"):
-        expression = prop.get("value", "")
-        resource_context = ('StoredContext("CcoPooledResourceThresholdOperationSetRecord")'
-                            '.PooledResourceContext')
-        source = resource_context + ".IconPath"
-        if prop.get("name") == "additional_explanation" and source in expression:
-            icon = source
-            for god in GODS:
-                icon = (f'GetIfElse({resource_context}.Key == "{resource(god)}", '
-                        f'"ui/skins/wh3_dae_main_dae_daemons/icon_dae_{god}_points.png", '
-                        f'{icon})')
-            prop.set("value", conditional(expression, expression.replace(source, icon)))
 
     # Store each row's resource before introducing a database-record context.
     for row in components(tree, "upgrade_row_entry"):

@@ -5,7 +5,7 @@ everchosen_daemon_khorne_weapon	weapon_damage.png	100	weapon_damage.png	battle	t
 everchosen_daemon_khorne_charge	charge.png	100	charge.png	battle	true
 everchosen_daemon_nurgle_defence	defence_character.png	100	defence_character.png	battle	true
 everchosen_daemon_nurgle_replenish	replenishment.png	100	replenishment.png	campaign	true
-everchosen_daemon_nurgle_saving		100		campaign	true
+everchosen_daemon_nurgle_saving	replenishment.png	100	replenishment.png	campaign	true
 everchosen_daemon_slaanesh_speed	battle_movement.png	100	battle_movement.png	battle	true
 everchosen_daemon_slaanesh_charge	charge.png	100	charge.png	battle	true
 everchosen_daemon_slaanesh_fatigue	vigour.png	100	vigour.png	battle	false

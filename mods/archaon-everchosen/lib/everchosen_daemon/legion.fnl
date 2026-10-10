@@ -2,12 +2,13 @@
 
 (fn selected [rewards balances]
   "Return the highest reached bundle per glory resource; tiers replace."
-  (let [best {}]
-    (each [_ reward (pairs rewards)]
-      (let [previous (. best reward.resource)]
-        (when (and (>= (or (. balances reward.resource) 0) reward.minimum)
-                   (or (not previous) (> reward.minimum previous.minimum)))
-          (tset best reward.resource reward))))
+  (let [best
+        (accumulate [best {} _ reward (pairs rewards)]
+          (let [previous (. best reward.resource)]
+            (when (and (>= (or (. balances reward.resource) 0) reward.minimum)
+                       (or (not previous) (> reward.minimum previous.minimum)))
+              (tset best reward.resource reward))
+            best))]
     (collect [key reward (pairs best)] (values key reward.bundle))))
 
 (fn reconcile [faction character rewards]

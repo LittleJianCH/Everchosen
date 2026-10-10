@@ -109,7 +109,7 @@
      (set f.dead? false))
    :create_force_with_general
    (fn [_ key units region x y kind subtype a b c d leader? callback]
-     (assert.equals client-key key)
+     (assert.equals (or s.expected-client client-key) key)
      ;; No reconstruction of the legendary lord's army.
      (assert.is_nil units)
      (assert.is_true leader?)
@@ -206,6 +206,37 @@
 
 (describe "Extended subjugation"
   (fn []
+    (it "keeps Daniel's faction and confirms its successor before transferring"
+      (fn []
+        (let [s (campaign) key :wh3_main_dae_daemon_prince]
+          (set s.source (s:faction key))
+          (set s.source.culture (fn [] :wh3_main_dae_daemons))
+          (set s.lord (s:character 2 s.source key))
+          (set s.source.leader s.lord)
+          (set s.expected-client key)
+          (s:start) (s:accept) (s:accept)
+          (assert.equals 1 (s:count :create))
+          (assert.equals 0 (s:count :reassign))
+          ;; Completion without a valid faction leader cannot release Daniel.
+          (s.created nil) (s:accept)
+          (assert.equals 0 (s:count :reassign))
+          (let [successor (s:character 3 s.source
+                            :wh3_dlc20_chs_daemon_prince_undivided)]
+            (set s.source.leader successor)
+            (s:accept)
+            (assert.equals 1 (s:count :vassal))
+            (assert.equals 0 (s:count :reassign))
+            (set s.source.overlord s.host)
+            ((. s.listeners (.. prefix "turn") 2)) (s:flush)
+            (assert.same [2] s.calls.reassign)
+            (set s.lord.owner s.host)
+            (set s.host.chars [s.host.leader s.lord])
+            ((. s.listeners (.. prefix "turn") 2)) (s:flush)
+            (assert.is_true (. s.saved (.. prefix "completed") key))
+            (assert.equals s.source successor.owner)
+            (assert.equals 0 (s:count :merge))
+            (assert.equals 0 (s:count :kill_faction))))))
+
     (it "leaves a borrowed faction alone when another mod has activated it"
       (fn []
         (let [s (campaign)]
