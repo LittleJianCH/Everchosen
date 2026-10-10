@@ -18,6 +18,13 @@ This repository contains Total War: WARHAMMER III mods. The earlier prototype wo
 - Do not add a README unless requested.
 - Do not record development progress, completion status, task checklists, session summaries, handoff notes, or temporary next steps in repository files, including documentation and code comments. Keep progress reports in the conversation. Repository guidance should describe durable rules, design decisions, usage contracts, and technical evidence with its limits.
 
+## Player-facing feature guide
+
+- Keep `docs/features.md` in sync when adding, changing, or removing player-visible features, activation conditions, configuration, dependencies, or compatibility requirements.
+- This document is for players. Write in Chinese and explain available gameplay, how to use it, and necessary usage or compatibility conditions. Use the game's Chinese localization for character and mechanic names; list supported characters explicitly rather than using vague examples.
+- Describe only current features. Do not add unimplemented features, roadmaps, development progress, or lists of what has not been done.
+- Keep implementation details out of this guide, including source languages, internal keys, APIs, database structure, generators, build and packaging steps, debugging history, test results, and validation reports. Keep development and verification discussion in the conversation; do not turn the guide into a developer handoff or claim unobserved in-game verification.
+
 ## Fresh-save policy
 
 - All mod feature design, implementation, fixes, and validation must assume a brand-new save (a new campaign) created with the current mod version.
