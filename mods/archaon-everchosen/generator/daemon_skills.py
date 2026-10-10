@@ -3,6 +3,8 @@
 WH3 9.0.3 uses faction-specific node sets for Aislinn/Avelorn handmaidens
 alongside a generic subtype set. Apply that same selection contract here.
 """
+import skill_slots
+
 HOST = "wh_main_chs_chaos"
 CAMPAIGN = "wh3_main_combi"
 PRINCE = "wh3_main_dae_daemon_prince"
@@ -17,6 +19,18 @@ REPLACED = (
 )
 TABLES = ["character_skill_level_to_effects_junctions",
           "character_skill_nodes_skill_locks"]
+
+
+def skill_mapping(native):
+    pairs = []
+    levels = native["character_skill_level_to_effects_junctions"]
+    for suffix in REPLACED:
+        old = native["character_skill_nodes"].one(key=NODE + suffix)
+        new = dict(old, character_skill_key=PREFIX + suffix)
+        maximum = max(int(r["level"]) for r in levels.where(
+            character_skill_key=old["character_skill_key"]))
+        pairs.append((old, new, maximum))
+    return skill_slots.mapping(native, pairs)
 
 
 def rows(native):

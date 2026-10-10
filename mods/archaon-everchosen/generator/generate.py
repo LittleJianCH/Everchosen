@@ -20,6 +20,7 @@ import subjugation
 import daemon_prince
 import daemon_legion
 import daemon_skills
+import blue_skills
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -265,6 +266,9 @@ def script_data(native, generated):
     data["portals"] = {"network": NETWORK, "template": NODE_TEMPLATE,
                        "nodes": {key: True for key in nodes}}
     data["subjugation"] = subjugation.script_data(native)
+    data["subjugation"]["skill_slots"] = {
+        **subjugation.skill_mapping(native),
+        daemon_skills.PRINCE: daemon_skills.skill_mapping(native)}
     data["daemon_prince"] = daemon_prince.script_data(native)
     return data
 
@@ -385,6 +389,7 @@ def generate(native_root, output):
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
     subjugation.validate(native, generated, MOD / "assets")
+    blue_skills.validate(native, generated, authored)
     prince_tree = {}
     for table, row in daemon_skills.rows(native):
         prince_tree.setdefault(table, []).append(row)
