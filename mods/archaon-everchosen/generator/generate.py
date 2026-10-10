@@ -16,6 +16,7 @@ MOD = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MOD.parents[1] / "tools"))
 from db_tables import (read_authored, read_table, run_generator, stable_id,
                        write_table)
+import subjugation
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -67,7 +68,7 @@ COPIED_ROWS = (
     ("ui_features_to_factions",
      {"faction": "wh3_dlc20_chs_vilitch", "ui_feature": "CHANGING_OF_WAYS"},
      {"faction": HOST}),
-)
+) + subjugation.COPIED_ROWS
 
 # Every row of a native campaign group copied to one of ours:
 # table, native group, our group, changes.
@@ -104,7 +105,7 @@ REQUIRED_FEATURES = {"bribery", "streaks", "diplomatic_manipulation",
 REQUIRED_PLAGUE_SETS = (("plague_effect_set_nurgle_positive", "false"),
                         ("plague_effect_set_nurgle_negative", "true"))
 
-TABLES = sorted({table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
+TABLES = sorted(set(subjugation.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
     campaign_groups campaign_group_members
     campaign_group_member_criteria_factions
     campaign_group_member_criteria_campaigns
@@ -114,6 +115,7 @@ TABLES = sorted({table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
     campaign_effect_scopes campaign_features rituals faction_set_items
     teleportation_networks teleportation_network_nodes
     diplomatic_relationship_effects campaign_effect_list_effect_junctions
+    campaign_payload_ui_details
 """.split()))
 UI_FOLDER = "ui/campaign ui"
 NATIVE_INPUTS = {
@@ -123,7 +125,8 @@ NATIVE_INPUTS = {
         "rifts")],
     # Loaded by the adapter regressions, not by this generator.
     "data_script.pack": ["script/campaign/wh3_campaign_nurgle_plagues.lua",
-                         "script/campaign/wh3_campaign_great_game.lua"],
+                         "script/campaign/wh3_campaign_great_game.lua",
+                         "script/campaign/wh3_dlc29_archaon_subjugation.lua"],
 }
 
 
@@ -194,7 +197,10 @@ def generated_rows(native):
     """Rows by table, without duplicates, each matching the native layout."""
     result = {}
     for derive in (copied_rows, copied_groups, inherited_resources,
-                   vassal_blessings, portal_permission):
+                   vassal_blessings, portal_permission,
+                   subjugation.client_factions,
+                   subjugation.skills,
+                   subjugation.dilemmas):
         for table, row in derive(native):
             if set(row) != set(native[table].header):
                 raise ValueError(f"Unexpected fields for {table}: {sorted(row)}")
@@ -252,6 +258,7 @@ def script_data(native, generated):
     data["blessings"] = {god: blessing_bundle(god) for god in BLESSING_CHAMPIONS}
     data["portals"] = {"network": NETWORK, "template": NODE_TEMPLATE,
                        "nodes": {key: True for key in nodes}}
+    data["subjugation"] = subjugation.script_data(native)
     return data
 
 
@@ -365,6 +372,7 @@ def generate(native_root, output):
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
     validate(native, generated, authored)
+    subjugation.validate(native, generated, MOD / "assets")
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
     adapt_ui(native_root, output)

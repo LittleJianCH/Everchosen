@@ -216,6 +216,7 @@ local function sandbox(saved, player)
     end
     function s:load(path) setfenv(assert(loadfile(path)), env)() end
     function s:start()
+        self:load(native .. "/script/campaign/wh3_dlc29_archaon_subjugation.lua")
         self:load(native .. "/script/campaign/wh3_campaign_nurgle_plagues.lua")
         self:load(native .. "/script/campaign/wh3_campaign_great_game.lua")
         for _, fn in ipairs(self.loading) do fn({}) end

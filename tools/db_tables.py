@@ -52,7 +52,8 @@ def run_generator(generate, native_inputs):
 
 def _read_fragment(path, name):
     with path.open(encoding="utf-8-sig", newline="") as stream:
-        reader = csv.reader(stream, delimiter="\t")
+        # RPFM exports literal quotes, including text beginning with a quote.
+        reader = csv.reader(stream, delimiter="\t", quoting=csv.QUOTE_NONE)
         header, metadata = next(reader), next(reader)[0].split(";")
         if metadata[0] != f"#{name}_tables" or len(metadata) < 2:
             raise ValueError(f"{path}: invalid schema metadata")
@@ -120,7 +121,8 @@ def write_table(output, table, rows, fragment):
         raise ValueError(f"{path}: generated fragment would replace an asset")
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.writer(stream, delimiter="\t", lineterminator="\n")
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n",
+                            quoting=csv.QUOTE_NONE, quotechar=None)
         writer.writerow(table.header)
         writer.writerow([f"#{table.name}_tables;{table.version};"
                          f"db/{table.name}_tables/{fragment}"]

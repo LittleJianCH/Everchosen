@@ -1,0 +1,4 @@
+component	icon	state	sort_order
+#campaign_payload_ui_details_tables;2;db/campaign_payload_ui_details_tables/everchosen_subjugation			
+everchosen_subjugation_first	ui/skins/default/treaty_vassal.png	default	0
+everchosen_subjugation_second	ui/skins/default/treaty_vassal.png	default	0

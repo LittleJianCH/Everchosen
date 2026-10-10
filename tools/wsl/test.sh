@@ -23,4 +23,5 @@ if [[ "$target" != tamurkhan-chieftains ]]; then
     export EVERCHOSEN_ROOT="$root"
     export EVERCHOSEN_VANILLA_DB="${EVERCHOSEN_VANILLA_DB:-$root/.local/vanilla}"
     busted "$root/tests/archaon-everchosen/inheritance_spec.lua"
+    busted "$root/tests/archaon-everchosen/subjugation_spec.lua"
 fi
