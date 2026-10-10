@@ -52,6 +52,7 @@
            :character_type (fn [_ kind] (= kind :general))
            :character_subtype_key (fn [self] self.subtype)
            :character_subtype (fn [self kind] (= kind self.subtype))
+           :has_skill (fn [] false)
            :is_alive (fn [self] self.alive?)
            :has_region (fn [] true)
            :region (fn [] {:name (fn [] :native_region)})
@@ -143,6 +144,7 @@
 (fn campaign-environment [s]
   (let [env (setmetatable
               {:cm (campaign-manager s) :dpairs pairs
+               :cco #(do {:Call (fn [] 0)})
                :out (fn [message] (table.insert s.logs message))
                :core
                {:get_static_object (fn [_ key] (. s.objects key))

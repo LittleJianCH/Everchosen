@@ -1,5 +1,6 @@
 (local world (include :everchosen_inheritance.world))
 (local inheritance (include :everchosen_inheritance.data))
+(local skills (include :everchosen_subjugation.skills))
 
 (local prefix "everchosen_subjugation_")
 (local pending-key (.. prefix "pending"))
@@ -10,6 +11,8 @@
 ;; Native adapters and the command guard belong to this Lua session only.
 (var originals nil)
 (var busy? false)
+;; A submitted skill phase schedules its own confirmation tick.
+(var tick nil)
 
 (fn log [message]
   (out (.. "[Everchosen subjugation] " message)))
@@ -173,6 +176,10 @@
                                     operation.source
                                     operation.client)))
                 "Accepted lord is no longer owned by the expected faction")
+        (when (not (. operation.skills id))
+          (tset operation.skills id
+            (skills.capture lord
+              (. (config) :skill_slots (lord:character_subtype_key)))))
         (tset operation.transfers id (cm:turn_number))
         (cm:set_saved_value pending-key pending)
         ;; As in CA's monogod path: acquire the lord, not his defeated army.
@@ -185,8 +192,19 @@
           (cm:stop_character_convalescing (: (character id) :cqi)))))))
 
 (fn finish [source operation pending]
-  (when (accumulate [all? true _ id (ipairs operation.members) &until (not all?)]
-          (owned? id inheritance.host))
+  (when (and
+          (accumulate [all? true _ id (ipairs operation.members)
+                       &until (not all?)]
+            (owned? id inheritance.host))
+          (accumulate [ready? true _ id (ipairs operation.members)]
+            (let [plan (assert (. operation.skills id)
+                               "Missing pre-transfer skill allocation")
+                  before plan.stage
+                  done? (skills.advance (character id) plan
+                          #(cm:set_saved_value pending-key pending))]
+              (when (and (not done?) (not= before plan.stage))
+                (cm:callback tick 0.2))
+              (and done? ready?))))
     (when operation.dead
       (assert (= (source:num_regions) 0)
               "Challenge source acquired territory; refuse faction cleanup")
@@ -247,7 +265,7 @@
                     (cm:set_saved_value pending-key pending)
                     (cm:apply_payload payload client)))))))))
 
-(fn tick []
+(set tick (fn []
   (when (and (world.host) (not busy?))
     (let [pending (saved pending-key)
           keys (icollect [key _ (pairs pending)] key)]
@@ -256,7 +274,7 @@
         (set busy? true)
         (let [(ok? error) (pcall advance (. pending (. keys 1)) pending)]
           (set busy? false)
-          (when (not ok?) (log (tostring error))))))))
+          (when (not ok?) (log (tostring error)))))))))
 
 (fn request []
   ;; Allow CA's queued creation, confederation and character commands to settle.
@@ -279,7 +297,8 @@
                                   (. (targets) key :keep_faction)
                                   :client (. (cultures) culture :faction)
                                   :members family-ids :dead (or dead? false)
-                                  :stage :merge :creating false :transfers {}})
+                                  :stage :merge :creating false :transfers {}
+                                  :skills {}})
               (cm:set_saved_value pending-key pending)
               (when (. (targets) key :keep_faction)
                 (core:trigger_event :ScriptEventEverchosenTransferAccepted key))))

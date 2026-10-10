@@ -59,9 +59,6 @@
   (let [faction (world.host)
         previous (saved :snapshot {:values {}})]
     (when (and faction (prince faction) (not (saved :initialized)))
-      ;; Acquisition changes the available tree. Return ordinary skill points
-      ;; once so the player can allocate them; background skills are preserved.
-      (cm:force_reset_skills (cm:char_lookup_str (prince faction)))
       (when previous.dedication
         (cm:apply_effect_bundle previous.dedication host.host 0))
       (each [key _ (pairs (. (config) :gods))]

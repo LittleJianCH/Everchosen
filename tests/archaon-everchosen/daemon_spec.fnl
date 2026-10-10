@@ -139,18 +139,18 @@
 
 (describe "Daemon Prince campaign commands"
   (fn []
-    (it "resets the acquired tree once, preserving progression after reload"
+    (it "imports progression without resetting skills, including after reload"
       (fn []
         (let [s (scenario)]
           (set s.saved.everchosen_daemon_initialized nil)
           (set s.no-prince? true)
           (s.module.reconcile) (assert.equals 0 s.resets)
           (set s.no-prince? false)
-          (s.module.reconcile) (assert.equals 1 s.resets)
+          (s.module.reconcile) (assert.equals 0 s.resets)
           (let [r (resource s glory)] (set r.amount 1540))
           (s.module.reconcile)
           (s.reload) (s.module.reconcile)
-          (assert.equals 1 s.resets)
+          (assert.equals 0 s.resets)
           (assert.equals 1540 (: (resource s glory) :value))
           (assert.is_true s.character-bundles.everchosen_daemon_legion_khorne_2))))
     (it "routes UI clicks through the campaign command before charging"
