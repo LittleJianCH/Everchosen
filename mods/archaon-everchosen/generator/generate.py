@@ -19,6 +19,7 @@ from db_tables import (read_authored, read_table, run_generator, stable_id,
 import subjugation
 import daemon_prince
 import daemon_legion
+import daemon_skills
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -107,7 +108,8 @@ REQUIRED_FEATURES = {"bribery", "streaks", "diplomatic_manipulation",
 REQUIRED_PLAGUE_SETS = (("plague_effect_set_nurgle_positive", "false"),
                         ("plague_effect_set_nurgle_negative", "true"))
 
-TABLES = sorted(set(subjugation.TABLES) | set(daemon_prince.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
+TABLES = sorted(set(subjugation.TABLES) | set(daemon_prince.TABLES) |
+                set(daemon_skills.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
     campaign_groups campaign_group_members
     campaign_group_member_criteria_factions
     campaign_group_member_criteria_campaigns
@@ -382,8 +384,14 @@ def generate(native_root, output):
     native = {name: read_table(native_root / "db", name) for name in TABLES}
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
-    validate(native, generated, authored)
     subjugation.validate(native, generated, MOD / "assets")
+    prince_tree = {}
+    for table, row in daemon_skills.rows(native):
+        prince_tree.setdefault(table, []).append(row)
+    daemon_skills.validate(native, prince_tree, authored)
+    for table, rows in prince_tree.items():
+        generated.setdefault(table, []).extend(rows)
+    validate(native, generated, authored)
     daemon_legion.validate(native, generated, authored)
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)

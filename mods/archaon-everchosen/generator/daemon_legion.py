@@ -1,39 +1,38 @@
-"""Daemon-only unit sets derived from current land-unit attributes."""
+"""Army training, with reconstitution limited to native daemonic units."""
 from pathlib import Path
 from db_tables import read_authored
 
 PREFIX = "everchosen_daemon_"
-GODS = {"khorne": "kho", "nurgle": "nur", "slaanesh": "sla",
-        "tzeentch": "tze", "undivided": None}
 TABLES = """unit_sets unit_set_to_unit_junctions land_units
     unit_attributes_to_groups_junctions effect_bonus_value_ids_unit_sets
     campaign_operation_set_effect_bundle_elements campaign_operation_effect_bundles
 """.split()
 
 
-def daemon_units(native):
+def nurgle_daemons(native):
+    roster = {r["unit_record"] for r in native["unit_set_to_unit_junctions"].where(
+        unit_set="wh3_main_nur_all", exclude="false")}
     groups = {r["attribute_group"] for r in
               native["unit_attributes_to_groups_junctions"].where(attribute="daemonic")}
     land = {r["key"] for r in native["land_units"].rows
             if r["attribute_group"] in groups}
     units = {r["unit"] for r in native["main_units"].rows
-             if r["land_unit"] in land and r["caste"] not in ("lord", "hero")}
+             if r["land_unit"] in land and r["unit"] in roster
+             and r["caste"] not in ("lord", "hero")}
     if not units:
         raise ValueError("No native daemonic troops")
-    return {god: sorted(k for k in units if short is None or f"_{short}_" in k)
-            for god, short in GODS.items()}
+    return sorted(units)
 
 
 def rows(native):
-    for god, units in daemon_units(native).items():
-        key = PREFIX + "units_" + god
-        if not units:
-            raise ValueError("Empty daemon roster: " + god)
-        yield "unit_sets", dict(native["unit_sets"].one(key="daemonic_units"), key=key)
-        for unit in units:
-            yield "unit_set_to_unit_junctions", {
-                "unit_set": key, "unit_record": unit, "unit_caste": "",
-                "unit_category": "", "unit_class": "", "exclude": "false"}
+    # Ordinary training uses the native god rosters, including marked mortals.
+    # Only reconstitution needs an attribute-derived daemon subset.
+    key = PREFIX + "units_nurgle"
+    yield "unit_sets", dict(native["unit_sets"].one(key="daemonic_units"), key=key)
+    for unit in nurgle_daemons(native):
+        yield "unit_set_to_unit_junctions", {
+            "unit_set": key, "unit_record": unit, "unit_caste": "",
+            "unit_category": "", "unit_class": "", "exclude": "false"}
 
 
 def progression(native):

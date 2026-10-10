@@ -33,7 +33,8 @@
 
 (fn scenario []
   (let [s {:saved {:everchosen_daemon_initialized true} :resources {}
-           :payloads [] :bundles [] :character-bundles {} :grants [] :queue [] :listeners {}
+           :payloads [] :bundles [] :character-bundles {} :grants []
+           :resets 0 :queue [] :listeners {}
            :ui-events [] :ui {} :registry [:existing_part]}
         faction (valid {:name (fn [] host) :is_human (fn [] true)
                          :command_queue_index (fn [] 83)
@@ -53,6 +54,13 @@
                 :is_local_players_turn #(not s.other-turn?)
                 :get_saved_value (fn [_ key] (. s.saved key))
                 :set_saved_value (fn [_ key value] (tset s.saved key value))
+                :char_lookup_str (fn [_ character]
+                                   (assert.equals prince character) :character_cqi:7)
+                :force_reset_skills
+                (fn [_ lookup]
+                  (assert.equals :character_cqi:7 lookup)
+                  (set s.resets (+ s.resets 1)))
+                :unlock_ritual (fn [_ owner] (assert.equals faction owner))
                 :callback (fn [_ f] (table.insert s.queue f))
                 :add_first_tick_callback (fn [])
                 :add_pre_first_tick_callback (fn [])
@@ -105,6 +113,7 @@
     (set faction.pooled_resource_manager
       #(do {:resource (fn [_ key] (resource s key))}))
     (set s.faction faction)
+    (set s.reload #(load-module s env))
     (load-module s env)
     s))
 
@@ -130,6 +139,20 @@
 
 (describe "Daemon Prince campaign commands"
   (fn []
+    (it "resets the acquired tree once, preserving progression after reload"
+      (fn []
+        (let [s (scenario)]
+          (set s.saved.everchosen_daemon_initialized nil)
+          (set s.no-prince? true)
+          (s.module.reconcile) (assert.equals 0 s.resets)
+          (set s.no-prince? false)
+          (s.module.reconcile) (assert.equals 1 s.resets)
+          (let [r (resource s glory)] (set r.amount 1540))
+          (s.module.reconcile)
+          (s.reload) (s.module.reconcile)
+          (assert.equals 1 s.resets)
+          (assert.equals 1540 (: (resource s glory) :value))
+          (assert.is_true s.character-bundles.everchosen_daemon_legion_khorne_2))))
     (it "routes UI clicks through the campaign command before charging"
       (fn []
         (let [s (scenario)]

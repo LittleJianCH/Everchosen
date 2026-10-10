@@ -1,0 +1,4 @@
+effect	icon	priority	icon_negative	category	is_positive_value_good
+#effects_tables;0;db/effects_tables/everchosen_daemon_skills					
+everchosen_daemon_undivided_replenish	replenishment.png	100	replenishment.png	campaign	true
+everchosen_daemon_undivided_defence	defence_character.png	100	defence_character.png	battle	true

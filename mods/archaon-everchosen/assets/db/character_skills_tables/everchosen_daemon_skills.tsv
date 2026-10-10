@@ -1,0 +1,17 @@
+key	image_path	localised_description	localised_name	unlocked_at_rank	is_background_skill	is_female_only_background_skill	is_male_only_background_skill	background_weighting	influence_cost
+#character_skills_tables;5;db/character_skills_tables/everchosen_daemon_skills									
+everchosen_daemon_skill_khorne_1_4	battle_morale.png	以接连的近战厮杀锤炼恐虐军团。	浴血先锋	0	false	false	false	0.0000	0
+everchosen_daemon_skill_khorne_4	battle_morale.png	将颅骨献给血神，将敌阵踏为尘土。	颅座之锋	0	false	false	false	0.0000	0
+everchosen_daemon_skill_nurgle_1_4	battle_morale.png	凡人与恶魔共同构筑难以撼动的阵线。	腐朽壁垒	0	false	false	false	0.0000	0
+everchosen_daemon_skill_nurgle_4	battle_morale.png	伤者重归阵列，溃散的恶魔再度凝形。	生生不息	0	false	false	false	0.0000	0
+everchosen_daemon_skill_slaanesh_1_2	campaign_agent.png	不为漫长的追猎耗尽气力。	从容猎杀	0	false	false	false	0.0000	0
+everchosen_daemon_skill_slaanesh_1_4	battle_morale.png	迅速占据敌军最脆弱的位置。	疾行杀阵	0	false	false	false	0.0000	0
+everchosen_daemon_skill_slaanesh_4	battle_morale.png	以迅雷般的冲锋终结这场狩猎。	极乐奔袭	0	false	false	false	0.0000	0
+everchosen_daemon_skill_tzeentch_1_1	campaign_army.png	为军阵编织层层变幻的护幕。	织命护幕	0	false	false	false	0.0000	0
+everchosen_daemon_skill_tzeentch_1_4	battle_morale.png	为下一轮魔焰齐射准备充足弹药。	秘火储备	0	false	false	false	0.0000	0
+everchosen_daemon_skill_tzeentch_3_1	campaign_diplomacy.png	看穿敌阵的弱点，让每轮齐射发挥威力。	精准毁灭	0	false	false	false	0.0000	0
+everchosen_daemon_skill_tzeentch_4	battle_morale.png	以魔焰与护幕支配战场。	万变战阵	0	false	false	false	0.0000	0
+everchosen_daemon_skill_undivided_1_1	campaign_chaos_corruption.png	让彼此敌视的战士服从同一面战旗。	统合军威	0	false	false	false	0.0000	0
+everchosen_daemon_skill_undivided_1_2	campaign_growth.png	及时补充损失，维持远征军的战力。	整军再战	0	false	false	false	0.0000	0
+everchosen_daemon_skill_undivided_1_3	campaign_public_order.png	以亲王的意志约束整支军队。	坚守号令	0	false	false	false	0.0000	0
+everchosen_daemon_skill_undivided_1_4	campaign_diplomacy.png	让每次胜利成为全军共同的经验。	百战军团	0	false	false	false	0.0000	0

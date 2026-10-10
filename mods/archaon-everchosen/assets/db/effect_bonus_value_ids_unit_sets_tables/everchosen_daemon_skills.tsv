@@ -1,0 +1,4 @@
+bonus_value_id	effect	unit_set
+#effect_bonus_value_ids_unit_sets_tables;0;db/effect_bonus_value_ids_unit_sets_tables/everchosen_daemon_skills		
+replenishment_percentage_bonus	everchosen_daemon_undivided_replenish	all_units
+melee_defence_mod	everchosen_daemon_undivided_defence	all_units
