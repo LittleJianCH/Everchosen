@@ -7,6 +7,7 @@ Only the resources and the resource-related effects of dedication are inherited.
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 from uuid import NAMESPACE_URL, uuid5
+import daemon_legion
 
 PREFIX = "everchosen_daemon_"
 HOST = "wh_main_chs_chaos"
@@ -23,7 +24,7 @@ TABLES = """campaign_group_pooled_resources campaign_group_rituals
     armory_items ritual_payloads ritual_payload_effect_bundles
     effect_bundles effect_bundles_to_effects_junctions
     resource_costs resource_cost_pooled_resource_junctions
-""".split()
+""".split() + daemon_legion.TABLES
 UI_NAMES = ("character_details_panel", "character_details_panel_dae_gifts",
             "daemonic_progression", "tooltip_ritual", "tooltip_effect_bundle")
 
@@ -138,6 +139,7 @@ def script_data(native):
                            resource=spent, factor="gifts_of_chaos")["factor"],
                        "native_ritual": f"wh3_main_ritual_dae_ascend_{god}"}
     return {"gods": gods, "rewards": rewards,
+            "legions": daemon_legion.progression(native),
             "souls_factor": native["pooled_resource_factor_junctions"].one(
                 resource="wh3_dlc20_chs_souls", factor="gifts_of_chaos")["factor"]}
 
@@ -197,7 +199,8 @@ def adapt(tree, name, native_root, native):
                             f'"ui/skins/wh3_dae_main_dae_daemons/icon_dae_{god}_points.png", '
                             f'{icon})')
                 element.set(EXPR, conditional(expression,
-                    expression.replace(source, icon)))
+                    'Format(Loc("everchosen_daemon_legion_requirement"), '
+                    'LowerBound, PooledResourceContext.Name)'))
         return
     if name == "tooltip_ritual":
         for element in root.iter("callback_with_context"):
@@ -214,6 +217,23 @@ def adapt(tree, name, native_root, native):
         return
     if name != "daemonic_progression":
         return
+    # Recruitment is provided by Warriors of Chaos. Replace native faction
+    # rewards with character-bound legion training, while preserving Daniel's UI.
+    for component in components(tree, "template_unit_icon") + components(
+            tree, "template_unit_icon_ascend"):
+        cbs = component.find("callbacks_with_context")
+        if cbs is None:
+            cbs = component.find("callbackwithcontextlist")
+        callback(cbs, "ContextVisibilitySetter", "CcoStaticObject",
+                 f'({HOST_UI}) == false')
+    for component in components(tree, "template_effect") + components(
+            tree, "template_effect_ascend"):
+        cbs = component.find("callbacks_with_context")
+        if cbs is None:
+            cbs = component.find("callbackwithcontextlist")
+        callback(cbs, "ContextVisibilitySetter",
+                 "CcoPooledResourceThresholdOperationSetRecord",
+                 conditional("true", f'Key.Contains("{PREFIX}legion_")'))
     for element in root.iter():
         for attribute in (EXPR, "value"):
             expression = element.get(attribute, "")
@@ -261,7 +281,8 @@ def adapt(tree, name, native_root, native):
         callback(cbs, "ContextObjectStore", "CcoCampaignPooledResource")
     # Select verified native records by key; no faction threshold manager is
     # installed on Archaon because its operations would award his body parts.
-    rewards = script_data(native)["rewards"]
+    rewards = {**script_data(native)["rewards"],
+               **daemon_legion.progression(native)}
     record_list = 'DatabaseRecordsForKeys("CcoPooledResourceThresholdOperationSetRecord")'
     for god in GODS:
         keys = sorted(key for key, reward in rewards.items()

@@ -1,0 +1,17 @@
+effect	icon	priority	icon_negative	category	is_positive_value_good
+#effects_tables;0;db/effects_tables/everchosen_daemon_legions					
+everchosen_daemon_khorne_attack	melee_character.png	100	melee_character.png	battle	true
+everchosen_daemon_khorne_weapon	weapon_damage.png	100	weapon_damage.png	battle	true
+everchosen_daemon_khorne_charge	charge.png	100	charge.png	battle	true
+everchosen_daemon_nurgle_defence	defence_character.png	100	defence_character.png	battle	true
+everchosen_daemon_nurgle_replenish	replenishment.png	100	replenishment.png	campaign	true
+everchosen_daemon_nurgle_saving		100		campaign	true
+everchosen_daemon_slaanesh_speed	battle_movement.png	100	battle_movement.png	battle	true
+everchosen_daemon_slaanesh_charge	charge.png	100	charge.png	battle	true
+everchosen_daemon_slaanesh_fatigue	vigour.png	100	vigour.png	battle	false
+everchosen_daemon_tzeentch_ammo	ammo.png	100	ammo.png	battle	true
+everchosen_daemon_tzeentch_barrier	barrier.png	100	barrier.png	battle	true
+everchosen_daemon_tzeentch_missile	ranged_damage.png	100	ranged_damage.png	battle	true
+everchosen_daemon_undivided_morale	morale.png	100	morale.png	battle	true
+everchosen_daemon_undivided_upkeep	military_spending.png	100	military_spending.png	campaign	false
+everchosen_daemon_undivided_experience	experience.png	100	experience.png	campaign	true

@@ -33,7 +33,7 @@
 
 (fn scenario []
   (let [s {:saved {:everchosen_daemon_initialized true} :resources {}
-           :payloads [] :bundles [] :grants [] :queue [] :listeners {}
+           :payloads [] :bundles [] :character-bundles {} :grants [] :queue [] :listeners {}
            :ui-events [] :ui {} :registry [:existing_part]}
         faction (valid {:name (fn [] host) :is_human (fn [] true)
                          :command_queue_index (fn [] 83)
@@ -41,6 +41,7 @@
         armory {:get_currently_registered_armory_items #(do s.registry)}
         prince (valid {:character_subtype_key (fn [] subtype)
                         :faction (fn [] faction)
+                        :has_effect_bundle (fn [_ key] (. s.character-bundles key))
                         :family_member #(do {:armory (fn [] armory)})})
         objects {}
         env (setmetatable
@@ -71,6 +72,14 @@
                   (assert.equals host owner) (assert.equals 0 duration)
                   (table.insert s.bundles key)
                   (set s.dedication key))
+                :apply_effect_bundle_to_character
+                (fn [_ key character duration]
+                  (assert.equals prince character)
+                  (tset s.character-bundles key true))
+                :remove_effect_bundle_from_character
+                (fn [_ key character]
+                  (assert.equals prince character)
+                  (tset s.character-bundles key nil))
                 :add_armory_item_to_character
                 (fn [_ character item equip? clear?]
                   (assert.equals prince character)
@@ -169,6 +178,16 @@
           (let [r (resource s glory)] (set r.amount 3080))
           (s.module.sacrifice glory)
           (assert.equals 0 (length s.payloads)))))
+    (it "replaces legion tiers on the prince without applying faction rewards"
+      (fn []
+        (let [s (scenario) r (resource s glory)]
+          (set r.amount 770) (s.module.reconcile)
+          (assert.is_true s.character-bundles.everchosen_daemon_legion_khorne_1)
+          (set r.amount 1540) (s.module.reconcile)
+          (assert.is_nil s.character-bundles.everchosen_daemon_legion_khorne_1)
+          (assert.is_true s.character-bundles.everchosen_daemon_legion_khorne_2)
+          (s.module.reconcile)
+          (assert.equals 0 (length s.bundles)))))
     (it "acquires unlocked parts once without equipping them"
       (fn []
         (let [s (scenario) part :wh3_main_dae_cha_daemon_prince_torso_brasscollar_1]

@@ -1,4 +1,5 @@
 (local data (include :everchosen_daemon.data))
+(local legion (include :everchosen_daemon.legion))
 (local host (include :everchosen_inheritance.data))
 (local world (include :everchosen_inheritance.world))
 
@@ -161,7 +162,8 @@
     (when character
       (import-progress)
       (confirm-donation)
-      (unlock-parts faction character))
+      (unlock-parts faction character)
+      (legion.reconcile faction character (. (config) :legions)))
     (refresh-ui)))
 
 (fn safely-reconcile []

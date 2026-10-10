@@ -18,6 +18,7 @@ from db_tables import (read_authored, read_table, run_generator, stable_id,
                        write_table)
 import subjugation
 import daemon_prince
+import daemon_legion
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -203,7 +204,7 @@ def generated_rows(native):
                    vassal_blessings, portal_permission,
                    subjugation.client_factions,
                    subjugation.skills,
-                   subjugation.dilemmas, daemon_prince.rows):
+                   subjugation.dilemmas, daemon_prince.rows, daemon_legion.rows):
         for table, row in derive(native):
             if set(row) != set(native[table].header):
                 raise ValueError(f"Unexpected fields for {table}: {sorted(row)}")
@@ -383,6 +384,7 @@ def generate(native_root, output):
     generated = generated_rows(native)
     validate(native, generated, authored)
     subjugation.validate(native, generated, MOD / "assets")
+    daemon_legion.validate(native, generated, authored)
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
     adapt_ui(native_root, output, native)
