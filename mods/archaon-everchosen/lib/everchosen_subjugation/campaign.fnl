@@ -54,7 +54,8 @@
                     (. (targets) (source:name)))]
     (and (world.host) target (not (source:is_human))
          (= (source:culture) target.culture)
-         (or (source:is_dead) (available-client? target.culture))
+         (or (source:is_dead) target.keep_faction
+             (available-client? target.culture))
          (not (. (saved done-key) (source:name)))
          (not (. (world.owned (world.host)) target.subtype))
          (not (accumulate [protected? false _ key
@@ -135,13 +136,41 @@
                 #(created (source:name) $1))))
           false))))
 
+(fn prepare-successor [source operation pending]
+  "Keep Daniel's original faction; a new leader must precede his transfer."
+  (if (and (has-leader? source)
+           (not= (: (source:faction_leader) :character_subtype_key)
+                 (. (targets) operation.source :subtype)))
+      (do
+        (when (and (not (source:is_vassal_of (world.host)))
+                   (not= operation.vassal-turn (cm:turn_number)))
+          (set operation.vassal-turn (cm:turn_number))
+          (cm:set_saved_value pending-key pending)
+          (cm:force_make_vassal inheritance.host operation.source true))
+        (source:is_vassal_of (world.host)))
+      (when (and (not operation.creating)
+                 (not= operation.successor-turn (cm:turn_number)))
+        (let [region (location source)
+              (x y) (cm:find_valid_spawn_location_for_character_from_settlement
+                      operation.source region false true)]
+          (assert (and region x y (not= x -1))
+                  "No successor spawn position")
+          (set operation.creating true)
+          (set operation.successor-turn (cm:turn_number))
+          (cm:set_saved_value pending-key pending)
+          (cm:create_force_with_general operation.source nil region x y
+            :general (. (cultures) operation.culture :general)
+            "" "" "" "" true #(created operation.source $1)))
+        false)))
+
 (fn transfer [operation pending]
   (each [_ id (ipairs operation.members)]
     (when (and (not (owned? id inheritance.host))
                (not= (. operation.transfers id) (cm:turn_number)))
       (let [lord (character id)]
         (assert (and (world.valid? lord)
-                     (owned? id (if operation.dead operation.source
+                     (owned? id (if (or operation.dead operation.keep_faction)
+                                    operation.source
                                     operation.client)))
                 "Accepted lord is no longer owned by the expected faction")
         (tset operation.transfers id (cm:turn_number))
@@ -189,6 +218,14 @@
                     "Could not recover the existing legendary lord"))
           (set operation.members (members source))
           (assert (> (length operation.members) 0) "No accepted lord to transfer")
+          (set operation.stage :transfer)
+          (cm:set_saved_value pending-key pending)
+          ;; A resurrected, landless faction can be cleaned up on the next tick.
+          ;; Follow the native challenge flow and transfer in this same event.
+          (transfer operation pending)
+          (finish source operation pending))
+        operation.keep_faction
+        (when (prepare-successor source operation pending)
           (set operation.stage :transfer)
           (cm:set_saved_value pending-key pending))
         (let [client (cm:get_faction operation.client)]
@@ -238,10 +275,14 @@
               (assert (or dead? (> (length family-ids) 0))
                       "No target lord in accepted faction")
               (tset pending key {:source key :culture culture
+                                  :keep_faction
+                                  (. (targets) key :keep_faction)
                                   :client (. (cultures) culture :faction)
                                   :members family-ids :dead (or dead? false)
                                   :stage :merge :creating false :transfers {}})
-              (cm:set_saved_value pending-key pending)))
+              (cm:set_saved_value pending-key pending)
+              (when (. (targets) key :keep_faction)
+                (core:trigger_event :ScriptEventEverchosenTransferAccepted key))))
           (request)))
       (originals.accept manager source)))
 

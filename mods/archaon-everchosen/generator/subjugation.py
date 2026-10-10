@@ -4,6 +4,8 @@ from db_tables import stable_id
 PREFIX = "everchosen_subjugation_"
 HOST = "wh_main_chs_chaos"
 CAMPAIGN = "wh3_main_combi"
+DAEMON_FACTION = "wh3_main_dae_daemon_prince"
+DAEMON_SUCCESSOR = "wh3_dlc20_chs_daemon_prince_undivided"
 CLIENTS = {
     "nor": ("wh_dlc08_nor_norsca", "wh3_dlc20_nor_kuj",
             "wh_main_nor_marauder_chieftain", "norsca-v1.png"),
@@ -19,6 +21,12 @@ COPIED_ROWS = (
     ("battle_set_piece_armies",
      {"army_name": HUNT_ARMY, "faction": CLIENTS["chd"][1]},
      {"faction": HUNT_FACTION}),
+    # This subtype has auto_generate=false; permission lets the retained
+    # faction own its scripted successor without creating a recruitment pool.
+    ("faction_agent_permitted_subtypes",
+     {"faction": "wh3_dlc29_chaos_invasion_confederation_owner",
+      "agent": "general", "subtype": DAEMON_SUCCESSOR},
+     {"faction": DAEMON_FACTION}),
 )
 TARGETS = {
     "wh_dlc08_nor_norsca": "wh_dlc08_nor_wulfrik",
@@ -212,7 +220,12 @@ def validate(native, generated, assets):
         if row["item"] not in keys:
             raise ValueError(f"Missing skill node: {row}")
     for row in generated["faction_agent_permitted_subtypes"]:
-        if row["faction"] != HOST or row["subtype"] not in TARGETS.values():
+        transferred = (row["faction"] == HOST and row["subtype"] in (
+            *TARGETS.values(), DAEMON_FACTION))
+        successor = (row["faction"] == DAEMON_FACTION and
+                     row["subtype"] == DAEMON_SUCCESSOR)
+        if (not (transferred or successor) or row["agent"] != "general"
+                or row["mod_disabled"] != "false"):
             raise ValueError(f"Unintended character permission: {row}")
     for race in CLIENTS:
         folder = assets / "ui/flags" / identity_key(race)
@@ -239,5 +252,23 @@ def script_data(native):
         if template is None:
             raise ValueError(f"Unsupported target subculture: {faction}")
         targets[faction] = {"subtype": subtype, "culture": template}
+    prince = DAEMON_FACTION
+    general = DAEMON_SUCCESSOR
+    native["agent_subtypes"].one(key=general, auto_generate="false")
+    native["faction_agent_permitted_subtypes"].one(
+        faction="wh3_dlc29_chaos_invasion_confederation_owner",
+        subtype=general, agent="general", mod_disabled="false")
+    cultures["wh3_main_dae_daemons"] = {
+        "faction": prince, "general": general,
+        "units": dict(zip(UNIT_SLOTS, (
+            "wh3_main_kho_inf_bloodletters_0", "wh3_main_nur_inf_plaguebearers_0",
+            "wh3_main_kho_inf_bloodletters_1", "wh3_main_nur_inf_plaguebearers_1",
+            "wh3_main_sla_cav_hellstriders_0", "wh3_main_kho_cav_bloodcrushers_0",
+            "wh3_main_nur_mon_beast_of_nurgle_0", "wh3_main_kho_mon_bloodthirster_0",
+            "wh3_main_tze_mon_lord_of_change_0")))}
+    if not set(cultures["wh3_main_dae_daemons"]["units"].values()) <= native["main_units"].column("unit"):
+        raise ValueError("Unknown Daemon Prince challenge unit")
+    targets[prince] = {"subtype": prince, "culture": "wh3_main_dae_daemons",
+                      "keep_faction": True}
     return {"targets": targets, "cultures": cultures,
             "dilemma": PREFIX + "accept"}

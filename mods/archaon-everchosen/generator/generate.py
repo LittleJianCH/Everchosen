@@ -17,6 +17,7 @@ sys.path.insert(0, str(MOD.parents[1] / "tools"))
 from db_tables import (read_authored, read_table, run_generator, stable_id,
                        write_table)
 import subjugation
+import daemon_prince
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -105,7 +106,7 @@ REQUIRED_FEATURES = {"bribery", "streaks", "diplomatic_manipulation",
 REQUIRED_PLAGUE_SETS = (("plague_effect_set_nurgle_positive", "false"),
                         ("plague_effect_set_nurgle_negative", "true"))
 
-TABLES = sorted(set(subjugation.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
+TABLES = sorted(set(subjugation.TABLES) | set(daemon_prince.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
     campaign_groups campaign_group_members
     campaign_group_member_criteria_factions
     campaign_group_member_criteria_campaigns
@@ -122,7 +123,9 @@ NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
     "ui3.pack": [f"{UI_FOLDER}/{name}.twui.xml" for name in (
         "hud_campaign", "hud_campaign_resource_bar_wh3", "great_game_rituals",
-        "rifts")],
+        "rifts")] + [daemon_prince.ui_path(name)
+                     for name in daemon_prince.UI_NAMES] +
+        ["ui/templates/square_medium_text_button.twui.xml"],
     # Loaded by the adapter regressions, not by this generator.
     "data_script.pack": ["script/campaign/wh3_campaign_nurgle_plagues.lua",
                          "script/campaign/wh3_campaign_great_game.lua",
@@ -200,7 +203,7 @@ def generated_rows(native):
                    vassal_blessings, portal_permission,
                    subjugation.client_factions,
                    subjugation.skills,
-                   subjugation.dilemmas):
+                   subjugation.dilemmas, daemon_prince.rows):
         for table, row in derive(native):
             if set(row) != set(native[table].header):
                 raise ValueError(f"Unexpected fields for {table}: {sorted(row)}")
@@ -236,7 +239,7 @@ def validate(native, generated, authored):
     for row in authored.get("campaign_group_member_criteria_pooled_resources", []):
         if row["pooled_resource"] not in resources:
             raise ValueError(f"Criterion for a missing resource: {row}")
-    if not ours("campaign_group_rituals", "ritual") <= native["rituals"].column("key"):
+    if not ours("campaign_group_rituals", "ritual") <= (native["rituals"].column("key") | ours("rituals", "key")):
         raise ValueError("Unknown inherited ritual")
     if not REQUIRED_FEATURES <= native["campaign_features"].column("feature"):
         raise ValueError("Unknown inherited faction feature")
@@ -259,6 +262,7 @@ def script_data(native, generated):
     data["portals"] = {"network": NETWORK, "template": NODE_TEMPLATE,
                        "nodes": {key: True for key in nodes}}
     data["subjugation"] = subjugation.script_data(native)
+    data["daemon_prince"] = daemon_prince.script_data(native)
     return data
 
 
@@ -266,6 +270,8 @@ def lua_literal(value):
     """Serialize strings, booleans, lists, and string-keyed dicts as Lua."""
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
     if isinstance(value, str):
         escaped = (value.replace("\\", "\\\\").replace('"', '\\"')
                    .replace("\n", "\\n"))
@@ -355,12 +361,16 @@ UI_ADAPTATIONS = {
 }
 
 
-def adapt_ui(native_root, output):
-    for name, adapt in UI_ADAPTATIONS.items():
-        relative = f"{UI_FOLDER}/{name}.twui.xml"
+def adapt_ui(native_root, output, native):
+    for name in (*UI_ADAPTATIONS, *daemon_prince.UI_NAMES):
+        relative = (daemon_prince.ui_path(name) if name in daemon_prince.UI_NAMES
+                    else f"{UI_FOLDER}/{name}.twui.xml")
         tree = ET.parse(native_root / relative)
-        for element, expression in list(adapt(tree)):
-            element.set(EXPRESSION, expression)
+        if name in UI_ADAPTATIONS:
+            for element, expression in list(UI_ADAPTATIONS[name](tree)):
+                element.set(EXPRESSION, expression)
+        else:
+            daemon_prince.adapt(tree, name, native_root, native)
         (output / relative).parent.mkdir(parents=True, exist_ok=True)
         tree.write(output / relative, encoding="utf-8", xml_declaration=True)
 
@@ -375,14 +385,15 @@ def generate(native_root, output):
     subjugation.validate(native, generated, MOD / "assets")
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
-    adapt_ui(native_root, output)
+    adapt_ui(native_root, output, native)
     path = output / "script/campaign/mod/everchosen_inheritance_data.lua"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text('core:add_static_object("everchosen_inheritance_data", '
                     + lua_literal(script_data(native, generated)) + ")\n",
                     encoding="utf-8")
     print(f"Inheritance: {sum(map(len, generated.values()))} generated rows "
-          f"across {len(generated)} tables; {len(UI_ADAPTATIONS)} native UI "
+          f"across {len(generated)} tables; "
+          f"{len(UI_ADAPTATIONS) + len(daemon_prince.UI_NAMES)} native UI "
           "adaptations")
 
 

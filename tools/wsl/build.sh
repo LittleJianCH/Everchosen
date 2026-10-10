@@ -42,7 +42,7 @@ for mod in "${targets[@]}"; do
             exit 1
         fi
         mkdir -p -- "$(dirname -- "$destination")"
-        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals cm,core,out,common,nurgle_plagues,find_uicomponent --compile "$source" > "$destination"
+        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals cm,core,out,common,nurgle_plagues,find_uicomponent,cco,UIComponent,CampaignUI --compile "$source" > "$destination"
         count=$((count + 1))
     done < <(find "$source_dir/src" -type f -name '*.fnl' -print0)
     # Check all Lua, including any deliberately authored Lua assets.
