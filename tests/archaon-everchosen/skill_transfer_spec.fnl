@@ -102,17 +102,24 @@
           (assert.equals 0 s.levels.wh_dlc03_skill_bst_lord_campaign_corruption)
           (assert.equals 0 s.levels.wh_dlc03_skill_bst_lord_gathering_of_beasts)
           (assert.equals 3 s.levels.personal_combat))))
-    (it "transfers Norscan three-level and single-level slots without refunds"
+    (it "keeps Wulfrik's blue-line and World Walker investments without refunds"
       (fn []
         (let [s (scenario :wh_dlc08_nor_wulfrik
                   {:wh_dlc08_skill_nor_lords_campaign_norse_resilience 1
-                   :wh_dlc08_skill_nor_wulfrik_campaign_devourers_of_flesh 1}
+                   :wh_dlc08_skill_nor_wulfrik_campaign_devourers_of_flesh 1
+                   :wh_dlc08_skill_nor_wulfrik_unique_world_walker 1
+                   :wh_dlc08_skill_nor_wulfrik_unique_eternal_challenger 1}
                   false)]
           (s.capture) (finish s)
           (assert.equals
             1 s.levels.wh3_dlc20_skill_chs_lord_campaign_devoted_of_chaos)
           (assert.equals
-            1 s.levels.wh_main_skill_chs_lord_campaign_unholy_resilience))))
+            1 s.levels.wh_main_skill_chs_lord_campaign_unholy_resilience)
+          (assert.equals 1 s.levels.everchosen_subjugation_world_walker)
+          (assert.equals
+            0 s.levels.wh_dlc08_skill_nor_wulfrik_unique_world_walker)
+          (assert.equals
+            1 s.levels.wh_dlc08_skill_nor_wulfrik_unique_eternal_challenger))))
     (it "resumes a save between prince conversion phases without duplicates"
       (fn []
         (let [s (scenario :wh3_main_dae_daemon_prince

@@ -7,6 +7,11 @@ HOST = "wh_main_chs_chaos"
 CAMPAIGN = "wh3_main_combi"
 DAEMON_FACTION = "wh3_main_dae_daemon_prince"
 DAEMON_SUCCESSOR = "wh3_dlc20_chs_daemon_prince_undivided"
+WULFRIK = "wh_dlc08_nor_wulfrik"
+WORLD_WALKER = "wh_dlc08_skill_nor_wulfrik_unique_world_walker"
+WORLD_WALKER_NODE = "wh2_dlc17_skill_node_nor_wulfrik_5_1"
+WORLD_WALKER_REPLACEMENT = PREFIX + "world_walker"
+GLOBAL_RECRUITMENT = "wh_dlc05_effect_global_recruitment_duration_all"
 CLIENTS = {
     "nor": ("wh_dlc08_nor_norsca", "wh3_dlc20_nor_kuj",
             "wh_main_nor_marauder_chieftain", "norsca-v1.png"),
@@ -28,9 +33,12 @@ COPIED_ROWS = (
      {"faction": "wh3_dlc29_chaos_invasion_confederation_owner",
       "agent": "general", "subtype": DAEMON_SUCCESSOR},
      {"faction": DAEMON_FACTION}),
+    ("character_skills", {"key": WORLD_WALKER},
+     {"key": WORLD_WALKER_REPLACEMENT, "localised_name": "",
+      "localised_description": ""}),
 )
 TARGETS = {
-    "wh_dlc08_nor_norsca": "wh_dlc08_nor_wulfrik",
+    "wh_dlc08_nor_norsca": WULFRIK,
     "wh_dlc08_nor_wintertooth": "wh_dlc08_nor_throgg",
     "wh3_dlc27_nor_sayl": "wh3_dlc27_nor_sayl_the_faithless",
     "wh3_dlc23_chd_astragoth": "wh3_dlc23_chd_astragoth",
@@ -44,7 +52,8 @@ TARGETS = {
 TABLES = """factions start_pos_factions faction_agent_permitted_subtypes agent_subtypes
     character_skill_node_sets character_skill_node_set_items
     character_skill_nodes character_skill_node_links character_skills
-    character_skill_level_to_effects_junctions
+    character_skill_level_to_effects_junctions character_skill_nodes_skill_locks
+    effect_bonus_value_basic_junction
     main_units dilemmas cdir_events_dilemma_choice_details
     cdir_events_dilemma_option_junctions cdir_events_dilemma_payloads
 """.split()
@@ -122,8 +131,13 @@ def skill_mapping(native):
             maximum = max(int(r["level"]) for r in levels.where(
                 character_skill_key=replacement["character_skill_key"]))
             pairs.append((row, replacement, maximum))
+        if subtype == WULFRIK:
+            old = native["character_skill_nodes"].one(key=WORLD_WALKER_NODE)
+            pairs.append((old, dict(old,
+                character_skill_key=WORLD_WALKER_REPLACEMENT), 1))
+        changed = {old["key"] for old, _, _ in pairs}
         result[subtype] = skill_slots.mapping(
-            native, pairs, [r for r in original if r["indent"] != "5"])
+            native, pairs, [r for r in original if r["key"] not in changed])
     return result
 
 
@@ -184,6 +198,39 @@ def skills(native):
                 permission, faction=client, subtype=subtype)
 
 
+def world_walker(native):
+    """Keep Wulfrik's unique row in place, with an Archaon-only final skill."""
+    tree, original = original_tree(native, WULFRIK)
+    nodes = native["character_skill_nodes"]
+    source = nodes.one(key=WORLD_WALKER_NODE, character_skill_key=WORLD_WALKER)
+    mapping = skill_slots.linked_nodes(
+        native, original, [source["key"]], PREFIX + "wulfrik_unique_")
+    subculture = native["factions"].one(key="wh_dlc08_nor_norsca")["subculture"]
+    for key, replacement in mapping.items():
+        node = nodes.one(key=key)
+        if node["indent"] == "5" or any(node[field] for field in (
+                "campaign_key", "faction_key", "subculture")):
+            raise ValueError("Wulfrik's native unique path changed: " + key)
+        yield nodes.name, dict(node, subculture=subculture)
+        yield nodes.name, dict(
+            node, key=replacement, campaign_key=CAMPAIGN, faction_key=HOST,
+            character_skill_key=(WORLD_WALKER_REPLACEMENT
+                if key == WORLD_WALKER_NODE else node["character_skill_key"]))
+        yield "character_skill_node_set_items", dict(
+            set=tree["key"], item=replacement, mod_disabled="false")
+    yield from skill_slots.links(native, mapping)
+    skills = {nodes.one(key=key)["character_skill_key"] for key in mapping}
+    if any(r["character_skill_node"] in mapping or r["character_skill"] in skills
+           for r in native["character_skill_nodes_skill_locks"].rows):
+        raise ValueError("New Wulfrik unique-path locks require adaptation")
+    levels = native["character_skill_level_to_effects_junctions"]
+    levels.one(character_skill_key=WORLD_WALKER, effect_key=GLOBAL_RECRUITMENT,
+               level="1", effect_scope="general_to_force_own", value="-2.0000")
+    for row in levels.where(character_skill_key=WORLD_WALKER):
+        if row["effect_key"] != GLOBAL_RECRUITMENT:
+            yield levels.name, dict(row, character_skill_key=WORLD_WALKER_REPLACEMENT)
+
+
 def dilemmas(native):
     tables = ("cdir_events_dilemma_choice_details",
               "cdir_events_dilemma_option_junctions",
@@ -214,7 +261,7 @@ def dilemmas(native):
                 yield table, copied
 
 
-def validate(native, generated, assets):
+def validate(native, generated, assets, authored):
     """Reject new-key collisions and unintended edits to existing skill trees."""
     armies = native["battle_set_piece_armies"]
     original_owner = native["factions"].one(key=client_key("chd"))
@@ -245,10 +292,13 @@ def validate(native, generated, assets):
            for row in owners.rows if row["key"] in sets):
         raise ValueError("Adapted blue line is shared with an unrelated subtype")
     keys = nodes.column("key")
+    skills = native["character_skills"].column("key") | {
+        row["key"] for row in generated.get("character_skills", [])}
     new_keys = set()
     for row in generated[nodes.name]:
         key = row["key"]
-        native["character_skills"].one(key=row["character_skill_key"])
+        if row["character_skill_key"] not in skills:
+            raise ValueError(f"Missing transferred skill: {row['character_skill_key']}")
         if key in changed:
             before = nodes.one(key=key)
             if any(row[column] != value for column, value in before.items()
@@ -289,6 +339,22 @@ def validate(native, generated, assets):
                      "mon_banner.dds"):
             if not (folder / file).is_file():
                 raise ValueError(f"Missing client flag asset: {folder / file}")
+    # Use the same recruitment channels as Warriors of Chaos' native blue line.
+    native["effect_bonus_value_basic_junction"].one(
+        effect="wh_main_effect_force_all_campaign_recruitment_cost_all",
+        bonus_value_id="recruitment_mod_cost_land_all")
+    native["effect_bonus_value_ids_unit_sets"].one(
+        effect="wh_main_effect_force_all_campaign_experience_base_all",
+        bonus_value_id="unit_xp_mod", unit_set="all_units")
+    levels = [r for r in authored["character_skill_level_to_effects_junctions"]
+              if r["character_skill_key"] == WORLD_WALKER_REPLACEMENT]
+    expected = {"wh_main_effect_force_all_campaign_recruitment_cost_all",
+                "wh_main_effect_force_all_campaign_experience_base_all"}
+    if {r["effect_key"] for r in levels} != expected or len(levels) != 2:
+        raise ValueError("World Walker needs recruitment cost and rank bonuses")
+    for row in levels:
+        if row["level"] != "1" or row["effect_scope"] != "general_to_force_own":
+            raise ValueError("World Walker recruitment bonuses escape his army")
 
 
 def script_data(native):

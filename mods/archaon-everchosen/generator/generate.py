@@ -207,6 +207,7 @@ def generated_rows(native):
                    vassal_blessings, portal_permission,
                    subjugation.client_factions,
                    subjugation.skills,
+                   subjugation.world_walker,
                    subjugation.dilemmas, daemon_prince.rows, daemon_legion.rows):
         for table, row in derive(native):
             if set(row) != set(native[table].header):
@@ -388,7 +389,7 @@ def generate(native_root, output):
     native = {name: read_table(native_root / "db", name) for name in TABLES}
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
-    subjugation.validate(native, generated, MOD / "assets")
+    subjugation.validate(native, generated, MOD / "assets", authored)
     prince_tree = {}
     for table, row in daemon_skills.rows(native):
         prince_tree.setdefault(table, []).append(row)
