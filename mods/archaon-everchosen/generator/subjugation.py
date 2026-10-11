@@ -208,7 +208,9 @@ def dilemmas(native):
                 if table == "cdir_events_dilemma_payloads":
                     if row["payload_key"] != "TEXT_DISPLAY":
                         raise ValueError(f"Native dilemma has gameplay payload: {row}")
-                    copied["value"] = "LOOKUP[" + PREFIX + row["choice_key"].lower() + "]"
+                    choice = row["choice_key"].lower()
+                    detail = choice + (suffix if choice == "first" else "")
+                    copied["value"] = "LOOKUP[" + PREFIX + detail + "]"
                 yield table, copied
 
 
