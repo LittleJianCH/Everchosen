@@ -15,6 +15,15 @@ PRINCE = "wh3_main_dae_daemon_prince"
 GODS = {"khorne": "kho", "nurgle": "nur", "slaanesh": "sla",
         "tzeentch": "tze", "undivided": "und"}
 GROUP = "everchosen_inheritance_host"
+# Private display effects retain native presentation without changing Daniel's
+# recruitment promises in his own faction.
+DEDICATION_EFFECTS = {
+    f"wh3_main_effect_daemon_prince_{god}_dedicate_dummy":
+    PREFIX + "dedicate_" + god + "_parts" for god in GODS
+} | {
+    "wh3_main_effect_daemon_prince_undivided_dedicate_gifts_dummy":
+    PREFIX + "dedicate_undivided_other_parts",
+}
 TABLES = """campaign_group_pooled_resources campaign_group_rituals
     pooled_resources pooled_resource_factor_junctions
     campaign_group_pooled_resource_threshold_operation_sets
@@ -22,7 +31,7 @@ TABLES = """campaign_group_pooled_resources campaign_group_rituals
     operation_set_to_operation_group_junctions campaign_operation_sets
     campaign_operation_set_armory_item_elements campaign_operation_armory_items
     armory_items ritual_payloads ritual_payload_effect_bundles
-    effect_bundles effect_bundles_to_effects_junctions
+    effects effect_bundles effect_bundles_to_effects_junctions
     resource_costs resource_cost_pooled_resource_junctions
 """.split() + daemon_legion.TABLES
 UI_NAMES = ("character_details_panel", "character_details_panel_dae_gifts",
@@ -43,6 +52,9 @@ def ritual(god):
 
 
 def rows(native):
+    for source, target in DEDICATION_EFFECTS.items():
+        row = native["effects"].one(effect=source)
+        yield "effects", dict(row, effect=target)
     for god in GODS:
         row = native["campaign_group_pooled_resources"].one(
             campaign_group="wh3_main_feature_daemons", resource=resource(god))
@@ -69,7 +81,8 @@ def rows(native):
                     "_dedicate_" in effect or
                     effect == "wh3_main_effect_disable_ritual_dae_ascend"):
                 yield "effect_bundles_to_effects_junctions", dict(
-                    row, effect_bundle_key=target)
+                    row, effect_bundle_key=target,
+                    effect_key=DEDICATION_EFFECTS.get(effect, effect))
         row = native["campaign_group_rituals"].one(
             campaign_group="wh3_main_feature_daemons", ritual=source)
         yield "campaign_group_rituals", dict(
@@ -220,7 +233,8 @@ def adapt(tree, name, native_root, native):
         cbs = component.find("callbacks_with_context")
         if cbs is None:
             cbs = component.find("callbackwithcontextlist")
-        callback(cbs, "ContextVisibilitySetter", "CcoStaticObject",
+        callback(cbs, "ContextVisibilitySetter",
+                 "CcoPooledResourceThresholdOperationSetRecord",
                  f'({HOST_UI}) == false')
     for component in components(tree, "template_effect") + components(
             tree, "template_effect_ascend"):
@@ -284,8 +298,14 @@ def adapt(tree, name, native_root, native):
             if (element.get("callback_id") == "ContextList" and
                     expression.startswith("Join(ActiveThresholdSetList")):
                 end = expression.index(").Filter(")
+                records = record_list
+                if component.get("id") in (
+                        "prog_bar_holder", "prog_bar_ascend_holder"):
+                    # Body-part thresholds can also contain native unit grants.
+                    # The bar shows only training; tier_list owns the parts.
+                    records += f'.Filter(Key.Contains("{PREFIX}legion_"))'
                 element.set(EXPR, conditional(expression,
-                    record_list + expression[end + 1:]))
+                    records + expression[end + 1:]))
     # Resource icons otherwise resolve through the Warriors of Chaos skin.
     icon_path = '"ui/skins/wh3_dae_main_dae_daemons/icon_dae_undivided_points.png"'
     for god in GODS:
