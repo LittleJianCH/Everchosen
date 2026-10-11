@@ -36,6 +36,7 @@ TABLES = """campaign_group_pooled_resources campaign_group_rituals
 """.split() + daemon_legion.TABLES
 UI_NAMES = ("character_details_panel", "character_details_panel_dae_gifts",
             "daemonic_progression", "tooltip_ritual", "tooltip_effect_bundle")
+UNIT_TOOLTIP = "ui/common ui/tooltip_effect_bundle_with_units_list.twui.xml"
 
 
 def ui_path(name):
@@ -186,6 +187,78 @@ def conditional(native, replacement):
     return f'GetIfElse({HOST_UI}, {replacement}, {native})'
 
 
+def legion_unit_cards(tree, native_root):
+    """Append native unit-card blocks only to the inherited training bundles.
+
+    WH3 9.0.3 excludes the god-wide sets from UnitsFromEffectNotExcluded.
+    Read their actual sets here without changing the game's shared exclusions.
+    All-army effects preview the current force rather than every game unit.
+    """
+    source = ET.parse(native_root / UNIT_TOOLTIP)
+    enabled = f'({HOST_UI}) && Key.Contains("{PREFIX}legion_")'
+    saving = f'EffectKey == "{PREFIX}nurgle_saving"'
+    has_saving = f'EffectList.Any({saving})'
+    all_army = f'Key.Contains("{PREFIX}legion_undivided_")'
+    force = CHARACTER + ".MilitaryForceContext"
+    empty = 'DatabaseRecordsForKeys("CcoMainUnitRecord")'
+    army_units = (f'GetIfElse(IsContextValid({force}), '
+                  f'{force}.UnitList.Transform(UnitRecordContext), {empty})')
+    # Use the engine's set expansion, including loaded mods' set memberships.
+    # Deduplicate mounts and multi-stat junctions as the native tooltip does.
+    def units(predicate):
+        return (f'EffectList.Filter({predicate})'
+                '.Transform(UnitSetsFromAllSourcesList)'
+                '.Transform(UnitsInSetList)')
+
+    normal = f'GetIfElse({all_army}, {army_units}, {units(f"({saving}) == false")})'
+    header = (f'GetIfElse({all_army}, Loc("{PREFIX}units_current_army"), '
+              f'GetIfElse({has_saving}, Loc("{PREFIX}units_nurgle_training"), '
+              'Loc("generic_units_tooltip_header")))')
+    blocks = (("training", enabled, normal, header),
+              ("reconstitution", f'{enabled} && {has_saving}', units(saving),
+               f'Loc("{PREFIX}units_reconstitution")'))
+    root = tree.getroot()
+    parent = root.find("hierarchy/root/tooltip_effect_bundle/list_parent")
+    names = ("dy_unit_card_header", "unit_card_list", "template_unit_card")
+    for block, visible, roster, label in blocks:
+        template = deepcopy(source)
+        remap = {e.get("this"): str(uuid5(
+            NAMESPACE_URL, PREFIX + block + e.get("this"))).upper()
+            for e in template.iter() if e.get("this")}
+        for element in template.iter():
+            for attr, value in list(element.attrib.items()):
+                if value in remap:
+                    element.set(attr, remap[value])
+        roster = (f'GetIfElse({visible}, {roster}, {empty})'
+                  '.Filter(IsVisuallyExcludedFromEffects == false)'
+                  '.Distinct(UnmountedUnitRecordContext)')
+        renamed = {name: ("template_" + PREFIX + block + "_unit_card"
+                          if name == "template_unit_card"
+                          else PREFIX + block + "_" + name) for name in names}
+        for name in names:
+            comp = components(template, name)[0]
+            comp.tag = renamed[name]
+            comp.set("id", comp.tag)
+            if name != "template_unit_card":
+                cbs = comp.find("callbackwithcontextlist")
+                for cb in list(cbs):
+                    if cb.get("callback_id") != "LayoutStallerCallback":
+                        cbs.remove(cb)
+                callback(cbs, "ContextVisibilitySetter", "CcoEffectBundle", visible)
+                if name == "dy_unit_card_header":
+                    callback(cbs, "ContextTextLabel", "CcoEffectBundle", label)
+                else:
+                    callback(cbs, "ContextList", "CcoEffectBundle", roster)
+            root.find("components").append(comp)
+        hierarchy = template.getroot().find(
+            "hierarchy/root/tooltip_effect_bundle_with_units_list/list_parent")
+        for name in names[:2]:
+            node = hierarchy.find(name)
+            for child in node.iter():
+                child.tag = renamed[child.tag]
+            parent.insert(list(parent).index(parent.find("stick_progress_bar")), node)
+
+
 def adapt(tree, name, native_root, native):
     root = tree.getroot()
     if name in ("daemonic_progression", "character_details_panel_dae_gifts"):
@@ -201,6 +274,7 @@ def adapt(tree, name, native_root, native):
                       f'AgentSubtypeRecordContext.Key == "{PRINCE}")')
         return
     if name == "tooltip_effect_bundle":
+        legion_unit_cards(tree, native_root)
         for element in root.iter("callback_with_context"):
             expression = element.get(EXPR, "")
             source = "PooledResourceList.FirstContext.IconPath"
