@@ -129,8 +129,7 @@ NATIVE_INPUTS = {
         "hud_campaign", "hud_campaign_resource_bar_wh3", "great_game_rituals",
         "rifts")] + [daemon_prince.ui_path(name)
                      for name in daemon_prince.UI_NAMES] +
-        ["ui/templates/square_medium_text_button.twui.xml",
-         daemon_prince.UNIT_TOOLTIP],
+        ["ui/templates/square_medium_text_button.twui.xml"],
     # Loaded by the adapter regressions, not by this generator.
     "data_script.pack": ["script/campaign/wh3_campaign_nurgle_plagues.lua",
                          "script/campaign/wh3_campaign_great_game.lua",
