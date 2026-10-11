@@ -250,6 +250,8 @@
           (finish source operation pending))
         operation.keep_faction
         (when (prepare-successor source operation pending)
+          (cm:change_localised_faction_name operation.source
+            (. (cultures) operation.culture :name))
           (set operation.stage :transfer)
           (cm:set_saved_value pending-key pending))
         (let [client (cm:get_faction operation.client)]

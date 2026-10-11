@@ -313,6 +313,7 @@ def script_data(native):
         subtype=general, agent="general", mod_disabled="false")
     cultures["wh3_main_dae_daemons"] = {
         "faction": prince, "general": general,
+        "name": "factions_screen_name_" + identity_key("dae"),
         "units": dict(zip(UNIT_SLOTS, (
             "wh3_main_kho_inf_bloodletters_0", "wh3_main_nur_inf_plaguebearers_0",
             "wh3_main_kho_inf_bloodletters_1", "wh3_main_nur_inf_plaguebearers_1",

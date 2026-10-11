@@ -108,8 +108,7 @@
    :randomise_character_name (fn [])
    :change_localised_faction_name
    (fn [_ key name]
-     (assert.equals client-key key)
-     (record s :rename name))
+     (record s :rename [key name]))
    :find_valid_spawn_location_for_character_from_settlement
    (fn [] (values (if s.no-spawn? -1 1) 2))
    :awaken_faction_from_death (fn [_ f] (record s :awaken (f:name)))
@@ -310,14 +309,19 @@
             (s:accept)
             (assert.equals 1 (s:count :vassal))
             (assert.equals 0 (s:count :reassign))
+            (assert.equals 0 (s:count :rename))
             (set s.source.overlord s.host)
             ((. s.listeners (.. prefix "turn") 2)) (s:flush)
+            (assert.same
+              [[key :factions_screen_name_everchosen_subjugation_dae_vassal_owner]]
+              s.calls.rename)
             (assert.same [2] s.calls.reassign)
             (set s.lord.owner s.host)
             (set s.host.chars [s.host.leader s.lord])
             ((. s.listeners (.. prefix "turn") 2)) (s:flush)
             (assert.is_true (. s.saved (.. prefix "completed") key))
             (assert.equals s.source successor.owner)
+            (assert.equals 1 (s:count :rename))
             (assert.equals 0 (s:count :merge))
             (assert.equals 0 (s:count :kill_faction))))))
 
