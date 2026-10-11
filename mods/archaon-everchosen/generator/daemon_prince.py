@@ -192,9 +192,11 @@ def adapt(tree, name, native_root, native):
             expression = element.get(EXPR, "")
             source = "PooledResourceList.FirstContext.IconPath"
             if source in expression:
-                element.set(EXPR, conditional(expression,
+                element.set(EXPR,
+                    f'GetIfElse({HOST_UI} && Key.Contains("{PREFIX}legion_"), '
                     'Format(Loc("everchosen_daemon_legion_requirement"), '
-                    'LowerBound, PooledResourceContext.Name)'))
+                    'LowerBound, PooledResourceList.FirstContext.Name), '
+                    f'{expression})')
         return
     if name == "tooltip_ritual":
         for element in root.iter("callback_with_context"):

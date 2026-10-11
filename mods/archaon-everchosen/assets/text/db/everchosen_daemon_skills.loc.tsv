@@ -1,7 +1,7 @@
 key	text	tooltip
 #Loc;1;text/db/everchosen_daemon_skills.loc		
-effects_description_everchosen_daemon_undivided_replenish	伤亡补员速率：%+n%%（本队所有部队）	true
-effects_description_everchosen_daemon_undivided_defence	近战防御：%+n（本队所有部队）	true
+effects_description_everchosen_daemon_undivided_replenish	伤亡补员速率：%+n%	true
+effects_description_everchosen_daemon_undivided_defence	近战防御：%+n	true
 character_skills_localised_name_everchosen_daemon_skill_khorne_1_4	浴血先锋	true
 character_skills_localised_description_everchosen_daemon_skill_khorne_1_4	以接连的近战厮杀锤炼恐虐军团。	true
 character_skills_localised_name_everchosen_daemon_skill_khorne_4	颅座之锋	true
