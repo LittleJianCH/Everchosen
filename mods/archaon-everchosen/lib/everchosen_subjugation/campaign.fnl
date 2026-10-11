@@ -208,9 +208,13 @@
     (when operation.dead
       (assert (= (source:num_regions) 0)
               "Challenge source acquired territory; refuse faction cleanup")
-      (let [persistent (. (native) :persistent)]
-        (set persistent.suppress_faction_death_event true))
-      (cm:kill_faction (source:name)))
+      ;; Native battle cleanup may already have destroyed this empty faction.
+      ;; Killing it again produces no FactionDeath to consume CA's suppression
+      ;; flag, so the next real death would lose its challenge countdown.
+      (when (not (source:is_dead))
+        (let [persistent (. (native) :persistent)]
+          (set persistent.suppress_faction_death_event true))
+        (cm:kill_faction (source:name))))
     (let [done (saved done-key)
           challenges (saved challenge-key)]
       (tset done (source:name) true)

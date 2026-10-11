@@ -34,6 +34,7 @@
            :military_force_list
            (fn [self] (game-list (or self.forces [])))
            :was_confederated (fn [self] (not= self.absorbed-by nil))
+           :confederation_in_progress (fn [self] (or self.merging? false))
            :num_regions (fn [self] (length self.regions))
            :region_list (fn [self] (game-list self.regions))
            :was_confederated_by_faction
@@ -54,6 +55,9 @@
            :character_subtype (fn [self kind] (= kind self.subtype))
            :has_skill (fn [] false)
            :is_alive (fn [self] self.alive?)
+           :is_wounded (fn [self] (not self.alive?))
+           :in_settlement (fn [] false)
+           :is_besieging (fn [] false)
            :has_region (fn [] true)
            :region (fn [] {:name (fn [] :native_region)})
            :family_member
@@ -77,6 +81,11 @@
    :add_loading_game_callback (fn [])
    :add_first_tick_callback (fn [])
    :add_pre_first_tick_callback (fn [])
+   :add_immortal_character_defeated_listener (fn [])
+   :random_number (fn [_ maximum minimum] minimum)
+   :add_turn_countdown_event
+   (fn [_ key turns event context]
+     (record s :countdown [key turns event context]))
    :callback (fn [_ callback] (table.insert s.queue callback))
    :turn_number #(do s.turn)
    :get_family_member_by_cqi
@@ -173,6 +182,7 @@
   (let [env s.env]
     (load-script s (.. native
                        "/script/campaign/wh3_dlc29_archaon_subjugation.lua"))
+    (env.archaon_subjugation:initialise)
     (set s.original-accept env.archaon_subjugation.subjugate_chaos_faction)
     (load-script s (.. mod-path "everchosen_inheritance_data.lua"))
     (load-script s (.. mod-path "everchosen_archaon.lua"))
@@ -206,8 +216,78 @@
     (set s.env (campaign-environment s))
     s))
 
+(fn death [s loser]
+  (let [listener s.listeners.ChaosFactionDeath
+        context {:faction #loser :killer (fn [] nil)}]
+    (when ((. listener 1) context) ((. listener 2) context))))
+
 (describe "Extended subjugation"
   (fn []
+    (it "registers native delayed death challenges for all added cultures"
+      (fn []
+        (let [s (campaign)
+              cases {:wh_dlc08_nor_norsca :wh_dlc08_nor_norsca
+                     :wh3_dlc23_chd_astragoth :wh3_dlc23_chd_chaos_dwarfs
+                     :wh_dlc03_bst_beastmen :wh_dlc03_bst_beastmen
+                     :wh3_main_dae_daemon_prince :wh3_main_dae_daemons
+                     :wh3_main_nur_poxmakers_of_nurgle :wh3_main_nur_nurgle}]
+          (s:start)
+          (each [key culture (pairs cases)]
+            (let [loser (s:faction key)]
+              (set loser.culture #culture)
+              (set loser.dead? true)
+              (death s loser)))
+          (assert.equals 5 (s:count :countdown))
+          (each [_ [key turns event loser] (ipairs s.calls.countdown)]
+            (assert.equals host key)
+            (assert.equals
+              s.manager.config.min_turns_to_trigger_fight_dilemma turns)
+            (assert.equals :ScriptEventFightDeadChaosFactionDilemma event)
+            (assert.is_truthy (. cases loser)))
+          (death s (s:faction :wh_main_emp_empire))
+          (set s.source.merging? true)
+          (death s s.source)
+          (assert.equals 5 (s:count :countdown)))))
+
+    (it "defers a new-culture challenge while Archaon is wounded"
+      (fn []
+        (let [s (campaign)]
+          (s:start)
+          (set s.source.dead? true)
+          (set s.host.leader.alive? false)
+          (death s s.source)
+          (let [listener s.listeners.ArchaonDilemmaToFightDeadChaosFaction
+                context {:string source-key}]
+            (assert.is_true ((. listener 1) context))
+            ((. listener 2) context)
+            (assert.equals 2 (s:count :countdown))
+            (assert.equals s.manager.config.turns_to_delay_fight_dilemma
+                           (. s.calls.countdown 2 2))
+            ;; A queued invitation stops once its lord has joined Archaon.
+            (set s.lord.owner s.host)
+            (table.insert s.host.chars s.lord)
+            ((. listener 2) context)
+            (assert.equals 2 (s:count :countdown))))))
+
+    (it "does not suppress the next death after an already-dead challenge ends"
+      (fn []
+        (let [s (campaign)]
+          (set s.source.dead? true)
+          (set s.lord.alive? false)
+          (s:start) (s:accept)
+          (set s.lord.owner s.host)
+          (set s.host.chars [s.host.leader s.lord])
+          ;; Native battle cleanup has already destroyed the empty source.
+          (set s.source.dead? true)
+          ((. s.listeners (.. prefix "turn") 2)) (s:flush)
+          (assert.equals 0 (s:count :kill_faction))
+          (let [next (s:faction :wh3_main_dae_daemon_prince)]
+            (set next.dead? true)
+            (death s next)
+            (assert.equals 1 (s:count :countdown))
+            (assert.equals :wh3_main_dae_daemon_prince
+                           (. s.calls.countdown 1 4))))))
+
     (it "keeps Daniel's faction and confirms its successor before transferring"
       (fn []
         (let [s (campaign) key :wh3_main_dae_daemon_prince]
