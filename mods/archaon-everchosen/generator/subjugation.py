@@ -168,6 +168,20 @@ def skills(native):
         permission = native["faction_agent_permitted_subtypes"].one(
             faction=HOST, subtype="wh3_main_nur_kugath")
         yield "faction_agent_permitted_subtypes", dict(permission, subtype=subtype)
+        # The LL passes through this same-culture client before reassigning
+        # to Archaon. It needs permission to retain the original subtype there.
+        # These unique subtypes never enter an auto-generated recruitment pool.
+        native["agent_subtypes"].one(key=subtype, auto_generate="false")
+        client = next(client for culture, client, _, _ in CLIENTS.values()
+                      if native["factions"].one(key=client)["subculture"] == subculture)
+        existing = native["faction_agent_permitted_subtypes"].where(
+            faction=client, agent="general", subtype=subtype)
+        if existing:
+            if len(existing) != 1 or existing[0]["mod_disabled"] != "false":
+                raise ValueError(f"Client explicitly blocks accepted lord: {subtype}")
+        else:
+            yield "faction_agent_permitted_subtypes", dict(
+                permission, faction=client, subtype=subtype)
 
 
 def dilemmas(native):
@@ -255,9 +269,15 @@ def validate(native, generated, assets):
     for row in generated["faction_agent_permitted_subtypes"]:
         transferred = (row["faction"] == HOST and row["subtype"] in (
             *TARGETS.values(), DAEMON_FACTION))
+        client = (row["faction"] in {client_key(race) for race in CLIENTS} and
+                  row["subtype"] in TARGETS.values() and
+                  any(subtype == row["subtype"] and
+                      native["factions"].one(key=faction)["subculture"] ==
+                      native["factions"].one(key=row["faction"])["subculture"]
+                      for faction, subtype in TARGETS.items()))
         successor = (row["faction"] == DAEMON_FACTION and
                      row["subtype"] == DAEMON_SUCCESSOR)
-        if (not (transferred or successor) or row["agent"] != "general"
+        if (not (transferred or client or successor) or row["agent"] != "general"
                 or row["mod_disabled"] != "false"):
             raise ValueError(f"Unintended character permission: {row}")
     for race in CLIENTS:

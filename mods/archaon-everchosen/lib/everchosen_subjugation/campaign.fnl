@@ -171,11 +171,13 @@
     (when (and (not (owned? id inheritance.host))
                (not= (. operation.transfers id) (cm:turn_number)))
       (let [lord (character id)]
-        (assert (and (world.valid? lord)
-                     (owned? id (if (or operation.dead operation.keep_faction)
-                                    operation.source
-                                    operation.client)))
-                "Accepted lord is no longer owned by the expected faction")
+        (let [expected (if (or operation.dead operation.keep_faction)
+                           operation.source operation.client)
+              owner (and (world.valid? lord) (lord:faction))]
+          (assert (owned? id expected)
+            (.. "Accepted lord ownership mismatch: family=" id
+                ", expected=" expected ", actual="
+                (if (world.valid? owner) (owner:name) "no character"))))
         (when (not (. operation.skills id))
           (tset operation.skills id
             (skills.capture lord
@@ -264,7 +266,12 @@
                   ;; The receiving faction has its own leader before any LL
                   ;; leaves. Ordinary armies and settlements stay in the merger.
                   (let [payload (cm:create_payload)]
-                    (payload:form_confederation client source false true)
+                    ;; AK's fourth argument converts agent types. Unlike CA's
+                    ;; transfer-before-merger path, our LLs are still here.
+                    ;; Preserve their identity through this same-culture merger.
+                    (assert (= (client:culture) (source:culture))
+                            "Client merger crosses cultures")
+                    (payload:form_confederation client source false false)
                     (set operation.merge-turn (cm:turn_number))
                     (cm:set_saved_value pending-key pending)
                     (cm:apply_payload payload client)))))))))

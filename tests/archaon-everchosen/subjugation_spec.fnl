@@ -132,11 +132,13 @@
    :create_payload
    (fn []
      {:form_confederation
-      (fn [_ receiver source dead? keep?]
+      (fn [_ receiver source dead? convert-types?]
         (assert.equals s.client receiver)
         (assert.equals s.source source)
         (assert.is_false dead?)
-        (assert.is_true keep?))})
+        ;; AK: converting agent types can replace a lord the adapter still
+        ;; needs to transfer. The merger must preserve existing subtypes.
+        (assert.is_false convert-types?))})
    :apply_payload #(record s :merge)
    :kill_faction (fn [_ key] (record s :kill_faction key))
    :trigger_dilemma_with_targets
