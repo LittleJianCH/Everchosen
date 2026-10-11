@@ -39,24 +39,25 @@ def rows(native):
     yield "character_skill_node_sets", dict(
         tree, key=TREE, faction_key=HOST, campaign_key=CAMPAIGN)
     nodes = native["character_skill_nodes"]
-    mapping = {NODE + suffix: PREFIX + suffix for suffix in REPLACED}
     members = native["character_skill_node_set_items"].where(set=tree["key"])
-    if not set(mapping) <= {r["item"] for r in members}:
+    changed = {NODE + suffix: PREFIX + suffix for suffix in REPLACED}
+    active = [nodes.one(key=r["item"]) for r in members
+              if r["mod_disabled"] == "false"]
+    if not set(changed) <= {r["key"] for r in active}:
         raise ValueError("Native Daniel skill membership changed")
+    mapping = skill_slots.linked_nodes(native, active, changed, TREE + "_")
     for member in members:
         key = member["item"]
         yield "character_skill_node_set_items", dict(
             member, set=TREE, item=mapping.get(key, key))
         if key in mapping:
+            original = nodes.one(key=key)
             yield nodes.name, dict(
-                nodes.one(key=key), key=mapping[key],
-                character_skill_key=mapping[key], faction_key=HOST,
+                original, key=mapping[key],
+                character_skill_key=changed.get(key, original["character_skill_key"]),
+                faction_key=HOST,
                 campaign_key=CAMPAIGN, subculture="")
-    for link in native["character_skill_node_links"].rows:
-        if link["parent_key"] in mapping or link["child_key"] in mapping:
-            yield "character_skill_node_links", dict(
-                link, parent_key=mapping.get(link["parent_key"], link["parent_key"]),
-                child_key=mapping.get(link["child_key"], link["child_key"]))
+    yield from skill_slots.links(native, mapping)
     # Native Daniel has no locks involving these nodes/skills in 9.0.3.
     # Fail on a new lock rather than silently dropping a future prerequisite.
     skills = {nodes.one(key=key)["character_skill_key"] for key in mapping}
@@ -73,7 +74,9 @@ def validate(native, generated, authored):
     levels = authored["character_skill_level_to_effects_junctions"]
     for suffix in REPLACED:
         key = PREFIX + suffix
-        if key not in skills or nodes[key]["faction_key"] != HOST:
+        node = nodes[TREE + "_" + NODE + suffix]
+        if (key not in skills or node["faction_key"] != HOST or
+                node["character_skill_key"] != key):
             raise ValueError("Unscoped or missing prince skill: " + key)
         original = native["character_skill_nodes"].one(key=NODE + suffix)
         old_levels = {r["level"] for r in

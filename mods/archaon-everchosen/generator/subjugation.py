@@ -127,9 +127,10 @@ def skills(native):
         tree_key = PREFIX + subtype + "_skills"
         yield "character_skill_node_sets", dict(
             tree, key=tree_key, faction_key=HOST, campaign_key=CAMPAIGN)
-        replacements = {r["key"]: PREFIX + r["key"] for r in original
-                        if r["indent"] == "5" and
-                        r["character_skill_key"] in blue_skills.ADAPTATIONS}
+        changed = {r["key"] for r in original if r["indent"] == "5" and
+                   r["character_skill_key"] in blue_skills.ADAPTATIONS}
+        replacements = skill_slots.linked_nodes(
+            native, original, changed, tree_key + "_")
         for row in original:
             if row["key"] in replacements:
                 yield nodes.name, dict(
@@ -139,11 +140,7 @@ def skills(native):
         for row in members:
             yield "character_skill_node_set_items", dict(
                 row, set=tree_key, item=replacements.get(row["item"], row["item"]))
-        for row in native["character_skill_node_links"].rows:
-            if row["parent_key"] in replacements or row["child_key"] in replacements:
-                yield "character_skill_node_links", dict(
-                    row, parent_key=replacements.get(row["parent_key"], row["parent_key"]),
-                    child_key=replacements.get(row["child_key"], row["child_key"]))
+        yield from skill_slots.links(native, replacements)
         changed_skills = {r["character_skill_key"] for r in original
                           if r["key"] in replacements}
         if any(r["character_skill_node"] in replacements or
@@ -239,11 +236,16 @@ def validate(native, generated, assets):
     for subtype in TARGETS.values():
         _, members, original = original_tree(native, subtype)
         expected = {(r["item"], r["mod_disabled"]) for r in members}
+        tree_key = PREFIX + subtype + "_skills"
+        changed = {r["key"] for r in original if r["indent"] == "5" and
+                   r["character_skill_key"] in blue_skills.ADAPTATIONS}
+        replacements = skill_slots.linked_nodes(
+            native, original, changed, tree_key + "_")
         for row in original:
-            if row["indent"] == "5" and row["character_skill_key"] in blue_skills.ADAPTATIONS:
-                replacement = changed_nodes[PREFIX + row["key"]]
+            if row["key"] in replacements:
+                replacement = changed_nodes[replacements[row["key"]]]
                 if replacement != dict(
-                        row, key=PREFIX + row["key"], faction_key=HOST,
+                        row, key=replacements[row["key"]], faction_key=HOST,
                         campaign_key=CAMPAIGN, subculture="",
                         character_skill_key=blue_skills.key(row["character_skill_key"])):
                     raise ValueError("Adapted skill moved or changed prerequisites")

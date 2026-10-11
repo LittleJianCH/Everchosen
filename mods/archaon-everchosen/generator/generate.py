@@ -21,6 +21,7 @@ import daemon_prince
 import daemon_legion
 import daemon_skills
 import blue_skills
+import skill_slots
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -396,6 +397,7 @@ def generate(native_root, output):
     daemon_skills.validate(native, prince_tree, authored)
     for table, rows in prince_tree.items():
         generated.setdefault(table, []).extend(rows)
+    skill_slots.validate_trees(native, generated)
     validate(native, generated, authored)
     daemon_legion.validate(native, generated, authored)
     for table, rows in generated.items():

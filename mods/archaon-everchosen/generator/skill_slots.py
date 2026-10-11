@@ -1,4 +1,61 @@
-"""Derive positional skill conversions, never infer them from row order."""
+"""Preserve skill positions and isolate the dependency paths being adapted."""
+
+
+def linked_nodes(native, nodes, changed, prefix):
+    """Map every node connected to CHANGED within this native tree.
+
+    Links belong to nodes, not node sets. Sharing a neighbour of a replaced
+    node would retain its original prerequisite in the adapted tree and add
+    the replacement prerequisite to the native tree.
+    """
+    neighbours = {row["key"]: set() for row in nodes}
+    for row in native["character_skill_node_links"].rows:
+        parent, child = row["parent_key"], row["child_key"]
+        if parent in neighbours and child in neighbours:
+            neighbours[parent].add(child)
+            neighbours[child].add(parent)
+    connected = set(changed)
+    pending = list(changed)
+    while pending:
+        for key in neighbours[pending.pop()] - connected:
+            connected.add(key)
+            pending.append(key)
+    return {key: prefix + key for key in sorted(connected)}
+
+
+def links(native, replacements):
+    """Copy internal links only, with both ends private to the variant."""
+    for row in native["character_skill_node_links"].rows:
+        if row["parent_key"] in replacements and row["child_key"] in replacements:
+            yield "character_skill_node_links", dict(
+                row, parent_key=replacements[row["parent_key"]],
+                child_key=replacements[row["child_key"]])
+
+
+def validate_trees(native, generated):
+    """Check prerequisites inside each new tree, not just global DB keys."""
+    nodes = generated.get("character_skill_nodes", [])
+    keys = {row["key"] for row in nodes}
+    if len(keys) != len(nodes):
+        raise ValueError("Duplicated adapted skill node")
+    new_links = generated.get("character_skill_node_links", [])
+    all_links = native["character_skill_node_links"].rows + new_links
+    parents = {}
+    for row in all_links:
+        parents.setdefault(row["child_key"], set()).add(row["parent_key"])
+    for tree in generated.get("character_skill_node_sets", []):
+        members = {row["item"] for row in
+                   generated["character_skill_node_set_items"]
+                   if row["set"] == tree["key"] and
+                   row["mod_disabled"] == "false"}
+        for child in sorted(members):
+            missing = parents.get(child, set()) - members
+            if missing:
+                raise ValueError(f"Skill prerequisite outside {tree['key']}: "
+                                 f"{child} <- {sorted(missing)}")
+    for row in new_links:
+        if row["parent_key"] not in keys or row["child_key"] not in keys:
+            raise ValueError("Adapted skill link changes a shared native node")
 
 
 def mapping(native, pairs, other_nodes=()):
