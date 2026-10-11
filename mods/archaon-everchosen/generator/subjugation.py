@@ -1,7 +1,6 @@
 """Derive lord adaptations and reuse dormant Immortal Empires factions."""
 from db_tables import stable_id
 import skill_slots
-import blue_skills
 
 PREFIX = "everchosen_subjugation_"
 HOST = "wh_main_chs_chaos"
@@ -45,7 +44,7 @@ TARGETS = {
 TABLES = """factions start_pos_factions faction_agent_permitted_subtypes agent_subtypes
     character_skill_node_sets character_skill_node_set_items
     character_skill_nodes character_skill_node_links character_skills
-    character_skill_level_to_effects_junctions character_skill_nodes_skill_locks
+    character_skill_level_to_effects_junctions
     main_units dilemmas cdir_events_dilemma_choice_details
     cdir_events_dilemma_option_junctions cdir_events_dilemma_payloads
 """.split()
@@ -92,69 +91,80 @@ def client_factions(native):
         yield table.name, row
 
 
+def chaos_blue_line(native):
+    return [native["character_skill_nodes"].one(
+        key=f"wh_main_skill_node_chs_lord_campaign_{i:02d}")
+        for i in range(1, 12)]
+
+
 def original_tree(native, subtype):
     tree = native["character_skill_node_sets"].one(
         agent_subtype_key=subtype, faction_key="", subculture="", campaign_key="")
-    members = native["character_skill_node_set_items"].where(set=tree["key"])
+    members = native["character_skill_node_set_items"].where(
+        set=tree["key"], mod_disabled="false")
     nodes = [native["character_skill_nodes"].one(key=r["item"])
-             for r in members if r["mod_disabled"] == "false"]
-    return tree, members, nodes
+             for r in members]
+    return tree, nodes
 
 
 def skill_mapping(native):
     levels = native["character_skill_level_to_effects_junctions"]
+    blue = {(r["indent"], r["tier"]): r for r in chaos_blue_line(native)}
     result = {}
     for subtype in TARGETS.values():
-        _, _, original = original_tree(native, subtype)
+        _, original = original_tree(native, subtype)
+        old_blue = [r for r in original if r["indent"] == "5"]
+        if {(r["indent"], r["tier"]) for r in old_blue} != blue.keys():
+            raise ValueError(f"Native blue-line positions changed: {subtype}")
         pairs = []
-        for row in original:
-            source = row["character_skill_key"]
-            if row["indent"] == "5" and source in blue_skills.ADAPTATIONS:
-                maximum = max(int(r["level"]) for r in
-                              levels.where(character_skill_key=source))
-                pairs.append((row, dict(row, character_skill_key=blue_skills.key(source)),
-                              maximum))
+        for row in old_blue:
+            replacement = blue[row["indent"], row["tier"]]
+            maximum = max(int(r["level"]) for r in levels.where(
+                character_skill_key=replacement["character_skill_key"]))
+            pairs.append((row, replacement, maximum))
         result[subtype] = skill_slots.mapping(
             native, pairs, [r for r in original if r["indent"] != "5"])
     return result
 
 
 def skills(native):
-    yield from blue_skills.rows(native)
     nodes = native["character_skill_nodes"]
-    for subtype in TARGETS.values():
-        tree, members, original = original_tree(native, subtype)
-        tree_key = PREFIX + subtype + "_skills"
-        yield "character_skill_node_sets", dict(
-            tree, key=tree_key, faction_key=HOST, campaign_key=CAMPAIGN)
-        changed = {r["key"] for r in original if r["indent"] == "5" and
-                   r["character_skill_key"] in blue_skills.ADAPTATIONS}
-        replacements = skill_slots.linked_nodes(
-            native, original, changed, tree_key + "_")
-        for row in original:
-            if row["key"] in replacements:
-                yield nodes.name, dict(
-                    row, key=replacements[row["key"]], faction_key=HOST,
-                    campaign_key=CAMPAIGN, subculture="",
-                    character_skill_key=blue_skills.key(row["character_skill_key"]))
-        for row in members:
-            yield "character_skill_node_set_items", dict(
-                row, set=tree_key, item=replacements.get(row["item"], row["item"]))
-        yield from skill_slots.links(native, replacements)
-        changed_skills = {r["character_skill_key"] for r in original
-                          if r["key"] in replacements}
-        if any(r["character_skill_node"] in replacements or
-               r["character_skill"] in changed_skills for r in
-               native["character_skill_nodes_skill_locks"].rows):
-            raise ValueError("Native blue-line locks require explicit adaptation")
+    items = native["character_skill_node_set_items"]
+    blue = chaos_blue_line(native)
+    blue_keys = {row["key"] for row in blue}
+    links = [row for row in native["character_skill_node_links"].rows
+             if row["child_key"] in blue_keys and row["parent_key"] in blue_keys]
+    for faction, subtype in TARGETS.items():
+        native["agent_subtypes"].one(key=subtype)
+        subculture = native["factions"].one(key=faction)["subculture"]
+        tree, original = original_tree(native, subtype)
+        original_blue = [row for row in original if row["indent"] == "5"]
+        if len(original_blue) != len(blue):
+            raise ValueError(f"Native blue line changed: {subtype}")
+        for row in original_blue:
+            if row["subculture"] not in ("", subculture):
+                raise ValueError(f"Unexpected native skill restriction: {row}")
+            yield nodes.name, dict(row, subculture=subculture)
+        mapping = {row["key"]: PREFIX + subtype + "_blue_" + str(index)
+                   for index, row in enumerate(blue)}
+        for row in blue:
+            yield nodes.name, dict(row, key=mapping[row["key"]],
+                                   campaign_key=CAMPAIGN, faction_key=HOST,
+                                   subculture="")
+            yield items.name, {"set": tree["key"], "item": mapping[row["key"]],
+                               "mod_disabled": "false"}
+        for row in links:
+            yield "character_skill_node_links", dict(
+                row, child_key=mapping[row["child_key"]],
+                parent_key=mapping[row["parent_key"]])
         authority = nodes.one(key="wh3_dlc20_skill_node_chs_lord_authority")
         authority.update(key=PREFIX + subtype + "_authority",
                          campaign_key=CAMPAIGN, faction_key=HOST, subculture="",
                          tier=str(max(int(r["tier"]) for r in original
                                       if r["indent"] == "0") + 1))
         yield nodes.name, authority
-        yield "character_skill_node_set_items", {
-            "set": tree_key, "item": authority["key"], "mod_disabled": "false"}
+        yield items.name, {"set": tree["key"], "item": authority["key"],
+                           "mod_disabled": "false"}
         permission = native["faction_agent_permitted_subtypes"].one(
             faction=HOST, subtype="wh3_main_nur_kugath")
         yield "faction_agent_permitted_subtypes", dict(permission, subtype=subtype)
@@ -210,53 +220,38 @@ def validate(native, generated, assets):
                if key != "flags_path"):
             raise ValueError(f"Borrowing changed faction gameplay: {row['key']}")
     nodes = native["character_skill_nodes"]
-    native_keys = nodes.column("key")
-    new_nodes = generated[nodes.name]
-    keys = native_keys | {r["key"] for r in new_nodes}
-    skills = native["character_skills"].column("key") | {
-        r["key"] for r in generated.get("character_skills", [])}
+    changed = {row["key"] for row in generated[nodes.name]
+               if not row["key"].startswith(PREFIX)}
+    sets = {row["set"] for row in native["character_skill_node_set_items"].rows
+            if row["item"] in changed}
     owners = native["character_skill_node_sets"]
-    new_sets = {r["key"]: r for r in generated.get(owners.name, [])}
-    for row in new_sets.values():
-        if (row["faction_key"] != HOST or row["campaign_key"] != CAMPAIGN
-                or row["agent_subtype_key"] not in TARGETS.values()
-                or row["key"] in owners.column("key")):
-            raise ValueError("Unscoped transferred skill tree")
-    for row in new_nodes:
-        if (row["key"] in native_keys or row["character_skill_key"] not in skills
-                or row["faction_key"] != HOST or row["campaign_key"] != CAMPAIGN):
-            raise ValueError("Unscoped or invalid transferred skill node")
+    if any(row["agent_subtype_key"] not in TARGETS.values()
+           for row in owners.rows if row["key"] in sets):
+        raise ValueError("Adapted blue line is shared with an unrelated subtype")
+    keys = nodes.column("key")
+    new_keys = set()
+    for row in generated[nodes.name]:
+        key = row["key"]
+        native["character_skills"].one(key=row["character_skill_key"])
+        if key in changed:
+            before = nodes.one(key=key)
+            if any(row[column] != value for column, value in before.items()
+                   if column != "subculture"):
+                raise ValueError(f"Unexpected native skill edit: {key}")
+        else:
+            if key in keys or key in new_keys:
+                raise ValueError(f"Skill node collision: {key}")
+            if row["faction_key"] != HOST or row["campaign_key"] != CAMPAIGN:
+                raise ValueError(f"Unscoped transferred skill: {key}")
+            new_keys.add(key)
+    keys |= new_keys
     for row in generated["character_skill_node_links"]:
         if row["parent_key"] not in keys or row["child_key"] not in keys:
             raise ValueError(f"Missing skill-link endpoint: {row}")
     for row in generated["character_skill_node_set_items"]:
-        if row["set"] not in new_sets or row["item"] not in keys:
-            raise ValueError(f"Missing transferred skill membership: {row}")
-    changed_nodes = {r["key"]: r for r in new_nodes}
-    for subtype in TARGETS.values():
-        _, members, original = original_tree(native, subtype)
-        expected = {(r["item"], r["mod_disabled"]) for r in members}
-        tree_key = PREFIX + subtype + "_skills"
-        changed = {r["key"] for r in original if r["indent"] == "5" and
-                   r["character_skill_key"] in blue_skills.ADAPTATIONS}
-        replacements = skill_slots.linked_nodes(
-            native, original, changed, tree_key + "_")
-        for row in original:
-            if row["key"] in replacements:
-                replacement = changed_nodes[replacements[row["key"]]]
-                if replacement != dict(
-                        row, key=replacements[row["key"]], faction_key=HOST,
-                        campaign_key=CAMPAIGN, subculture="",
-                        character_skill_key=blue_skills.key(row["character_skill_key"])):
-                    raise ValueError("Adapted skill moved or changed prerequisites")
-                expected.remove((row["key"], "false"))
-                expected.add((replacement["key"], "false"))
-        expected.add((PREFIX + subtype + "_authority", "false"))
-        actual = {(r["item"], r["mod_disabled"]) for r in
-                  generated["character_skill_node_set_items"]
-                  if r["set"] == PREFIX + subtype + "_skills"}
-        if actual != expected:
-            raise ValueError("Adapted tree changed unrelated skill membership")
+        owners.one(key=row["set"])
+        if row["item"] not in keys:
+            raise ValueError(f"Missing skill node: {row}")
     for row in generated["faction_agent_permitted_subtypes"]:
         transferred = (row["faction"] == HOST and row["subtype"] in (
             *TARGETS.values(), DAEMON_FACTION))

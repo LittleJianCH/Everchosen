@@ -81,7 +81,7 @@
 
 (describe "Positional skill transfer"
   (fn []
-    (it "keeps native Beastmen skills and converts only an incompatible effect"
+    (it "keeps Beastmen allocations by position when a skill moves slots"
       (fn []
         (let [s (scenario :wh_dlc03_bst_khazrak
                   {:wh_dlc03_skill_bst_lord_gargantian_hooves 1
@@ -90,15 +90,19 @@
                    :wh_dlc03_skill_bst_lord_gathering_of_beasts 2
                    :personal_combat 3} true)]
           (s.capture)
-          (set s.hidden {:wh_dlc03_skill_bst_lord_gathering_of_beasts true})
+          (set s.hidden {:wh_dlc03_skill_bst_lord_gargantian_hooves true})
           (finish s)
-          (assert.equals 2 s.levels.everchosen_subjugation_skill_bst_gathering)
           (assert.equals
-            2 s.levels.wh_main_skill_chs_lord_campaign_dark_apothecary)
-          (assert.equals 1 s.levels.wh_dlc03_skill_bst_lord_gargantian_hooves)
-          (assert.equals 1 s.levels.wh_dlc03_skill_bst_lord_campaign_corruption)
+            2 s.levels.wh3_dlc20_skill_chs_lord_campaign_blessed_by_evil)
+          (assert.equals
+            2 s.levels.wh3_dlc20_skill_chs_lord_campaign_devoted_of_chaos)
+          (assert.equals
+            1 s.levels.wh_main_skill_chs_lord_campaign_dark_apothecary)
+          (assert.equals 1 s.levels.wh_main_skill_all_lord_campaign_route_marcher)
+          (assert.equals 0 s.levels.wh_dlc03_skill_bst_lord_campaign_corruption)
+          (assert.equals 0 s.levels.wh_dlc03_skill_bst_lord_gathering_of_beasts)
           (assert.equals 3 s.levels.personal_combat))))
-    (it "keeps Norscan replenishment and preserves a changed single-level skill"
+    (it "transfers Norscan three-level and single-level slots without refunds"
       (fn []
         (let [s (scenario :wh_dlc08_nor_wulfrik
                   {:wh_dlc08_skill_nor_lords_campaign_norse_resilience 1
@@ -106,9 +110,9 @@
                   false)]
           (s.capture) (finish s)
           (assert.equals
-            1 s.levels.wh_dlc08_skill_nor_lords_campaign_norse_resilience)
+            1 s.levels.wh3_dlc20_skill_chs_lord_campaign_devoted_of_chaos)
           (assert.equals
-            1 s.levels.everchosen_subjugation_skill_nor_devourers))))
+            1 s.levels.wh_main_skill_chs_lord_campaign_unholy_resilience))))
     (it "resumes a save between prince conversion phases without duplicates"
       (fn []
         (let [s (scenario :wh3_main_dae_daemon_prince

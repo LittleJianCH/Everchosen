@@ -20,7 +20,6 @@ import subjugation
 import daemon_prince
 import daemon_legion
 import daemon_skills
-import blue_skills
 import skill_slots
 
 PREFIX = "everchosen_inheritance_"
@@ -390,7 +389,6 @@ def generate(native_root, output):
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
     subjugation.validate(native, generated, MOD / "assets")
-    blue_skills.validate(native, generated, authored)
     prince_tree = {}
     for table, row in daemon_skills.rows(native):
         prince_tree.setdefault(table, []).append(row)

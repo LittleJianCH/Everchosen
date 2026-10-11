@@ -1,13 +1,14 @@
 ;; CA wrappers and AK argument contracts; observed state is supplied manually.
 ;; This cannot establish Cco availability or skill removal inside the engine.
 (local old :wh3_dlc23_skill_chd_campaign_post_battle)
-(local new :everchosen_subjugation_skill_chd_tyrant)
+(local new :wh_main_skill_chs_lord_campaign_ruination)
 (local state {:old 2 :new 0 :points 4})
 (local host (rpfm.faction {:key :wh_main_chs_chaos :is_human false}))
 (local lord (rpfm.character
               {:faction host :character_subtype_key :wh3_dlc23_chd_astragoth
                :cqi 101 :command_queue_index 101
-               :has_skill #(> (if (= $1 old) state.old state.new) 0)}))
+               :has_skill #(> (if (= $1 old) state.old
+                                  (= $1 new) state.new 0) 0)}))
 (set _G.cco
   (fn [kind id]
     (rpfm.assert_equal kind :CcoCampaignCharacter)
@@ -15,7 +16,8 @@
     {:Call (fn [_ expression]
              (if (= expression :SkillPointsAvailable) state.points
                  (expression:find old 1 true) state.old
-                 state.new))}))
+                 (expression:find new 1 true) state.new
+                 0))}))
 
 (rpfm.test "skill conversion reaches AK APIs through native CA wrappers"
   (fn []
