@@ -43,15 +43,20 @@ def validate_trees(native, generated):
     parents = {}
     for row in all_links:
         parents.setdefault(row["child_key"], set()).add(row["parent_key"])
-    for tree in generated.get("character_skill_node_sets", []):
-        members = {row["item"] for row in
-                   generated["character_skill_node_set_items"]
-                   if row["set"] == tree["key"] and
-                   row["mod_disabled"] == "false"}
+    added = generated.get("character_skill_node_set_items", [])
+    trees = {row["key"] for row in generated.get("character_skill_node_sets", [])}
+    trees.update(row["set"] for row in added)
+    for tree in trees:
+        items = {(row["set"], row["item"]): row for row in
+                 native["character_skill_node_set_items"].where(set=tree)}
+        items.update({(row["set"], row["item"]): row for row in added
+                      if row["set"] == tree})
+        members = {row["item"] for row in items.values()
+                   if row["mod_disabled"] == "false"}
         for child in sorted(members):
             missing = parents.get(child, set()) - members
             if missing:
-                raise ValueError(f"Skill prerequisite outside {tree['key']}: "
+                raise ValueError(f"Skill prerequisite outside {tree}: "
                                  f"{child} <- {sorted(missing)}")
     for row in new_links:
         if row["parent_key"] not in keys or row["child_key"] not in keys:

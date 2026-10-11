@@ -18,7 +18,9 @@ class SkillTreeTests(unittest.TestCase):
                 {"parent_key": "entry", "child_key": "adapted",
                  "link_type": "REQUIRED"},
                 {"parent_key": "adapted", "child_key": "later",
-                 "link_type": "SUBSET_REQUIRED"}])}
+                 "link_type": "SUBSET_REQUIRED"}]),
+            "character_skill_node_set_items": Table(
+                "character_skill_node_set_items", [], "0", [])}
         self.nodes = [{"key": key} for key in
                       ("entry", "adapted", "later", "unrelated")]
 
@@ -54,6 +56,21 @@ class SkillTreeTests(unittest.TestCase):
             dict(row, parent_key=mapping.get(row["parent_key"], row["parent_key"]),
                  child_key=mapping.get(row["child_key"], row["child_key"]))
             for row in self.native["character_skill_node_links"].rows]
+        with self.assertRaisesRegex(ValueError, "prerequisite outside variant"):
+            skill_slots.validate_trees(self.native, variant)
+
+    def test_checks_paths_added_to_an_existing_tree(self):
+        mapping = skill_slots.linked_nodes(
+            self.native, self.nodes, {"adapted"}, "private_")
+        variant = self.variant(mapping)
+        variant["character_skill_node_sets"] = []
+        self.native["character_skill_node_set_items"].rows = [
+            {"set": "variant", "item": row["key"], "mod_disabled": "false"}
+            for row in self.nodes]
+        skill_slots.validate_trees(self.native, variant)
+        variant["character_skill_node_set_items"] = [
+            r for r in variant["character_skill_node_set_items"]
+            if r["item"] != "private_entry"]
         with self.assertRaisesRegex(ValueError, "prerequisite outside variant"):
             skill_slots.validate_trees(self.native, variant)
 

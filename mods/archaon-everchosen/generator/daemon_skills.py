@@ -1,13 +1,15 @@
-"""An Archaon-only variant of Daniel's tree; native trees remain intact.
+"""Owner-gated paths inside Daniel's existing skill tree.
 
-WH3 9.0.3 uses faction-specific node sets for Aislinn/Avelorn handmaidens
-alongside a generic subtype set. Apply that same selection contract here.
+A transferred character can retain the node set selected at creation. Keep
+both paths in that set, using node eligibility as native cross-culture lines
+do, rather than relying on selection of a different faction-specific set.
 """
 import skill_slots
 
 HOST = "wh_main_chs_chaos"
 CAMPAIGN = "wh3_main_combi"
 PRINCE = "wh3_main_dae_daemon_prince"
+DAEMON_SUBCULTURE = "wh3_main_sc_dae_daemons"
 PREFIX = "everchosen_daemon_skill_"
 TREE = "everchosen_daemon_skill_tree"
 NODE = "wh3_main_skill_node_dae_daemon_prince_"
@@ -36,8 +38,6 @@ def skill_mapping(native):
 def rows(native):
     tree = native["character_skill_node_sets"].one(
         agent_subtype_key=PRINCE, faction_key="", subculture="", campaign_key="")
-    yield "character_skill_node_sets", dict(
-        tree, key=TREE, faction_key=HOST, campaign_key=CAMPAIGN)
     nodes = native["character_skill_nodes"]
     members = native["character_skill_node_set_items"].where(set=tree["key"])
     changed = {NODE + suffix: PREFIX + suffix for suffix in REPLACED}
@@ -46,17 +46,18 @@ def rows(native):
     if not set(changed) <= {r["key"] for r in active}:
         raise ValueError("Native Daniel skill membership changed")
     mapping = skill_slots.linked_nodes(native, active, changed, TREE + "_")
-    for member in members:
-        key = member["item"]
+    for key, replacement in mapping.items():
+        original = nodes.one(key=key)
+        if any(original[field] for field in (
+                "campaign_key", "faction_key", "subculture")):
+            raise ValueError("Native Daniel skill eligibility changed: " + key)
+        yield nodes.name, dict(original, subculture=DAEMON_SUBCULTURE)
+        yield nodes.name, dict(
+            original, key=replacement,
+            character_skill_key=changed.get(key, original["character_skill_key"]),
+            faction_key=HOST, campaign_key=CAMPAIGN, subculture="")
         yield "character_skill_node_set_items", dict(
-            member, set=TREE, item=mapping.get(key, key))
-        if key in mapping:
-            original = nodes.one(key=key)
-            yield nodes.name, dict(
-                original, key=mapping[key],
-                character_skill_key=changed.get(key, original["character_skill_key"]),
-                faction_key=HOST,
-                campaign_key=CAMPAIGN, subculture="")
+            set=tree["key"], item=replacement, mod_disabled="false")
     yield from skill_slots.links(native, mapping)
     # Native Daniel has no locks involving these nodes/skills in 9.0.3.
     # Fail on a new lock rather than silently dropping a future prerequisite.
@@ -89,8 +90,30 @@ def validate(native, generated, authored):
             if row["effect_key"] not in effects or row["effect_scope"] != "general_to_force_own":
                 raise ValueError("Invalid prince army skill: " + str(row))
     native_keys = native["character_skill_nodes"].column("key")
-    if native_keys & nodes.keys():
-        raise ValueError("Prince variant unexpectedly edits native nodes")
+    tree = native["character_skill_node_sets"].one(
+        agent_subtype_key=PRINCE, faction_key="", subculture="", campaign_key="")
+    changed = native_keys & nodes.keys()
+    owners = {r["set"] for r in native["character_skill_node_set_items"].rows
+              if r["item"] in changed}
+    if owners != {tree["key"]}:
+        raise ValueError("Adapted prince path is shared with another tree")
+    for key in changed:
+        original = native["character_skill_nodes"].one(key=key)
+        if nodes[key] != dict(original, subculture=DAEMON_SUBCULTURE):
+            raise ValueError("Unexpected native prince skill edit: " + key)
+        replacement = nodes[TREE + "_" + key]
+        if any(replacement[field] != original[field] for field in (
+                "indent", "tier", "required_num_parents", "points_on_creation")):
+            raise ValueError("Prince skill position or requirements changed")
+        if (replacement["faction_key"] != HOST or
+                replacement["campaign_key"] != CAMPAIGN or
+                replacement["subculture"]):
+            raise ValueError("Unscoped prince skill path")
+    members = generated["character_skill_node_set_items"]
+    if (generated.get("character_skill_node_sets") or
+            {r["set"] for r in members} != {tree["key"]} or
+            {r["item"] for r in members} != nodes.keys() - native_keys):
+        raise ValueError("Prince rewards must belong to the existing tree")
     endpoints = native_keys | nodes.keys()
     for row in generated.get("character_skill_node_links", []):
         if row["parent_key"] not in endpoints or row["child_key"] not in endpoints:
