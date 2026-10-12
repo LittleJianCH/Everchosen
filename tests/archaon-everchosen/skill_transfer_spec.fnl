@@ -157,6 +157,19 @@
           (assert.equals
             1 s.levels.wh2_dlc17_skill_bst_taurox_unique_daemonic_vigour)
           (assert.equals 4 s.sent))))
+    (it "keeps Zhatan's Subjugator point and neighbouring unique skills"
+      (fn []
+        (let [s (scenario :wh3_dlc23_chd_zhatan
+                  {:wh3_dlc23_skill_chd_zhatan_brutality_of_zharr 1
+                   :wh3_dlc23_skill_chd_zhatan_subjugator 1
+                   :wh3_dlc23_skill_chd_zhatan_laughing_killer 1}
+                  false)]
+          (s.capture) (finish s)
+          (assert.equals 0 s.levels.wh3_dlc23_skill_chd_zhatan_subjugator)
+          (assert.equals 1 s.levels.everchosen_subjugation_subjugator)
+          (assert.equals 1 s.levels.wh3_dlc23_skill_chd_zhatan_brutality_of_zharr)
+          (assert.equals 1 s.levels.wh3_dlc23_skill_chd_zhatan_laughing_killer)
+          (assert.equals 2 s.sent))))
     (it "resumes a save between prince conversion phases without duplicates"
       (fn []
         (let [s (scenario :wh3_main_dae_daemon_prince

@@ -24,6 +24,12 @@ DROWNED_NODE = "wh2_dlc17_skill_node_bst_taurox_unique_03"
 DROWNED_REPLACEMENT = PREFIX + "drowned_in_blood"
 REPLENISHMENT = "wh_main_effect_force_all_campaign_replenishment_rate"
 CHARGE_BONUS = "wh2_dlc17_effect_charge_bonus_for_all"
+ZHATAN = "wh3_dlc23_chd_zhatan"
+SUBJUGATOR = "wh3_dlc23_skill_chd_zhatan_subjugator"
+SUBJUGATOR_NODE = "wh3_dlc23_skill_node_chd_zhatan_personal_1"
+SUBJUGATOR_REPLACEMENT = PREFIX + "subjugator"
+POST_BATTLE_LABOUR = "wh3_dlc23_effect_force_chd_campaign_post_battle_labour_dummy"
+BATTLE_SOULS = "wh3_dlc20_effect_pooled_resource_mod_souls_battle"
 CLIENTS = {
     "nor": ("wh_dlc08_nor_norsca", "wh3_dlc20_nor_kuj",
             "wh_main_nor_marauder_chieftain", "norsca-v1.png"),
@@ -54,6 +60,9 @@ COPIED_ROWS = (
     ("character_skills", {"key": DROWNED},
      {"key": DROWNED_REPLACEMENT, "localised_name": "",
       "localised_description": ""}),
+    ("character_skills", {"key": SUBJUGATOR},
+     {"key": SUBJUGATOR_REPLACEMENT, "localised_name": "",
+      "localised_description": ""}),
 )
 TARGETS = {
     "wh_dlc08_nor_norsca": WULFRIK,
@@ -61,7 +70,7 @@ TARGETS = {
     "wh3_dlc27_nor_sayl": "wh3_dlc27_nor_sayl_the_faithless",
     "wh3_dlc23_chd_astragoth": "wh3_dlc23_chd_astragoth",
     "wh3_dlc23_chd_legion_of_azgorh": "wh3_dlc23_chd_drazhoath",
-    "wh3_dlc23_chd_zhatan": "wh3_dlc23_chd_zhatan",
+    "wh3_dlc23_chd_zhatan": ZHATAN,
     "wh_dlc03_bst_beastmen": "wh_dlc03_bst_khazrak",
     "wh2_dlc17_bst_malagor": "wh_dlc03_bst_malagor",
     "wh_dlc05_bst_morghur_herd": "wh_dlc05_bst_morghur",
@@ -159,6 +168,10 @@ def skill_mapping(native):
                                 (DROWNED_NODE, DROWNED_REPLACEMENT)):
                 old = native["character_skill_nodes"].one(key=node)
                 pairs.append((old, dict(old, character_skill_key=skill), 1))
+        if subtype == ZHATAN:
+            old = native["character_skill_nodes"].one(key=SUBJUGATOR_NODE)
+            pairs.append((old, dict(old,
+                character_skill_key=SUBJUGATOR_REPLACEMENT), 1))
         changed = {old["key"] for old, _, _ in pairs}
         result[subtype] = skill_slots.mapping(
             native, pairs, [r for r in original if r["key"] not in changed])
@@ -298,6 +311,19 @@ def taurox_skills(native):
         for bonus in strength:
             yield bindings.name, dict(bonus, effect=TITANS_STRENGTH,
                                       unit_set=target["unit_set"])
+
+
+def zhatan_skills(native):
+    """Keep captives and loot; use the native WoC soul bonus instead of labour."""
+    yield from unique_path(native, ZHATAN,
+        {SUBJUGATOR_NODE: (SUBJUGATOR, SUBJUGATOR_REPLACEMENT)},
+        "zhatan_unique_")
+    levels = native["character_skill_level_to_effects_junctions"]
+    levels.one(character_skill_key=SUBJUGATOR, effect_key=POST_BATTLE_LABOUR,
+               level="1", effect_scope="character_to_character_own", value="15.0000")
+    for row in levels.where(character_skill_key=SUBJUGATOR):
+        if row["effect_key"] != POST_BATTLE_LABOUR:
+            yield levels.name, dict(row, character_skill_key=SUBJUGATOR_REPLACEMENT)
 
 
 def dilemmas(native):
@@ -451,6 +477,28 @@ def validate(native, generated, assets, authored):
     if any(r["effect_key"] not in effects or r["level"] != "1"
            or r["effect_scope"] != "general_to_force_own" for r in levels):
         raise ValueError("Drowned in Blood bonuses must affect only his army")
+    native["effect_bonus_value_basic_junction"].one(
+        effect=BATTLE_SOULS,
+        bonus_value_id="post_battle_pooled_resource_loot_percentage_mod")
+    # Azazel's native skill uses this battle-soul bonus on his own army.
+    native["character_skill_level_to_effects_junctions"].one(
+        character_skill_key="wh3_dlc20_skill_chs_azazel_unique_impeccable_taste",
+        effect_key=BATTLE_SOULS, level="1", effect_scope="general_to_force_own",
+        value="15.0000")
+    levels = [r for r in authored["character_skill_level_to_effects_junctions"]
+              if r["character_skill_key"] == SUBJUGATOR_REPLACEMENT]
+    if (len(levels) != 1 or levels[0]["effect_key"] != BATTLE_SOULS
+            or levels[0]["level"] != "1"
+            or levels[0]["effect_scope"] != "general_to_force_own"):
+        raise ValueError("Subjugator's replacement must affect his army's souls")
+    kept = [r for r in generated["character_skill_level_to_effects_junctions"]
+            if r["character_skill_key"] == SUBJUGATOR_REPLACEMENT]
+    expected = [dict(r, character_skill_key=SUBJUGATOR_REPLACEMENT)
+                for r in native["character_skill_level_to_effects_junctions"].where(
+                    character_skill_key=SUBJUGATOR)
+                if r["effect_key"] != POST_BATTLE_LABOUR]
+    if kept != expected:
+        raise ValueError("Subjugator changed native captives or loot bonuses")
 
 
 def script_data(native):
