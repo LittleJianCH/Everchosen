@@ -150,7 +150,8 @@
   (world.related-character? (context:character)))
 
 (fn listen [suffix event condition callback]
-  (core:add_listener (.. data.prefix suffix) event condition callback true))
+  (core:add_listener (.. data.prefix suffix) event condition
+    (shared.guarded "Everchosen hordes" callback) true))
 
 (fn start []
   (when (and (not started?) (shared.host))

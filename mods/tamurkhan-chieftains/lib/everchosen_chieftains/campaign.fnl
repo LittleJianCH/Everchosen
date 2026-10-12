@@ -149,8 +149,8 @@
   (request))
 
 (fn listen [suffix event condition callback]
-  (core:add_listener (.. data.mod-key "_" suffix) event condition callback
-                     true))
+  (core:add_listener (.. data.mod-key "_" suffix) event condition
+    (world.guarded data.mod-key callback) true))
 
 (fn start []
   (when (host-faction)

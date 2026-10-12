@@ -270,6 +270,29 @@
 
 (describe "Archaon inheritance"
   (fn []
+    (it "isolates a failed UI callback and keeps later listeners running"
+      (fn []
+        (let [s (sandbox)
+              context {:string :character_details_panel}
+              observed []
+              component s.ui.button_nurgle_plagues
+              set-visible component.SetVisible]
+          (s:start)
+          (set component.SetVisible #(error "HUD no longer available"))
+          (let [callback (. s.listeners (.. prefix "ui_open") 3)
+                listeners [callback #(table.insert observed $1)]]
+            ;; lib_core's release path invokes listeners without pcall.
+            (each [_ listener (ipairs listeners)] (listener context))
+            (assert.same [context] observed)
+            (assert.matches "Everchosen inheritance.*HUD no longer available"
+                            (. s.logs (length s.logs)))
+            (set component.SetVisible set-visible)
+            (set component.visible? true)
+            (each [_ listener (ipairs listeners)] (listener context))
+            (s:flush)
+            (assert.same [context context] observed)
+            (assert.is_false component.visible?)))))
+
     (it (.. "hides unearned HUD controls after layout "
             "and opens each earned mechanic")
       (fn []

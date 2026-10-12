@@ -78,7 +78,8 @@
         (request)))))
 
 (fn listen [suffix event condition callback]
-  (core:add_listener (.. data.prefix suffix) event condition callback true))
+  (core:add_listener (.. data.prefix suffix) event condition
+    (world.guarded "Everchosen inheritance" callback) true))
 
 (fn relevant-diplomacy? [context]
   (or (blessings.relevant? (context:proposer))

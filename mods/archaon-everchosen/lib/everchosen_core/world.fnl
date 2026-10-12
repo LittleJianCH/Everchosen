@@ -5,6 +5,13 @@
   (assert (core:get_static_object data.static-data)
           "Everchosen generated data is not loaded yet"))
 
+(fn guarded [label callback]
+  "Log a callback's Lua error without interrupting later event listeners."
+  ;; WH3 9.0.3 lib_core only protects callbacks when its tweaker is enabled.
+  (fn [...]
+    (let [(ok? error) (pcall callback ...)]
+      (when (not ok?) (out (.. "[" label "] " (tostring error)))))))
+
 (fn valid? [object]
   (and object (not (object:is_null_interface))))
 
@@ -48,4 +55,4 @@
     value))
 
 {: valid? : items : game-world : factions : host? : host : owned
- : resource : static-data}
+ : resource : static-data : guarded}

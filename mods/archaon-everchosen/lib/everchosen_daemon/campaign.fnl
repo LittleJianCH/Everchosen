@@ -307,37 +307,41 @@
           (cm:set_tint_activity_state_for_character character true))
         (cm:set_tint_activity_state_for_character character false))))
 
+(fn listen [suffix event condition callback]
+  (core:add_listener (.. data.prefix suffix) event condition
+    (world.guarded "Everchosen Daemon Prince" callback) true))
+
 (fn start []
   (when (and (world.host) (not started?))
     (set started? true)
-    (core:add_listener (.. data.prefix "accepted")
+    (listen :accepted
       :ScriptEventEverchosenTransferAccepted #(= $1.string data.prince)
-      snapshot true)
-    (core:add_listener (.. data.prefix "acquired")
+      snapshot)
+    (listen :acquired
       :ScriptEventArchaonSubjugatesChaosFaction #(= $1.string data.prince)
-      request true)
-    (core:add_listener (.. data.prefix "resource") :PooledResourceChanged
+      request)
+    (listen :resource :PooledResourceChanged
       #(and ($1:has_faction) (world.host? ($1:faction)))
-      resource-changed true)
-    (core:add_listener (.. data.prefix "sacrifice_click") :ComponentLClickUp
+      resource-changed)
+    (listen :sacrifice_click :ComponentLClickUp
       #(= $1.string :everchosen_daemon_sacrifice)
-      #(resource-click $1 3 :sacrifice) true)
-    (core:add_listener (.. data.prefix "dedication_click") :ComponentLClickUp
+      #(resource-click $1 3 :sacrifice))
+    (listen :dedication_click :ComponentLClickUp
       #(= $1.string :button_ascend)
-      #(resource-click $1 4 :dedicate) true)
-    (core:add_listener (.. data.prefix "command") :UITrigger
+      #(resource-click $1 4 :dedicate))
+    (listen :command :UITrigger
       #(= (string.sub ($1:trigger) 1 (length data.prefix)) data.prefix)
-      command true)
-    (core:add_listener (.. data.prefix "panel") :PanelOpenedCampaign
+      command)
+    (listen :panel :PanelOpenedCampaign
       #(or (= $1.string :daemonic_progression)
-           (= $1.string :character_details_panel)) request true)
-    (core:add_listener (.. data.prefix "turn") :FactionTurnStart
-      #(world.host? ($1:faction)) request true)
-    (core:add_listener (.. data.prefix "ritual") :RitualCompletedEvent
-      #(world.host? ($1:performing_faction)) request true)
-    (core:add_listener (.. data.prefix "tint") :CharacterArmoryItemEquipped
+           (= $1.string :character_details_panel)) request)
+    (listen :turn :FactionTurnStart
+      #(world.host? ($1:faction)) request)
+    (listen :ritual :RitualCompletedEvent
+      #(world.host? ($1:performing_faction)) request)
+    (listen :tint :CharacterArmoryItemEquipped
       #(and (world.host? (: ($1:character) :faction))
-            (= (: ($1:character) :character_subtype_key) data.prince)) tint true)
+            (= (: ($1:character) :character_subtype_key) data.prince)) tint)
     (safely-reconcile)))
 
 {: start : snapshot : sacrifice : dedicate : choose : reconcile : prince}

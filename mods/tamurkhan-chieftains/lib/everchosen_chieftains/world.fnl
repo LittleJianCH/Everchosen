@@ -3,6 +3,13 @@
 (local data (include :everchosen_chieftains.data))
 (local rules (include :everchosen_chieftains.rules))
 
+(fn guarded [label callback]
+  "Log a callback's Lua error without interrupting later event listeners."
+  ;; WH3 9.0.3 lib_core only protects callbacks when its tweaker is enabled.
+  (fn [...]
+    (let [(ok? error) (pcall callback ...)]
+      (when (not ok?) (out (.. "[" label "] " (tostring error)))))))
+
 (fn next-init-action [character hero target-rank]
   "Next missing initialization result, or nil when all are observed."
   ;; WH3 9.0.3: these are character queries in the Assembly Kit API docs.
@@ -77,4 +84,5 @@
         (let [region (fallback-region faction)]
           (if (valid? region) {: region})))))
 
-{: valid? : items : ours? : owned : spawn-location : next-init-action}
+{: valid? : items : ours? : owned : spawn-location : next-init-action
+ : guarded}
