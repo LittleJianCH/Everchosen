@@ -1,0 +1,5 @@
+key	text	tooltip
+#Loc;1;text/db/everchosen_horde_heroes.loc		
+effects_description_everchosen_horde_hero_capacity_wizard	英雄招募容量：法师类英雄%+n（共享额度）	false
+effects_description_everchosen_horde_hero_capacity_champion	英雄招募容量：冠军类英雄%+n（共享额度）	false
+effects_description_everchosen_horde_hero_capacity_spy	英雄招募容量：密探类英雄%+n（共享额度）	false

@@ -24,6 +24,7 @@ import skill_slots
 import roster_permissions
 import beastmen_hordes
 import beastmen_horde_ui
+import beastmen_horde_heroes
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -114,6 +115,7 @@ REQUIRED_PLAGUE_SETS = (("plague_effect_set_nurgle_positive", "false"),
 
 TABLES = sorted(set(subjugation.TABLES) | set(roster_permissions.TABLES) |
                 set(beastmen_hordes.TABLES) |
+                set(beastmen_horde_heroes.TABLES) |
                 set(daemon_prince.TABLES) |
                 set(daemon_skills.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
     campaign_groups campaign_group_members
@@ -439,6 +441,10 @@ def generate(native_root, output):
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
     subjugation.validate(native, generated, MOD / "assets", authored)
+    # Subjugation validates legendary-lord permissions before ordinary camp
+    # heroes add their separate, native-derived recruitment permissions.
+    for table, row in beastmen_horde_heroes.rows(native):
+        generated.setdefault(table, []).append(row)
     prince_tree = {}
     for table, row in daemon_skills.rows(native):
         prince_tree.setdefault(table, []).append(row)
@@ -449,6 +455,7 @@ def generate(native_root, output):
     validate(native, generated, authored)
     daemon_legion.validate(native, generated, authored)
     beastmen_hordes.validate(native, generated, authored)
+    beastmen_horde_heroes.validate(native, generated, authored)
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
     write_localisation(output, beastmen_hordes.localisation(native),
