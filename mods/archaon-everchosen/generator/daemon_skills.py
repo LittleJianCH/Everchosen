@@ -19,8 +19,10 @@ REPLACED = (
     "tzeentch_1_1", "tzeentch_1_4", "tzeentch_3_1", "tzeentch_4",
     "undivided_1_1", "undivided_1_2", "undivided_1_3", "undivided_1_4",
 )
-TABLES = ["character_skill_level_to_effects_junctions",
-          "character_skill_nodes_skill_locks"]
+TABLES = """character_skill_level_to_effects_junctions
+    character_skill_nodes_skill_locks character_skill_nodes
+    character_skill_node_sets character_skill_node_set_items effects
+""".split() + skill_slots.TABLES
 
 
 def skill_mapping(native):

@@ -1,5 +1,9 @@
 """Preserve skill positions and isolate the dependency paths being adapted."""
 
+TABLES = """character_skill_level_to_effects_junctions
+    character_skill_node_links character_skill_node_set_items
+""".split()
+
 
 def linked_nodes(native, nodes, changed, prefix):
     """Map every node connected to CHANGED within this native tree.

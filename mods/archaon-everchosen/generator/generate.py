@@ -113,11 +113,7 @@ REQUIRED_FEATURES = {"bribery", "streaks", "diplomatic_manipulation",
 REQUIRED_PLAGUE_SETS = (("plague_effect_set_nurgle_positive", "false"),
                         ("plague_effect_set_nurgle_negative", "true"))
 
-TABLES = sorted(set(subjugation.TABLES) | set(roster_permissions.TABLES) |
-                set(beastmen_hordes.TABLES) |
-                set(beastmen_horde_heroes.TABLES) |
-                set(daemon_prince.TABLES) |
-                set(daemon_skills.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
+INHERITANCE_TABLES = """
     campaign_groups campaign_group_members
     campaign_group_member_criteria_factions
     campaign_group_member_criteria_campaigns
@@ -128,7 +124,12 @@ TABLES = sorted(set(subjugation.TABLES) | set(roster_permissions.TABLES) |
     teleportation_networks teleportation_network_nodes
     diplomatic_relationship_effects campaign_effect_list_effect_junctions
     campaign_payload_ui_details
-""".split()))
+""".split() + [table for table, *_ in COPIED_ROWS + COPIED_GROUPS]
+TABLES = sorted(set(INHERITANCE_TABLES + subjugation.TABLES +
+                    roster_permissions.TABLES + beastmen_hordes.TABLES +
+                    beastmen_horde_heroes.TABLES + daemon_prince.TABLES +
+                    daemon_legion.TABLES + daemon_skills.TABLES +
+                    skill_slots.TABLES))
 UI_FOLDER = "ui/campaign ui"
 NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],

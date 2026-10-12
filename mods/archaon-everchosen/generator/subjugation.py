@@ -82,9 +82,9 @@ TABLES = """factions start_pos_factions faction_agent_permitted_subtypes agent_s
     character_skill_level_to_effects_junctions character_skill_nodes_skill_locks
     effect_bonus_value_basic_junction effect_bonus_value_ids_unit_sets
     effects unit_sets campaign_effect_scopes
-    main_units dilemmas cdir_events_dilemma_choice_details
+    main_units battle_set_piece_armies dilemmas cdir_events_dilemma_choice_details
     cdir_events_dilemma_option_junctions cdir_events_dilemma_payloads
-""".split()
+""".split() + skill_slots.TABLES
 UNIT_SLOTS = ("inf_low", "inf_low_special", "inf_high", "inf_high_special",
               "cav_low", "cav_high", "monster_low", "monster_med", "monster_high")
 CHALLENGE_UNITS = {

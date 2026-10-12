@@ -30,7 +30,8 @@ TABLES = """campaign_group_pooled_resources campaign_group_rituals
     pooled_resource_threshold_operation_sets operation_set_groups
     operation_set_to_operation_group_junctions campaign_operation_sets
     campaign_operation_set_armory_item_elements campaign_operation_armory_items
-    armory_items ritual_payloads ritual_payload_effect_bundles
+    armory_items rituals ritual_payloads ritual_payload_effect_bundles
+    faction_agent_permitted_subtypes
     effects effect_bundles effect_bundles_to_effects_junctions
     resource_costs resource_cost_pooled_resource_junctions
 """.split() + daemon_legion.TABLES

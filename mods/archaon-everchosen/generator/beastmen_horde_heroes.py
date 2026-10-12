@@ -35,7 +35,7 @@ TABLES = """agent_subtypes faction_agent_permitted_subtypes
     units_to_exclusive_faction_permissions effects
     effect_bonus_value_agent_junction effect_bonus_value_agent_subtype_junctions
     building_effects_junction building_levels campaign_effect_scopes
-""".split()
+""".split() + hordes.TABLES
 
 
 def capacity_effect(agent):

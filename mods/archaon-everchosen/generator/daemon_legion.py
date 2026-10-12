@@ -3,9 +3,11 @@ from pathlib import Path
 from db_tables import read_authored
 
 PREFIX = "everchosen_daemon_"
-TABLES = """unit_sets unit_set_to_unit_junctions land_units
+TABLES = """unit_sets unit_set_to_unit_junctions land_units main_units effects
     unit_attributes_to_groups_junctions effect_bonus_value_ids_unit_sets
     campaign_operation_set_effect_bundle_elements campaign_operation_effect_bundles
+    pooled_resource_threshold_operation_sets
+    effect_bundles effect_bundles_to_effects_junctions
 """.split()
 
 
