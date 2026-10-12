@@ -22,6 +22,14 @@ mkdir -p -- "$root/build"
 stage=''
 trap '[[ -z "$stage" ]] || rm -rf -- "$stage"' EXIT
 for mod in "${targets[@]}"; do
+    case "$mod" in
+        archaon-everchosen)
+            globals=cm,core,out,common,nurgle_plagues,find_uicomponent,cco,UIComponent,CampaignUI
+            ;;
+        tamurkhan-chieftains|chaos-equipment)
+            globals=cm,core,out,common
+            ;;
+    esac
     source_dir="$root/mods/$mod"
     stage=$(mktemp -d "$root/build/.$mod.XXXXXXXX")
     # Asset paths are relative to the pack root. Ignore directory placeholders.
@@ -42,7 +50,7 @@ for mod in "${targets[@]}"; do
             exit 1
         fi
         mkdir -p -- "$(dirname -- "$destination")"
-        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals cm,core,out,common,nurgle_plagues,find_uicomponent,cco,UIComponent,CampaignUI --compile "$source" > "$destination"
+        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals "$globals" --compile "$source" > "$destination"
         count=$((count + 1))
     done < <(find "$source_dir/src" -type f -name '*.fnl' -print0)
     # Check all Lua, including any deliberately authored Lua assets.
