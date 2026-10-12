@@ -19,6 +19,11 @@ TITANS_REPLACEMENT = PREFIX + "titans_of_the_deep_forest"
 TITANS_ARMOUR = "wh2_dlc17_effect_armour_mod_ghorgon_jabberslythe_giant_cygor"
 TITANS_CAPACITY = "wh2_dlc17_effect_unit_cap_bst_ghorgon"
 TITANS_STRENGTH = PREFIX + "titans_weapon_strength"
+DROWNED = "wh2_dlc17_skill_bst_taurox_unique_drowned_in_blood"
+DROWNED_NODE = "wh2_dlc17_skill_node_bst_taurox_unique_03"
+DROWNED_REPLACEMENT = PREFIX + "drowned_in_blood"
+REPLENISHMENT = "wh_main_effect_force_all_campaign_replenishment_rate"
+CHARGE_BONUS = "wh2_dlc17_effect_charge_bonus_for_all"
 CLIENTS = {
     "nor": ("wh_dlc08_nor_norsca", "wh3_dlc20_nor_kuj",
             "wh_main_nor_marauder_chieftain", "norsca-v1.png"),
@@ -45,6 +50,9 @@ COPIED_ROWS = (
       "localised_description": ""}),
     ("character_skills", {"key": TITANS},
      {"key": TITANS_REPLACEMENT, "localised_name": "",
+      "localised_description": ""}),
+    ("character_skills", {"key": DROWNED},
+     {"key": DROWNED_REPLACEMENT, "localised_name": "",
       "localised_description": ""}),
 )
 TARGETS = {
@@ -147,9 +155,10 @@ def skill_mapping(native):
             pairs.append((old, dict(old,
                 character_skill_key=WORLD_WALKER_REPLACEMENT), 1))
         if subtype == TAUROX:
-            old = native["character_skill_nodes"].one(key=TITANS_NODE)
-            pairs.append((old, dict(old,
-                character_skill_key=TITANS_REPLACEMENT), 1))
+            for node, skill in ((TITANS_NODE, TITANS_REPLACEMENT),
+                                (DROWNED_NODE, DROWNED_REPLACEMENT)):
+                old = native["character_skill_nodes"].one(key=node)
+                pairs.append((old, dict(old, character_skill_key=skill), 1))
         changed = {old["key"] for old, _, _ in pairs}
         result[subtype] = skill_slots.mapping(
             native, pairs, [r for r in original if r["key"] not in changed])
@@ -213,13 +222,14 @@ def skills(native):
                 permission, faction=client, subtype=subtype)
 
 
-def unique_path(native, subtype, source_key, skill, replacement_skill, prefix):
-    """Isolate a changed unique skill and its prerequisites at native positions."""
+def unique_path(native, subtype, replacements, prefix):
+    """Isolate node -> (old skill, new skill) pairs and their prerequisites."""
     tree, original = original_tree(native, subtype)
     nodes = native["character_skill_nodes"]
-    source = nodes.one(key=source_key, character_skill_key=skill)
+    for key, (source, _) in replacements.items():
+        nodes.one(key=key, character_skill_key=source)
     mapping = skill_slots.linked_nodes(
-        native, original, [source["key"]], PREFIX + prefix)
+        native, original, replacements, PREFIX + prefix)
     faction = next(key for key, value in TARGETS.items() if value == subtype)
     subculture = native["factions"].one(key=faction)["subculture"]
     for key, replacement in mapping.items():
@@ -230,8 +240,8 @@ def unique_path(native, subtype, source_key, skill, replacement_skill, prefix):
         yield nodes.name, dict(node, subculture=subculture)
         yield nodes.name, dict(
             node, key=replacement, campaign_key=CAMPAIGN, faction_key=HOST,
-            character_skill_key=(replacement_skill
-                if key == source_key else node["character_skill_key"]))
+            character_skill_key=(replacements[key][1]
+                if key in replacements else node["character_skill_key"]))
         yield "character_skill_node_set_items", dict(
             set=tree["key"], item=replacement, mod_disabled="false")
     yield from skill_slots.links(native, mapping)
@@ -243,8 +253,9 @@ def unique_path(native, subtype, source_key, skill, replacement_skill, prefix):
 
 def world_walker(native):
     """Keep Wulfrik's unique row in place, with an Archaon-only final skill."""
-    yield from unique_path(native, WULFRIK, WORLD_WALKER_NODE, WORLD_WALKER,
-                           WORLD_WALKER_REPLACEMENT, "wulfrik_unique_")
+    yield from unique_path(native, WULFRIK,
+        {WORLD_WALKER_NODE: (WORLD_WALKER, WORLD_WALKER_REPLACEMENT)},
+        "wulfrik_unique_")
     levels = native["character_skill_level_to_effects_junctions"]
     levels.one(character_skill_key=WORLD_WALKER, effect_key=GLOBAL_RECRUITMENT,
                level="1", effect_scope="general_to_force_own", value="-2.0000")
@@ -253,11 +264,19 @@ def world_walker(native):
             yield levels.name, dict(row, character_skill_key=WORLD_WALKER_REPLACEMENT)
 
 
-def titans(native):
-    """Replace Taurox's capacity with damage for the native armour targets."""
-    yield from unique_path(native, TAUROX, TITANS_NODE, TITANS,
-                           TITANS_REPLACEMENT, "taurox_unique_")
+def taurox_skills(native):
+    """Adapt Taurox's two unique skills without duplicating their shared path."""
+    yield from unique_path(native, TAUROX,
+        {TITANS_NODE: (TITANS, TITANS_REPLACEMENT),
+         DROWNED_NODE: (DROWNED, DROWNED_REPLACEMENT)}, "taurox_unique_")
     levels = native["character_skill_level_to_effects_junctions"]
+    # The native River of Blood listener checks the original skill key.
+    # Replace its display-only bonus along with rage, not just the tooltip.
+    drowned_effects = {
+        "wh_dlc03_effect_bloodlust_modifier_characters",
+        "wh2_dlc17_effect_taurox_river_of_blood_bonus_dummy"}
+    if {r["effect_key"] for r in levels.where(character_skill_key=DROWNED)} != drowned_effects:
+        raise ValueError("Native Drowned in Blood effects changed")
     levels.one(character_skill_key=TITANS, effect_key=TITANS_CAPACITY,
                level="1", effect_scope="character_to_faction_unseen", value="1.0000")
     levels.one(character_skill_key=TITANS, effect_key=TITANS_ARMOUR,
@@ -420,6 +439,18 @@ def validate(native, generated, assets, authored):
     if any(r["effect_key"] not in effects or r["level"] != "1"
            or r["effect_scope"] != "general_to_force_own" for r in levels):
         raise ValueError("Titans bonuses must be valid own-army skill effects")
+    native["effect_bonus_value_basic_junction"].one(
+        effect=REPLENISHMENT, bonus_value_id="replenishment_percentage_bonus")
+    native["effect_bonus_value_ids_unit_sets"].one(
+        effect=CHARGE_BONUS, bonus_value_id="charge_bonus", unit_set="all_units")
+    levels = [r for r in authored["character_skill_level_to_effects_junctions"]
+              if r["character_skill_key"] == DROWNED_REPLACEMENT]
+    if len(levels) != 2 or {r["effect_key"] for r in levels} != {
+            REPLENISHMENT, CHARGE_BONUS}:
+        raise ValueError("Drowned in Blood needs replenishment and charge bonuses")
+    if any(r["effect_key"] not in effects or r["level"] != "1"
+           or r["effect_scope"] != "general_to_force_own" for r in levels):
+        raise ValueError("Drowned in Blood bonuses must affect only his army")
 
 
 def script_data(native):

@@ -137,10 +137,11 @@
             0 s.levels.wh_dlc08_skill_nor_wulfrik_unique_world_walker)
           (assert.equals
             1 s.levels.wh_dlc08_skill_nor_wulfrik_unique_eternal_challenger))))
-    (it "keeps Taurox's Titans point and neighbouring unique skills"
+    (it "keeps Taurox's adapted unique points and neighbouring skills"
       (fn []
         (let [s (scenario :wh2_dlc17_bst_taurox
                   {:wh2_dlc17_skill_bst_taurox_unique_favoured_of_the_skull_throne 1
+                   :wh2_dlc17_skill_bst_taurox_unique_drowned_in_blood 1
                    :wh2_dlc17_skill_bst_taurox_unique_titans_of_the_deep_forest 1
                    :wh2_dlc17_skill_bst_taurox_unique_daemonic_vigour 1}
                   true)]
@@ -149,10 +150,13 @@
             0 s.levels.wh2_dlc17_skill_bst_taurox_unique_titans_of_the_deep_forest)
           (assert.equals 1 s.levels.everchosen_subjugation_titans_of_the_deep_forest)
           (assert.equals
+            0 s.levels.wh2_dlc17_skill_bst_taurox_unique_drowned_in_blood)
+          (assert.equals 1 s.levels.everchosen_subjugation_drowned_in_blood)
+          (assert.equals
             1 s.levels.wh2_dlc17_skill_bst_taurox_unique_favoured_of_the_skull_throne)
           (assert.equals
             1 s.levels.wh2_dlc17_skill_bst_taurox_unique_daemonic_vigour)
-          (assert.equals 2 s.sent))))
+          (assert.equals 4 s.sent))))
     (it "resumes a save between prince conversion phases without duplicates"
       (fn []
         (let [s (scenario :wh3_main_dae_daemon_prince
