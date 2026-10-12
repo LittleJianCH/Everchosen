@@ -15,13 +15,15 @@ from pathlib import Path
 MOD = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MOD.parents[1] / "tools"))
 from db_tables import (read_authored, read_table, run_generator, stable_id,
-                       write_table)
+                       write_localisation, write_table)
 import subjugation
 import daemon_prince
 import daemon_legion
 import daemon_skills
 import skill_slots
 import roster_permissions
+import beastmen_hordes
+import beastmen_horde_ui
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -111,6 +113,7 @@ REQUIRED_PLAGUE_SETS = (("plague_effect_set_nurgle_positive", "false"),
                         ("plague_effect_set_nurgle_negative", "true"))
 
 TABLES = sorted(set(subjugation.TABLES) | set(roster_permissions.TABLES) |
+                set(beastmen_hordes.TABLES) |
                 set(daemon_prince.TABLES) |
                 set(daemon_skills.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
     campaign_groups campaign_group_members
@@ -131,7 +134,8 @@ NATIVE_INPUTS = {
         "hud_campaign", "hud_campaign_resource_bar_wh3", "great_game_rituals",
         "rifts", "character_information")] + [daemon_prince.ui_path(name)
                      for name in daemon_prince.UI_NAMES] +
-        ["ui/templates/square_medium_text_button.twui.xml"],
+        ["ui/templates/square_medium_text_button.twui.xml"] +
+        beastmen_horde_ui.NATIVE_INPUTS,
     # Loaded by the adapter regressions, not by this generator.
     "data_script.pack": ["script/campaign/wh3_campaign_nurgle_plagues.lua",
                          "script/campaign/wh3_campaign_great_game.lua",
@@ -213,7 +217,8 @@ def generated_rows(native):
                    subjugation.world_walker,
                    subjugation.taurox_skills,
                    subjugation.zhatan_skills,
-                   subjugation.dilemmas, daemon_prince.rows, daemon_legion.rows):
+                   subjugation.dilemmas, daemon_prince.rows, daemon_legion.rows,
+                   beastmen_hordes.rows):
         for table, row in derive(native):
             if set(row) != set(native[table].header):
                 raise ValueError(f"Unexpected fields for {table}: {sorted(row)}")
@@ -276,6 +281,7 @@ def script_data(native, generated):
         **subjugation.skill_mapping(native),
         daemon_skills.PRINCE: daemon_skills.skill_mapping(native)}
     data["daemon_prince"] = daemon_prince.script_data(native)
+    data["hordes"] = beastmen_hordes.script_data(native)
     return data
 
 
@@ -409,6 +415,7 @@ UI_ADAPTATIONS = {
 
 
 def adapt_ui(native_root, output, native):
+    hordes = beastmen_hordes.script_data(native)
     for name in (*UI_ADAPTATIONS, *daemon_prince.UI_NAMES):
         relative = (daemon_prince.ui_path(name) if name in daemon_prince.UI_NAMES
                     else f"{UI_FOLDER}/{name}.twui.xml")
@@ -418,8 +425,11 @@ def adapt_ui(native_root, output, native):
                 element.set(EXPRESSION, expression)
         else:
             daemon_prince.adapt(tree, name, native_root, native)
+        if name == "character_information":
+            beastmen_horde_ui.adapt_character_information(tree, hordes)
         (output / relative).parent.mkdir(parents=True, exist_ok=True)
         tree.write(output / relative, encoding="utf-8", xml_declaration=True)
+    beastmen_horde_ui.adapt_ui(native_root, output, hordes)
 
 
 ### Entry point
@@ -438,8 +448,11 @@ def generate(native_root, output):
     skill_slots.validate_trees(native, generated)
     validate(native, generated, authored)
     daemon_legion.validate(native, generated, authored)
+    beastmen_hordes.validate(native, generated, authored)
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
+    write_localisation(output, beastmen_hordes.localisation(native),
+                       "everchosen_horde_names")
     adapt_ui(native_root, output, native)
     path = output / "script/campaign/mod/everchosen_inheritance_data.lua"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -448,7 +461,7 @@ def generate(native_root, output):
                     encoding="utf-8")
     print(f"Inheritance: {sum(map(len, generated.values()))} generated rows "
           f"across {len(generated)} tables; "
-          f"{len(UI_ADAPTATIONS) + len(daemon_prince.UI_NAMES)} native UI "
+          f"{len(UI_ADAPTATIONS) + len(daemon_prince.UI_NAMES) + 3} native UI "
           "adaptations")
 
 

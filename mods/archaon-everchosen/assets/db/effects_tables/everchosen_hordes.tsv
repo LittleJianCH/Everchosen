@@ -1,0 +1,5 @@
+effect	icon	priority	icon_negative	category	is_positive_value_good
+#effects_tables;0;db/effects_tables/everchosen_hordes					
+everchosen_horde_starting_buildings		0		campaign	true
+everchosen_horde_unit_allowance		0		campaign	true
+everchosen_horde_horn_chance	merc_replen.png	600	merc_replen.png	campaign	true

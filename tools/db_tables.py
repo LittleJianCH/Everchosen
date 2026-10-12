@@ -140,3 +140,22 @@ def stable_id(label, used):
         raise ValueError(f"Generated ID collides with an existing row: {label}")
     used.add(value)
     return value
+
+
+def write_localisation(output, rows, fragment):
+    """Write native-derived translations separately from authored Loc assets."""
+    path = output / "text" / (fragment + ".loc.tsv")
+    if path.exists():
+        raise ValueError(f"{path}: generated localisation would replace an asset")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    keys = set()
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.writer(stream, delimiter="\t", lineterminator="\n",
+                            quoting=csv.QUOTE_NONE, quotechar=None)
+        writer.writerow(["key", "text", "tooltip"])
+        writer.writerow([f"#Loc;1;text/{fragment}.loc", "", ""])
+        for row in rows:
+            if set(row) != {"key", "text", "tooltip"} or row["key"] in keys:
+                raise ValueError(f"Invalid or duplicate localisation: {row}")
+            keys.add(row["key"])
+            writer.writerow([row["key"], row["text"], row["tooltip"]])

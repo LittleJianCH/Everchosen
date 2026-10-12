@@ -48,7 +48,8 @@ def validate(native, generated, authored):
         r["effect"] for r in authored.get("effects", [])}
     bundles = {r["key"] for r in authored.get("effect_bundles", [])}
     sets = native["unit_sets"].column("key") | {
-        r["key"] for r in generated.get("unit_sets", [])}
+        r["key"] for r in generated.get("unit_sets", []) +
+        authored.get("unit_sets", [])}
     bonuses = native["effect_bonus_value_ids_unit_sets"].column("bonus_value_id")
     for row in authored.get("effect_bonus_value_ids_unit_sets", []):
         if (row["effect"] not in effects or row["unit_set"] not in sets
