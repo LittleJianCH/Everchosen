@@ -1,8 +1,6 @@
 ;;; Keys verified against WH3 9.0.3 native campaign scripts and DB.
 
 {:prefix "everchosen_inheritance_"
- :host :wh_main_chs_chaos
- :campaign :main_warhammer
  :gods [:sla :nur :tze :kho :gg]
  :belakor :wh3_main_chs_shadow_legion
  :income-lock :everchosen_inheritance_infections_locked

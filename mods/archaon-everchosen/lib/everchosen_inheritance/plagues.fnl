@@ -1,5 +1,6 @@
+(local scope (include :everchosen_core.data))
 (local data (include :everchosen_inheritance.data))
-(local world (include :everchosen_inheritance.world))
+(local world (include :everchosen_core.world))
 
 ;; Wrap the native shuffle once per script session; CA owns its saved tables.
 (var original-randomise nil)
@@ -21,7 +22,7 @@
   (when (and (world.host? faction)
              (cm:get_saved_value data.nur-flag))
     (manager:festus_symptom_swap
-      (. manager.plague_faction_info data.host))
+      (. manager.plague_faction_info scope.host))
     (refresh-context manager faction)))
 
 (fn install []

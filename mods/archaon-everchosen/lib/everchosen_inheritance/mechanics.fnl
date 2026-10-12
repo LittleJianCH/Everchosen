@@ -1,6 +1,7 @@
+(local scope (include :everchosen_core.data))
 (local data (include :everchosen_inheritance.data))
 (local rules (include :everchosen_inheritance.rules))
-(local world (include :everchosen_inheritance.world))
+(local world (include :everchosen_core.world))
 (local plagues (include :everchosen_inheritance.plagues))
 
 ;; Native function adapters are installed once, without replacing CA scripts.
@@ -14,15 +15,14 @@
   (= true (cm:get_saved_value (rules.state-key god))))
 
 (fn ritual-data []
-  (assert (core:get_static_object :everchosen_inheritance_data)
-          "Inherited ritual data unavailable"))
+  (world.static-data))
 
 (fn sync-income [faction]
   (if (unlocked? :nur)
       (when (faction:has_effect_bundle data.income-lock)
-        (cm:remove_effect_bundle data.income-lock data.host))
+        (cm:remove_effect_bundle data.income-lock scope.host))
       (when (not (faction:has_effect_bundle data.income-lock))
-        (cm:apply_effect_bundle data.income-lock data.host 0))))
+        (cm:apply_effect_bundle data.income-lock scope.host 0))))
 
 (fn sync-manifestations [faction]
   (let [ascendant (cm:get_saved_value :great_game_ascendant_god)]
@@ -65,7 +65,7 @@
       (cm:add_or_remove_faction_features faction features true)))
   (when (= god :nur) (plagues.unlock faction))
   (when (and (= god :tze) (not (faction:has_effect_bundle data.tze-bundle)))
-    (cm:apply_effect_bundle data.tze-bundle data.host 0))
+    (cm:apply_effect_bundle data.tze-bundle scope.host 0))
   (if (= god :gg)
       (do
         (each [index _ (ipairs data.cultures)]
@@ -110,18 +110,18 @@
 
 (fn defeated-culture? [culture]
   (cm:pending_battle_cache_faction_won_battle_against_culture
-    data.host culture))
+    scope.host culture))
 
 (fn reward-battle []
   (when (and (world.host) (unlocked? :gg)
              (not (cm:get_saved_value rewarded-key))
-             (cm:pending_battle_cache_faction_won_battle data.host))
+             (cm:pending_battle_cache_faction_won_battle scope.host))
     (let [index (accumulate [found nil i culture (ipairs data.cultures)
                             &until found]
                   (if (defeated-culture? culture) i))]
       (when index
         (cm:faction_add_pooled_resource
-          data.host (.. (rules.manifestation-key index) "_uses") :other 1)
+          scope.host (.. (rules.manifestation-key index) "_uses") :other 1)
         (cm:set_saved_value rewarded-key true)))))
 
 (fn begin-battle []

@@ -1,6 +1,6 @@
 (local data (include :everchosen_inheritance.data))
 (local rules (include :everchosen_inheritance.rules))
-(local world (include :everchosen_inheritance.world))
+(local world (include :everchosen_core.world))
 (local mechanics (include :everchosen_inheritance.mechanics))
 (local blessings (include :everchosen_inheritance.blessings))
 (local portals (include :everchosen_inheritance.portals))

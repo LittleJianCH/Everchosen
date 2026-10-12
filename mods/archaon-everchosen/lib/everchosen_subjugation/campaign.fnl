@@ -1,5 +1,5 @@
-(local world (include :everchosen_inheritance.world))
-(local inheritance (include :everchosen_inheritance.data))
+(local world (include :everchosen_core.world))
+(local scope (include :everchosen_core.data))
 (local skills (include :everchosen_subjugation.skills))
 
 (local prefix "everchosen_subjugation_")
@@ -18,7 +18,7 @@
   (out (.. "[Everchosen subjugation] " message)))
 
 (fn config []
-  (. (core:get_static_object :everchosen_inheritance_data) :subjugation))
+  (. (world.static-data) :subjugation))
 
 (fn targets [] (. (config) :targets))
 (fn cultures [] (. (config) :cultures))
@@ -118,7 +118,7 @@
           (assert (or (not (world.valid? master)) (world.host? master))
                   "Client has another overlord")
           (when (not (client:is_vassal_of (world.host)))
-            (cm:force_make_vassal inheritance.host operation.client true))
+            (cm:force_make_vassal scope.host operation.client true))
           (client:is_vassal_of (world.host)))
         (when (not operation.creating)
           (let [region (location source)]
@@ -149,7 +149,7 @@
                    (not= operation.vassal-turn (cm:turn_number)))
           (set operation.vassal-turn (cm:turn_number))
           (cm:set_saved_value pending-key pending)
-          (cm:force_make_vassal inheritance.host operation.source true))
+          (cm:force_make_vassal scope.host operation.source true))
         (source:is_vassal_of (world.host)))
       (when (and (not operation.creating)
                  (not= operation.successor-turn (cm:turn_number)))
@@ -168,7 +168,7 @@
 
 (fn transfer [operation pending]
   (each [_ id (ipairs operation.members)]
-    (when (and (not (owned? id inheritance.host))
+    (when (and (not (owned? id scope.host))
                (not= (. operation.transfers id) (cm:turn_number)))
       (let [lord (character id)]
         (let [expected (if (or operation.dead operation.keep_faction)
@@ -197,7 +197,7 @@
   (when (and
           (accumulate [all? true _ id (ipairs operation.members)
                        &until (not all?)]
-            (owned? id inheritance.host))
+            (owned? id scope.host))
           (accumulate [ready? true _ id (ipairs operation.members)]
             (let [plan (assert (. operation.skills id)
                                "Missing pre-transfer skill allocation")

@@ -1,5 +1,5 @@
 (local data (include :everchosen_inheritance.data))
-(local world (include :everchosen_inheritance.world))
+(local world (include :everchosen_core.world))
 
 (local opened-key (.. data.prefix "starting_portal"))
 
@@ -25,7 +25,7 @@
   (let [host (world.host)]
     (when (and host (cm:is_new_game) (not (cm:get_saved_value opened-key)))
       (let [leader (host:faction_leader)
-            generated (core:get_static_object :everchosen_inheritance_data)
+            generated (world.static-data)
             config generated.portals]
         (when (and (world.valid? leader) (leader:has_region))
           (let [region (leader:region)

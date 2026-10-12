@@ -1,5 +1,5 @@
-(local shared (include :everchosen_inheritance.world))
-(local inheritance (include :everchosen_inheritance.data))
+(local shared (include :everchosen_core.world))
+(local scope (include :everchosen_core.data))
 (local data (include :everchosen_hordes.data))
 (local rules (include :everchosen_hordes.rules))
 (local world (include :everchosen_hordes.world))
@@ -23,7 +23,7 @@
   (let [host (shared.host)
         bundle (. (data.config) :start_bundle)]
     (when (not (host:has_effect_bundle bundle))
-      (cm:apply_effect_bundle bundle inheritance.host 0)
+      (cm:apply_effect_bundle bundle scope.host 0)
       (when (not (host:has_effect_bundle bundle))
         (log "New-horde configuration was not applied")))))
 

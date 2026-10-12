@@ -1,5 +1,5 @@
-(local shared (include :everchosen_inheritance.world))
-(local inheritance (include :everchosen_inheritance.data))
+(local shared (include :everchosen_core.world))
+(local scope (include :everchosen_core.data))
 (local data (include :everchosen_hordes.data))
 (local rules (include :everchosen_hordes.rules))
 
@@ -61,7 +61,7 @@
       (accumulate [found nil entry
                    (shared.items (pool:mercenary_pool_units)) &until found]
         (when (and (= (: (entry:unit_record) :key) unit)
-                   (= (entry:faction_restriction_key) inheritance.host))
+                   (= (entry:faction_restriction_key) scope.host))
           entry)))))
 
 {: eligible-force : forces : related-character? : camps : pool}

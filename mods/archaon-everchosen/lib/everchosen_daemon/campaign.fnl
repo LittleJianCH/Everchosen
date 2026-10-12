@@ -1,14 +1,14 @@
 (local data (include :everchosen_daemon.data))
 (local legion (include :everchosen_daemon.legion))
-(local host (include :everchosen_inheritance.data))
-(local world (include :everchosen_inheritance.world))
+(local host (include :everchosen_core.data))
+(local world (include :everchosen_core.world))
 
 ;; An in-flight payload blocks duplicate clicks until its resource events are observed.
 (var busy? false)
 (var started? false)
 
 (fn config []
-  (. (core:get_static_object :everchosen_inheritance_data) :daemon_prince))
+  (. (world.static-data) :daemon_prince))
 
 (fn saved [key fallback]
   (or (cm:get_saved_value (.. data.prefix key)) fallback))

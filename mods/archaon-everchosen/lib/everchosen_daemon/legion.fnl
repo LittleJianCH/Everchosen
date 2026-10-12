@@ -1,4 +1,4 @@
-(local world (include :everchosen_inheritance.world))
+(local world (include :everchosen_core.world))
 
 (fn selected [rewards balances]
   "Return the highest reached bundle per glory resource; tiers replace."

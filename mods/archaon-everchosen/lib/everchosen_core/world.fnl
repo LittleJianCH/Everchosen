@@ -1,4 +1,9 @@
-(local data (include :everchosen_inheritance.data))
+(local data (include :everchosen_core.data))
+
+(fn static-data []
+  "Generator output, available after the game has loaded all mod scripts."
+  (assert (core:get_static_object data.static-data)
+          "Everchosen generated data is not loaded yet"))
 
 (fn valid? [object]
   (and object (not (object:is_null_interface))))
@@ -43,4 +48,4 @@
     value))
 
 {: valid? : items : game-world : factions : host? : host : owned
- : resource}
+ : resource : static-data}
