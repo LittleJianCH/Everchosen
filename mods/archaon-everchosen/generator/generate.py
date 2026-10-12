@@ -21,6 +21,7 @@ import daemon_prince
 import daemon_legion
 import daemon_skills
 import skill_slots
+import roster_permissions
 
 PREFIX = "everchosen_inheritance_"
 FRAGMENT = PREFIX + "data"
@@ -109,7 +110,8 @@ REQUIRED_FEATURES = {"bribery", "streaks", "diplomatic_manipulation",
 REQUIRED_PLAGUE_SETS = (("plague_effect_set_nurgle_positive", "false"),
                         ("plague_effect_set_nurgle_negative", "true"))
 
-TABLES = sorted(set(subjugation.TABLES) | set(daemon_prince.TABLES) |
+TABLES = sorted(set(subjugation.TABLES) | set(roster_permissions.TABLES) |
+                set(daemon_prince.TABLES) |
                 set(daemon_skills.TABLES) | {table for table, *_ in COPIED_ROWS + COPIED_GROUPS} | set("""
     campaign_groups campaign_group_members
     campaign_group_member_criteria_factions
@@ -205,6 +207,7 @@ def generated_rows(native):
     result = {}
     for derive in (copied_rows, copied_groups, inherited_resources,
                    vassal_blessings, portal_permission,
+                   lambda native: roster_permissions.permissions(native, HOST),
                    subjugation.client_factions,
                    subjugation.skills,
                    subjugation.world_walker,
