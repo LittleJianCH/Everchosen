@@ -211,6 +211,7 @@ def generated_rows(native):
                    subjugation.client_factions,
                    subjugation.skills,
                    subjugation.world_walker,
+                   subjugation.titans,
                    subjugation.dilemmas, daemon_prince.rows, daemon_legion.rows):
         for table, row in derive(native):
             if set(row) != set(native[table].header):

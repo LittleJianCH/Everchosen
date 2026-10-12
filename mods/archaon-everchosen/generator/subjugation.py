@@ -12,6 +12,13 @@ WORLD_WALKER = "wh_dlc08_skill_nor_wulfrik_unique_world_walker"
 WORLD_WALKER_NODE = "wh2_dlc17_skill_node_nor_wulfrik_5_1"
 WORLD_WALKER_REPLACEMENT = PREFIX + "world_walker"
 GLOBAL_RECRUITMENT = "wh_dlc05_effect_global_recruitment_duration_all"
+TAUROX = "wh2_dlc17_bst_taurox"
+TITANS = "wh2_dlc17_skill_bst_taurox_unique_titans_of_the_deep_forest"
+TITANS_NODE = "wh2_dlc17_skill_node_bst_taurox_unique_04"
+TITANS_REPLACEMENT = PREFIX + "titans_of_the_deep_forest"
+TITANS_ARMOUR = "wh2_dlc17_effect_armour_mod_ghorgon_jabberslythe_giant_cygor"
+TITANS_CAPACITY = "wh2_dlc17_effect_unit_cap_bst_ghorgon"
+TITANS_STRENGTH = PREFIX + "titans_weapon_strength"
 CLIENTS = {
     "nor": ("wh_dlc08_nor_norsca", "wh3_dlc20_nor_kuj",
             "wh_main_nor_marauder_chieftain", "norsca-v1.png"),
@@ -36,6 +43,9 @@ COPIED_ROWS = (
     ("character_skills", {"key": WORLD_WALKER},
      {"key": WORLD_WALKER_REPLACEMENT, "localised_name": "",
       "localised_description": ""}),
+    ("character_skills", {"key": TITANS},
+     {"key": TITANS_REPLACEMENT, "localised_name": "",
+      "localised_description": ""}),
 )
 TARGETS = {
     "wh_dlc08_nor_norsca": WULFRIK,
@@ -47,13 +57,14 @@ TARGETS = {
     "wh_dlc03_bst_beastmen": "wh_dlc03_bst_khazrak",
     "wh2_dlc17_bst_malagor": "wh_dlc03_bst_malagor",
     "wh_dlc05_bst_morghur_herd": "wh_dlc05_bst_morghur",
-    "wh2_dlc17_bst_taurox": "wh2_dlc17_bst_taurox",
+    "wh2_dlc17_bst_taurox": TAUROX,
 }
 TABLES = """factions start_pos_factions faction_agent_permitted_subtypes agent_subtypes
     character_skill_node_sets character_skill_node_set_items
     character_skill_nodes character_skill_node_links character_skills
     character_skill_level_to_effects_junctions character_skill_nodes_skill_locks
-    effect_bonus_value_basic_junction
+    effect_bonus_value_basic_junction effect_bonus_value_ids_unit_sets
+    effects unit_sets campaign_effect_scopes
     main_units dilemmas cdir_events_dilemma_choice_details
     cdir_events_dilemma_option_junctions cdir_events_dilemma_payloads
 """.split()
@@ -135,6 +146,10 @@ def skill_mapping(native):
             old = native["character_skill_nodes"].one(key=WORLD_WALKER_NODE)
             pairs.append((old, dict(old,
                 character_skill_key=WORLD_WALKER_REPLACEMENT), 1))
+        if subtype == TAUROX:
+            old = native["character_skill_nodes"].one(key=TITANS_NODE)
+            pairs.append((old, dict(old,
+                character_skill_key=TITANS_REPLACEMENT), 1))
         changed = {old["key"] for old, _, _ in pairs}
         result[subtype] = skill_slots.mapping(
             native, pairs, [r for r in original if r["key"] not in changed])
@@ -198,37 +213,72 @@ def skills(native):
                 permission, faction=client, subtype=subtype)
 
 
-def world_walker(native):
-    """Keep Wulfrik's unique row in place, with an Archaon-only final skill."""
-    tree, original = original_tree(native, WULFRIK)
+def unique_path(native, subtype, source_key, skill, replacement_skill, prefix):
+    """Isolate a changed unique skill and its prerequisites at native positions."""
+    tree, original = original_tree(native, subtype)
     nodes = native["character_skill_nodes"]
-    source = nodes.one(key=WORLD_WALKER_NODE, character_skill_key=WORLD_WALKER)
+    source = nodes.one(key=source_key, character_skill_key=skill)
     mapping = skill_slots.linked_nodes(
-        native, original, [source["key"]], PREFIX + "wulfrik_unique_")
-    subculture = native["factions"].one(key="wh_dlc08_nor_norsca")["subculture"]
+        native, original, [source["key"]], PREFIX + prefix)
+    faction = next(key for key, value in TARGETS.items() if value == subtype)
+    subculture = native["factions"].one(key=faction)["subculture"]
     for key, replacement in mapping.items():
         node = nodes.one(key=key)
         if node["indent"] == "5" or any(node[field] for field in (
                 "campaign_key", "faction_key", "subculture")):
-            raise ValueError("Wulfrik's native unique path changed: " + key)
+            raise ValueError("Native unique path changed: " + key)
         yield nodes.name, dict(node, subculture=subculture)
         yield nodes.name, dict(
             node, key=replacement, campaign_key=CAMPAIGN, faction_key=HOST,
-            character_skill_key=(WORLD_WALKER_REPLACEMENT
-                if key == WORLD_WALKER_NODE else node["character_skill_key"]))
+            character_skill_key=(replacement_skill
+                if key == source_key else node["character_skill_key"]))
         yield "character_skill_node_set_items", dict(
             set=tree["key"], item=replacement, mod_disabled="false")
     yield from skill_slots.links(native, mapping)
     skills = {nodes.one(key=key)["character_skill_key"] for key in mapping}
     if any(r["character_skill_node"] in mapping or r["character_skill"] in skills
            for r in native["character_skill_nodes_skill_locks"].rows):
-        raise ValueError("New Wulfrik unique-path locks require adaptation")
+        raise ValueError("New unique-path locks require adaptation: " + subtype)
+
+
+def world_walker(native):
+    """Keep Wulfrik's unique row in place, with an Archaon-only final skill."""
+    yield from unique_path(native, WULFRIK, WORLD_WALKER_NODE, WORLD_WALKER,
+                           WORLD_WALKER_REPLACEMENT, "wulfrik_unique_")
     levels = native["character_skill_level_to_effects_junctions"]
     levels.one(character_skill_key=WORLD_WALKER, effect_key=GLOBAL_RECRUITMENT,
                level="1", effect_scope="general_to_force_own", value="-2.0000")
     for row in levels.where(character_skill_key=WORLD_WALKER):
         if row["effect_key"] != GLOBAL_RECRUITMENT:
             yield levels.name, dict(row, character_skill_key=WORLD_WALKER_REPLACEMENT)
+
+
+def titans(native):
+    """Replace Taurox's capacity with damage for the native armour targets."""
+    yield from unique_path(native, TAUROX, TITANS_NODE, TITANS,
+                           TITANS_REPLACEMENT, "taurox_unique_")
+    levels = native["character_skill_level_to_effects_junctions"]
+    levels.one(character_skill_key=TITANS, effect_key=TITANS_CAPACITY,
+               level="1", effect_scope="character_to_faction_unseen", value="1.0000")
+    levels.one(character_skill_key=TITANS, effect_key=TITANS_ARMOUR,
+               level="1", effect_scope="general_to_force_own", value="10.0000")
+    for row in levels.where(character_skill_key=TITANS):
+        if row["effect_key"] != TITANS_CAPACITY:
+            yield levels.name, dict(row, character_skill_key=TITANS_REPLACEMENT)
+    bindings = native["effect_bonus_value_ids_unit_sets"]
+    strength = bindings.where(effect="wh_main_effect_force_stat_weapon_strength")
+    if (len(strength) != 2 or {r["bonus_value_id"] for r in strength} != {
+            "melee_damage_mod_mult", "melee_damage_ap_mod_mult"}
+            or any(r["unit_set"] != "all_units" for r in strength)):
+        raise ValueError("Native percentage weapon-strength bindings changed")
+    targets = bindings.where(effect=TITANS_ARMOUR)
+    if not targets or any(r["bonus_value_id"] != "armour_mod" for r in targets):
+        raise ValueError("Titans armour no longer specifies its monster sets")
+    for target in targets:
+        native["unit_sets"].one(key=target["unit_set"])
+        for bonus in strength:
+            yield bindings.name, dict(bonus, effect=TITANS_STRENGTH,
+                                      unit_set=target["unit_set"])
 
 
 def dilemmas(native):
@@ -355,6 +405,21 @@ def validate(native, generated, assets, authored):
     for row in levels:
         if row["level"] != "1" or row["effect_scope"] != "general_to_force_own":
             raise ValueError("World Walker recruitment bonuses escape his army")
+    effects = native["effects"].column("effect")
+    if TITANS_STRENGTH in effects:
+        raise ValueError("Titans weapon-strength effect collides with native data")
+    effects.update(r["effect"] for r in authored["effects"])
+    scopes = native["campaign_effect_scopes"]
+    if "general_to_force_own" not in scopes.column(scopes.header[0]):
+        raise ValueError("Missing own-army effect scope")
+    levels = [r for r in authored["character_skill_level_to_effects_junctions"]
+              + generated["character_skill_level_to_effects_junctions"]
+              if r["character_skill_key"] == TITANS_REPLACEMENT]
+    if {r["effect_key"] for r in levels} != {TITANS_ARMOUR, TITANS_STRENGTH}:
+        raise ValueError("Titans must retain armour and replace capacity with damage")
+    if any(r["effect_key"] not in effects or r["level"] != "1"
+           or r["effect_scope"] != "general_to_force_own" for r in levels):
+        raise ValueError("Titans bonuses must be valid own-army skill effects")
 
 
 def script_data(native):
