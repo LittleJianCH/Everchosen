@@ -75,7 +75,7 @@ Follow the [Fennel style guide](https://fennel-lang.org/style). The rules below 
 
 ## Reading the technical notes
 
-The notes below summarize technical evidence from WH3 **9.0.1 and 9.0.2**. Treat that version scope as a limit on the evidence, not a declaration of supported game versions or features.
+The notes below summarize technical evidence from WH3 **9.0.1–9.0.3**. Treat that version scope as a limit on the evidence, not a declaration of supported game versions or features.
 
 - **Native evidence** means a relevant game script, DB record, or UI definition was inspected. It establishes that source fact for its recorded version, not every engine consequence.
 - **Historical observation** means a result was reported or observed in an earlier prototype. Preserve its limits; a proposed or statically checked fix is not an in-game success.
