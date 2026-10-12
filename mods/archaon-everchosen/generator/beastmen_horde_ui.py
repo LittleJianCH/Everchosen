@@ -9,10 +9,10 @@ from copy import deepcopy
 from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
 
+from host import HOST
 import beastmen_hordes
 
 TABLES = beastmen_hordes.TABLES
-HOST = "wh_main_chs_chaos"
 PREFIX = "everchosen_horde_"
 UNIT_SET = PREFIX + "warband_units"
 CCO_NAME = "EverchosenHordeUI"

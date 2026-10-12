@@ -4,6 +4,7 @@ Agent-type capacities remain shared with the host's other heroes of that type.
 The camp unlocks recruitment and supplies capacity; native candidate generation,
 costs, and the recruitment command are unchanged.
 """
+from host import HOST
 import beastmen_hordes as hordes
 
 SOURCE_FACTION = "wh_dlc03_bst_beastmen"
@@ -59,10 +60,10 @@ def hero_units(native):
 
 
 def host_group(native):
-    group = native["factions"].one(key=hordes.HOST)["military_group"]
+    group = native["factions"].one(key=HOST)["military_group"]
     native["groupings_military"].one(military_group=group)
     if {r["key"] for r in native["factions"].where(
-            military_group=group)} != {hordes.HOST}:
+            military_group=group)} != {HOST}:
         raise ValueError("Hero permissions require Archaon's private group")
     return group
 
@@ -75,8 +76,8 @@ def permission_rows(native):
                                        subtype=subtype)
             if original["mod_disabled"] != "false":
                 raise ValueError(f"Native Beastmen hero permission disabled: {subtype}")
-            existing = permissions.where(faction=hordes.HOST, subtype=subtype)
-            expected = dict(original, faction=hordes.HOST)
+            existing = permissions.where(faction=HOST, subtype=subtype)
+            expected = dict(original, faction=HOST)
             if existing and existing != [expected]:
                 raise ValueError(f"Conflicting host hero permission: {subtype}")
             if not existing:
@@ -87,7 +88,7 @@ def permission_rows(native):
     source_group = native["factions"].one(key=SOURCE_FACTION)["military_group"]
     for unit in sorted(set(hero_units(native).values())):
         military.one(unit=unit, military_group=source_group)
-        if exclusive.where(key=unit, faction=hordes.HOST, allowed="false"):
+        if exclusive.where(key=unit, faction=HOST, allowed="false"):
             raise ValueError(f"Native host ban conflicts with camp hero: {unit}")
         if not military.where(unit=unit, military_group=group):
             yield military.name, {"unit": unit, "military_group": group}
@@ -163,11 +164,11 @@ def validate(native, generated, authored):
         for subtype in subtypes:
             changed = [r for r in additions("faction_agent_permitted_subtypes")
                        if r["subtype"] == subtype]
-            if any(r["faction"] != hordes.HOST or r["agent"] != agent
+            if any(r["faction"] != HOST or r["agent"] != agent
                    or r["mod_disabled"] != "false" for r in changed):
                 raise ValueError("Camp hero permission escaped Archaon")
             rows = native["faction_agent_permitted_subtypes"].rows + changed
-            if not any(r["subtype"] == subtype and r["faction"] == hordes.HOST
+            if not any(r["subtype"] == subtype and r["faction"] == HOST
                        and r["agent"] == agent and r["mod_disabled"] == "false"
                        for r in rows):
                 raise ValueError(f"Missing camp hero permission: {subtype}")

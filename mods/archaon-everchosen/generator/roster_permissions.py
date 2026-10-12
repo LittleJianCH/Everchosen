@@ -1,6 +1,6 @@
 """Extend Archaon's campaign roster without changing recruitment sources."""
+from host import HOST
 
-HOST = "wh_main_chs_chaos"
 # These factions own the native custom-battle rosters for the three races.
 SOURCE_FACTIONS = (
     "wh_dlc03_bst_beastmen",

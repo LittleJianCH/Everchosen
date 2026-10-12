@@ -3,11 +3,10 @@ from collections import defaultdict
 from pathlib import Path
 
 from db_tables import read_authored, stable_id
+from host import HOST, CAMPAIGN
 
 PREFIX = "everchosen_horde_"
-HOST = "wh_main_chs_chaos"
 CULTURE = "wh_main_chs_chaos"
-CAMPAIGN = "wh3_main_combi"
 START_BUNDLE = PREFIX + "new_horde"
 SETTLE_BUNDLE = PREFIX + "settle"
 POOL_SOURCE = PREFIX + "camp_stock"

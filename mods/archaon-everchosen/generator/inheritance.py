@@ -2,10 +2,10 @@
 import xml.etree.ElementTree as ET
 
 from db_tables import stable_id
+from host import HOST, CAMPAIGN, GROUP_PREFIX
 import subjugation
 
-PREFIX = "everchosen_inheritance_"
-HOST = "wh_main_chs_chaos"
+PREFIX = GROUP_PREFIX
 
 # Native owners of the inherited mechanics.
 FESTUS = "wh3_dlc20_feature_festus"
@@ -154,7 +154,7 @@ def vassal_blessings(native):
 def portal_permission(native):
     """Admit the host to the faction set that may travel Be'lakor's network."""
     network = native["teleportation_networks"].one(
-        key=NETWORK, campaign="wh3_main_combi", permitted_agents="all_agents")
+        key=NETWORK, campaign=CAMPAIGN, permitted_agents="all_agents")
     members = native["faction_set_items"]
     belakor = members.one(faction="wh3_main_chs_shadow_legion", remove="false",
                           set=network["traveller_requirements"])

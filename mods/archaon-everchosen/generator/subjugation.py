@@ -2,12 +2,11 @@
 from pathlib import Path
 
 from db_tables import stable_id
+from host import HOST, CAMPAIGN
 import skill_slots
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
 PREFIX = "everchosen_subjugation_"
-HOST = "wh_main_chs_chaos"
-CAMPAIGN = "wh3_main_combi"
 DAEMON_FACTION = "wh3_main_dae_daemon_prince"
 DAEMON_SUCCESSOR = "wh3_dlc20_chs_daemon_prince_undivided"
 WULFRIK = "wh_dlc08_nor_wulfrik"

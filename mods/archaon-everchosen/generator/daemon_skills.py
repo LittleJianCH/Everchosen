@@ -4,10 +4,9 @@ A transferred character can retain the node set selected at creation. Keep
 both paths in that set, using node eligibility as native cross-culture lines
 do, rather than relying on selection of a different faction-specific set.
 """
+from host import HOST, CAMPAIGN
 import skill_slots
 
-HOST = "wh_main_chs_chaos"
-CAMPAIGN = "wh3_main_combi"
 PRINCE = "wh3_main_dae_daemon_prince"
 DAEMON_SUBCULTURE = "wh3_main_sc_dae_daemons"
 PREFIX = "everchosen_daemon_skill_"

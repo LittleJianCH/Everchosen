@@ -7,14 +7,14 @@ Only the resources and the resource-related effects of dedication are inherited.
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 from uuid import NAMESPACE_URL, uuid5
+from host import HOST, GROUP_PREFIX
 import daemon_legion
 
 PREFIX = "everchosen_daemon_"
-HOST = "wh_main_chs_chaos"
 PRINCE = "wh3_main_dae_daemon_prince"
 GODS = {"khorne": "kho", "nurgle": "nur", "slaanesh": "sla",
         "tzeentch": "tze", "undivided": "und"}
-GROUP = "everchosen_inheritance_host"
+GROUP = GROUP_PREFIX + "host"
 # Private display effects retain native presentation without changing Daniel's
 # recruitment promises in his own faction.
 DEDICATION_EFFECTS = {
