@@ -1,7 +1,10 @@
 """Derive lord adaptations and reuse dormant Immortal Empires factions."""
+from pathlib import Path
+
 from db_tables import stable_id
 import skill_slots
 
+ASSETS = Path(__file__).resolve().parents[1] / "assets"
 PREFIX = "everchosen_subjugation_"
 HOST = "wh_main_chs_chaos"
 CAMPAIGN = "wh3_main_combi"
@@ -356,7 +359,15 @@ def dilemmas(native):
                 yield table, copied
 
 
-def validate(native, generated, assets, authored):
+def rows(native):
+    for table, match, changes in COPIED_ROWS:
+        yield table, dict(native[table].one(**match), **changes)
+    for derive in (client_factions, skills, world_walker, taurox_skills,
+                   zhatan_skills, dilemmas):
+        yield from derive(native)
+
+
+def validate(native, generated, authored):
     """Reject new-key collisions and unintended edits to existing skill trees."""
     armies = native["battle_set_piece_armies"]
     original_owner = native["factions"].one(key=client_key("chd"))
@@ -428,7 +439,7 @@ def validate(native, generated, assets, authored):
                 or row["mod_disabled"] != "false"):
             raise ValueError(f"Unintended character permission: {row}")
     for race in CLIENTS:
-        folder = assets / "ui/flags" / identity_key(race)
+        folder = ASSETS / "ui/flags" / identity_key(race)
         for file in ("mon_24.png", "mon_64.png", "mon_256.png",
                      "mon_64_glow.png", "mon_icon.png", "mon_rotated.png",
                      "mon_banner.dds"):

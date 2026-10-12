@@ -9,6 +9,9 @@ from copy import deepcopy
 from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
 
+import beastmen_hordes
+
+TABLES = beastmen_hordes.TABLES
 HOST = "wh_main_chs_chaos"
 PREFIX = "everchosen_horde_"
 UNIT_SET = PREFIX + "warband_units"
@@ -270,28 +273,33 @@ def cco_source(data):
             "  }\n}\n")
 
 
-def adapt_ui(native_root, stage_root, horde_data):
-    """Write three adapted panels and one read-only CCO; return relative paths."""
-    outputs = []
+def write_cco(stage_root, native):
+    """Write the camp's read-only building-supply context."""
     cco = Path("ui/cco") / (PREFIX + "ui.cco")
     (stage_root / cco).parent.mkdir(parents=True, exist_ok=True)
-    (stage_root / cco).write_text(cco_source(horde_data), encoding="utf-8",
-                                  newline="\n")
-    outputs.append(cco)
-    for name in UI_NAMES[:-1]:
-        path = UI_FOLDER / (name + ".twui.xml")
-        tree = ET.parse(native_root / path)
-        root = tree.getroot()
-        if name == "building_construction_popup":
-            adapt_costs(root, horde_data["subtypes"])
-            adapt_cards(root, 2)
-        elif name == "building_browser":
-            adapt_cards(root, 3)
-        else:
-            template = ET.parse(native_root / UI_FOLDER /
-                                "building_info_recruitment_effects.twui.xml")
-            adapt_tooltip(root, template.getroot())
-        (stage_root / path).parent.mkdir(parents=True, exist_ok=True)
-        tree.write(stage_root / path, encoding="utf-8", xml_declaration=True)
-        outputs.append(path)
-    return outputs
+    (stage_root / cco).write_text(
+        cco_source(beastmen_hordes.script_data(native)), encoding="utf-8",
+        newline="\n")
+
+
+def adapt(tree, name, native_root, native):
+    root = tree.getroot()
+    if name == "character_information":
+        adapt_character_information(root, beastmen_hordes.script_data(native))
+    elif name == "building_construction_popup":
+        adapt_costs(root, beastmen_hordes.script_data(native)["subtypes"])
+        adapt_cards(root, 2)
+    elif name == "building_browser":
+        adapt_cards(root, 3)
+    else:
+        template = ET.parse(native_root / UI_FOLDER /
+                            "building_info_recruitment_effects.twui.xml")
+        adapt_tooltip(root, template.getroot())
+
+
+UI_ADAPTATIONS = {
+    f"ui/campaign ui/{name}.twui.xml":
+        (lambda tree, native_root, native, name=name:
+         adapt(tree, name, native_root, native))
+    for name in ("character_information", *UI_NAMES[:-1])
+}

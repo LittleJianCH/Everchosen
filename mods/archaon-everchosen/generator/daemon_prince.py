@@ -44,6 +44,13 @@ def ui_path(name):
     return f"ui/{folder}/{name}.twui.xml"
 
 
+UI_ADAPTATIONS = {
+    ui_path(name): (lambda tree, native_root, native, name=name:
+                   adapt(tree, name, native_root, native))
+    for name in UI_NAMES
+}
+
+
 def resource(god):
     return f"wh3_main_dae_{god}_points"
 

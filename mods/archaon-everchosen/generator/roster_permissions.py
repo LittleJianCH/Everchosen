@@ -1,5 +1,6 @@
 """Extend Archaon's campaign roster without changing recruitment sources."""
 
+HOST = "wh_main_chs_chaos"
 # These factions own the native custom-battle rosters for the three races.
 SOURCE_FACTIONS = (
     "wh_dlc03_bst_beastmen",
@@ -62,3 +63,7 @@ def permissions(native, host):
         yield "units_to_groupings_military_permissions", {
             "unit": unit, "military_group": group,
         }
+
+
+def rows(native):
+    yield from permissions(native, HOST)
