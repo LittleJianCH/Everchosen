@@ -50,14 +50,14 @@
   (accumulate [clear? true _ entry (ipairs plan.entries) &until (not clear?)]
     (not (character:has_skill entry.key))))
 
-(fn remove-points [character plan persist]
+(fn remove-points [lookup plan persist]
   ;; The old tree may no longer expose a Cco skill context after transfer.
   ;; Use levels captured while it was active; has_skill confirms removal.
   (set plan.stage :removed)
   (persist)
   (each [_ entry (ipairs plan.entries)]
     (for [_ 1 entry.held]
-      (cm:remove_skill_point (cm:char_lookup_str character) entry.key))))
+      (cm:remove_skill_point lookup entry.key))))
 
 (fn add-points [character plan persist]
   (let [refunded (- (unspent character) plan.unspent)
@@ -78,12 +78,16 @@
 (fn advance [character plan persist]
   "Submit each phase once; return true after observing the exact allocation."
   (if (= plan.stage :done) true
-      (matches? character plan)
-      (do (set plan.stage :done) (persist) true)
-      (= plan.stage :remove)
-      (do (remove-points character plan persist) false)
-      (and (= plan.stage :removed) (cleared? character plan))
-      (do (add-points character plan persist) false)
-      false))
+      ;; CA's lookup logs rejected objects and returns nil without throwing.
+      ;; Stop before persisting a phase or passing that nil to the engine.
+      (let [lookup (assert (cm:char_lookup_str character)
+                          "Transferred character lookup was rejected")]
+        (if (matches? character plan)
+            (do (set plan.stage :done) (persist) true)
+            (= plan.stage :remove)
+            (do (remove-points lookup plan persist) false)
+            (and (= plan.stage :removed) (cleared? character plan))
+            (do (add-points character plan persist) false)
+            false))))
 
 {: capture : advance}

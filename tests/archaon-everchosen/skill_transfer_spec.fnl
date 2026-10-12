@@ -9,7 +9,11 @@
         env (setmetatable
               {:cm {:add_first_tick_callback (fn [])
                     :add_pre_first_tick_callback (fn [])
-                    :char_lookup_str (fn [] :character_cqi:7)
+                    :char_lookup_str
+                    (fn [_ actor]
+                      (assert.equals character actor)
+                      ;; Native char_lookup_str returns nil after script_error.
+                      (when (not s.rejected?) :character_cqi:7))
                     :remove_skill_point
                     (fn [_ lookup key]
                       (assert.equals :character_cqi:7 lookup)
@@ -81,6 +85,19 @@
 
 (describe "Positional skill transfer"
   (fn []
+    (it "stops before mutations when the native character lookup is rejected"
+      (fn []
+        (let [s (scenario :wh2_dlc17_bst_taurox
+                  {:wh_dlc03_skill_bst_lord_campaign_corruption 1} true)]
+          (s.capture)
+          (set s.rejected? true)
+          (assert.has_error s.advance)
+          (assert.equals :remove s.plan.stage)
+          (assert.equals 0 (length s.commands))
+          (assert.equals 1 s.levels.wh_dlc03_skill_bst_lord_campaign_corruption)
+          (assert.equals 5 s.points)
+          (set s.rejected? false)
+          (finish s))))
     (it "keeps Beastmen allocations by position when a skill moves slots"
       (fn []
         (let [s (scenario :wh_dlc03_bst_khazrak
