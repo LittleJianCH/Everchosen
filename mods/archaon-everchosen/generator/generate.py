@@ -127,7 +127,7 @@ NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
     "ui3.pack": [f"{UI_FOLDER}/{name}.twui.xml" for name in (
         "hud_campaign", "hud_campaign_resource_bar_wh3", "great_game_rituals",
-        "rifts")] + [daemon_prince.ui_path(name)
+        "rifts", "character_information")] + [daemon_prince.ui_path(name)
                      for name in daemon_prince.UI_NAMES] +
         ["ui/templates/square_medium_text_button.twui.xml"],
     # Loaded by the adapter regressions, not by this generator.
@@ -294,9 +294,9 @@ def lua_literal(value):
 
 ### Native UI
 #
-# Each adaptation yields (element, new expression) pairs. Only the
-# context_function_id of those elements changes; an anchor that is missing or
-# no longer unique stops the build.
+# Each adaptation yields (element, new expression) pairs. The portrait adapter
+# also anchors its native Seafang holder; other adaptations only replace
+# expressions. Missing or ambiguous anchors stop the build.
 
 EXPRESSION = "context_function_id"
 PLAYER = "PlayersFaction.FactionRecordContext.Key"
@@ -358,6 +358,39 @@ def restrict_rifts(tree):
             yield callbacks[0], gate.format(allowed=allowed, native=native)
 
 
+def raise_seafang(tree):
+    """Keep Seafang above the authority dial for Archaon's Wulfrik."""
+    holder = control(tree, "dlc27_seafang_teleport_holder")
+    if (holder.get("offset") != "12.00,-30.00"
+            or holder.get("docking") is not None):
+        raise ValueError("Seafang's native portrait anchor changed")
+    callbacks = holder.find("callbackwithcontextlist")
+    if callbacks is None:
+        raise ValueError("Seafang's native callbacks are missing")
+    holder.set("docking", "Top Left")
+    holder.set("dock_offset", holder.get("offset"))
+    holder.set("component_anchor_point", "0.00,0.00")
+    scope = (
+        f'{PLAYER} == "{HOST}" && IsContextValid(SelectedCharacter) && '
+        f'SelectedCharacter.FactionContext.FactionRecordContext.Key == "{HOST}" '
+        f'&& SelectedCharacter.AgentSubtypeRecordContext.Key == '
+        f'"{subjugation.WULFRIK}"')
+    # WH3 9.0.3: the authority icons extend above their 160px holder, while
+    # Seafang's frame extends 101px below its origin. Leave room for both frames.
+    # Absolute dock offsets also avoid drift when selection/visibility repeats.
+    expression = f'self.SetDockOffset(12, GetIfElse({scope}, -270, -30))'
+    for kind in ("ContextCommandGiverOnVisibilityChanged", "ContextCommandEvent"):
+        callback = ET.SubElement(callbacks, "callback_with_context",
+                                 callback_id=kind)
+        if kind == "ContextCommandEvent":
+            properties = ET.SubElement(callback, "child_m_user_properties")
+            for index, event in enumerate(("CampaignSelectionChanged",
+                                           "RitualComplete")):
+                ET.SubElement(properties, "property", name=f"event{index}",
+                              value=event)
+        yield callback, expression
+
+
 UI_ADAPTATIONS = {
     "hud_campaign": lambda tree: hide_until_unlocked(tree, {
         "button_nurgle_plagues": "nur", "button_changing_of_the_ways": "tze",
@@ -366,6 +399,7 @@ UI_ADAPTATIONS = {
         "nurgle_infections_holder": "nur", "dae_ascendant_race_holder": "gg"}),
     "great_game_rituals": share_manifestations,
     "rifts": restrict_rifts,
+    "character_information": raise_seafang,
 }
 
 
