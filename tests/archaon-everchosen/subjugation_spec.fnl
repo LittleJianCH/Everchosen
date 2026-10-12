@@ -92,7 +92,10 @@
    (fn [_ id]
      (let [c (. s.characters id)] (and c (c:family_member))))
    :get_character_by_cqi (fn [_ id] (. s.characters id))
-   :char_lookup_str (fn [_ id] (.. "character_cqi:" id))
+   ;; Native lookup accepts both a character interface and its CQI.
+   :char_lookup_str
+   (fn [_ actor]
+     (.. "character_cqi:" (if (= (type actor) :table) (actor:cqi) actor)))
    :kill_character
    (fn [_ lookup wound?]
      (assert.is_true wound?)
