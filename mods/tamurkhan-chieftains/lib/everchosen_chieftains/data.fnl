@@ -1,5 +1,6 @@
 {:mod-key :everchosen_tamurkhan_chieftains
  :faction :wh_main_chs_chaos
+ :campaign :main_warhammer
  :tamurkhan :wh3_dlc25_nur_tamurkhan
  :archaon :chs_archaon
  :max-rank 25

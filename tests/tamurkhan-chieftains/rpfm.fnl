@@ -341,6 +341,29 @@
     (dofile "script/campaign/mod/everchosen_tamurkhan_chieftains.lua")
     (set cm.add_first_tick_callback first-tick)))
 
+(each [_ scope (ipairs [{:name "AI Archaon" :human? false}
+                        {:name "multiplayer" :multiplayer? true}
+                        {:name "another campaign" :campaign :wh3_main_chaos}])]
+  (rpfm.test (.. scope.name " cannot spawn or reward chieftains")
+    (fn []
+      (let [tam (add-tam 25)]
+        (when (= scope.human? false) (rpfm.mock host :is_human false))
+        ;; Native 9.0.3 cm accessors read these campaign setup fields.
+        (when scope.multiplayer?
+          (set cm.is_multiplayer_campaign true))
+        (when scope.campaign (set cm.name scope.campaign))
+        (reload-mod)
+        (advance)
+        (rpfm.fire :CharacterRankUp {:character tam})
+        (rpfm.fire :FactionTurnStart {:faction host})
+        (rpfm.fire :ScriptEventArchaonSubjugatesChaosFaction)
+        (spawned (. heroes 1))
+        (rpfm.advance_time 6)
+        (no-spawn)
+        (rpfm.assert_not_called :force_add_ancillary)
+        (rpfm.assert_not_called :force_add_trait)
+        (rpfm.assert_not_called :level_up_agent_rank)))))
+
 (rpfm.test "reload restores spawn and initialization without repeating uncertain commands"
   (fn []
     (let [tam (add-tam 4)]

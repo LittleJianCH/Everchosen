@@ -27,7 +27,10 @@
 
 (fn host-faction []
   (let [faction (cm:get_faction data.faction)]
-    (if (world.valid? faction) faction)))
+    (when (and (world.valid? faction) (= (faction:name) data.faction)
+               (faction:is_human) (= (cm:get_campaign_name) data.campaign)
+               (not (cm:is_multiplayer)))
+      faction)))
 
 (fn issue-init [character action]
   (let [lookup (cm:char_lookup_str (character:command_queue_index))]
