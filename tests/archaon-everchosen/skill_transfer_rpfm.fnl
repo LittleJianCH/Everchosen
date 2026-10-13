@@ -22,7 +22,7 @@
 (rpfm.test "skill conversion reaches AK APIs through native CA wrappers"
   (fn []
     (let [skills (require :everchosen_subjugation.skills)
-          data (core:get_static_object :everchosen_inheritance_data)
+          data (core:get_static_object :everchosen_core_data)
           plan (skills.capture lord
                  data.subjugation.skill_slots.wh3_dlc23_chd_astragoth)]
       (rpfm.assert_equal (skills.advance lord plan (fn [])) false)

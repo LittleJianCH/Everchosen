@@ -188,7 +188,7 @@
                        "/script/campaign/wh3_dlc29_archaon_subjugation.lua"))
     (env.archaon_subjugation:initialise)
     (set s.original-accept env.archaon_subjugation.subjugate_chaos_faction)
-    (load-script s (.. mod-path "everchosen_inheritance_data.lua"))
+    (load-script s (.. mod-path "everchosen_core_data.lua"))
     (load-script s (.. mod-path "everchosen_archaon.lua"))
     (let [module (env.require :everchosen_subjugation.campaign)]
       (module.start))

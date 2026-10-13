@@ -210,7 +210,7 @@
   (load-script s (.. native "/script/campaign/wh3_campaign_nurgle_plagues.lua"))
   (load-script s (.. native "/script/campaign/wh3_campaign_great_game.lua"))
   (each [_ callback (ipairs s.loading)] (callback {}))
-  (load-script s (.. mod-path "everchosen_inheritance_data.lua"))
+  (load-script s (.. mod-path "everchosen_core_data.lua"))
   (load-script s (.. mod-path "everchosen_archaon.lua"))
   (each [_ callback (ipairs s.pre-first)] (callback))
   (s.env.nurgle_plagues:initialise)
@@ -343,7 +343,7 @@
           (s:emit :ScriptEventArchaonSubjugatesChaosFaction {})
           (assert.is_true (. s.saved (.. prefix "unlocked_tze")))
           (let [calls (s:count :unlock)
-                ritual (. s.objects.everchosen_inheritance_data.tze 1)]
+                ritual (. s.objects.everchosen_core_data.tze 1)]
             ;; An engine cooldown/temporary lock.
             (tset s.rituals ritual false)
             (s:turn)
@@ -520,7 +520,7 @@
           (set indirect.master vassal.key)
           (tset s.effects vassal.key {:unrelated_native_bundle true})
           (s:start)
-          (let [bundles s.objects.everchosen_inheritance_data.blessings]
+          (let [bundles s.objects.everchosen_core_data.blessings]
             (assert.is_false (vassal:has_effect_bundle bundles.nur))
             (s:own :wh3_dlc20_nur_festus)
             (s:turn)

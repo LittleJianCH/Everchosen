@@ -25,7 +25,7 @@
       (when (not (. env.package.loaded name))
         (tset env.package.loaded name ((assert (. env.package.preload name)))))
       (. env.package.loaded name)))
-  (each [_ file (ipairs [:everchosen_inheritance_data.lua
+  (each [_ file (ipairs [:everchosen_core_data.lua
                          :everchosen_archaon.lua])]
     ((setfenv (assert (loadfile (.. root
       "/build/archaon-everchosen/script/campaign/mod/" file))) env)))

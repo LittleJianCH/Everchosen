@@ -20,6 +20,7 @@ import beastmen_horde_ui
 import beastmen_horde_heroes
 
 FRAGMENT = "everchosen_inheritance_data"
+STATIC_DATA = "everchosen_core_data"
 BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
                 daemon_legion, beastmen_hordes)
 MODULES = (*BASE_MODULES, beastmen_horde_heroes, daemon_skills,
@@ -122,9 +123,9 @@ def generate(native_root, output):
                        "everchosen_horde_names")
     ui_count = adapt_ui(native_root, output, native)
     beastmen_horde_ui.write_cco(output, native)
-    path = output / "script/campaign/mod/everchosen_inheritance_data.lua"
+    path = output / f"script/campaign/mod/{STATIC_DATA}.lua"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text('core:add_static_object("everchosen_inheritance_data", '
+    path.write_text(f'core:add_static_object("{STATIC_DATA}", '
                     + lua_literal(script_data(native)) + ")\n",
                     encoding="utf-8")
     print(f"Inheritance: {sum(map(len, generated.values()))} generated rows "

@@ -48,14 +48,14 @@
               (tset env.package.loaded key
                     ((assert (. env.package.preload key)))))
             (. env.package.loaded key)))
-        (each [_ file (ipairs [:everchosen_inheritance_data.lua
+        (each [_ file (ipairs [:everchosen_core_data.lua
                                :everchosen_archaon.lua])]
           ((setfenv (assert (loadfile (.. root
             "/build/archaon-everchosen/script/campaign/mod/" file))) env)))
         (set s.module (env.require :everchosen_subjugation.skills))))
     (s.reload)
     (set s.capture #(set s.plan (s.module.capture character
-      (. s.objects :everchosen_inheritance_data :subjugation
+      (. s.objects :everchosen_core_data :subjugation
          :skill_slots subtype))))
     (set s.advance #(s.module.advance character s.plan (fn [])))
     (set s.confirm
