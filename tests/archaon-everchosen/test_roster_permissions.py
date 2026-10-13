@@ -12,7 +12,7 @@ import roster_permissions as roster
 
 class RosterPermissionsTests(unittest.TestCase):
     def setUp(self):
-        factions = ["host", *roster.SOURCE_FACTIONS]
+        factions = [roster.HOST, *roster.SOURCE_FACTIONS]
         units = ("ordinary", "ror", "already_owned", "banned", "hunt_reward",
                  "hero", "lord", "battle_only", "source_banned")
         source = roster.SOURCE_FACTIONS[0]
@@ -35,9 +35,9 @@ class RosterPermissionsTests(unittest.TestCase):
             # current ordinary units use military groups. Keep both sources.
             "units_to_exclusive_faction_permissions": [
                 {"key": "ror", "faction": source, "allowed": "true"},
-                {"key": "already_owned", "faction": "host",
+                {"key": "already_owned", "faction": roster.HOST,
                  "allowed": "true"},
-                {"key": "banned", "faction": "host", "allowed": "false"},
+                {"key": "banned", "faction": roster.HOST, "allowed": "false"},
                 {"key": "source_banned", "faction": source,
                  "allowed": "false"}],
         }
@@ -45,19 +45,19 @@ class RosterPermissionsTests(unittest.TestCase):
                        for name, records in rows.items()}
 
     def test_adds_regular_roster_without_overriding_restrictions(self):
-        actual = list(roster.permissions(self.native, "host"))
+        actual = list(roster.rows(self.native))
         self.assertEqual(actual, [
             ("units_to_groupings_military_permissions",
-             {"unit": "ordinary", "military_group": "host_group"}),
+             {"unit": "ordinary", "military_group": roster.HOST + "_group"}),
             ("units_to_groupings_military_permissions",
-             {"unit": "ror", "military_group": "host_group"}),
+             {"unit": "ror", "military_group": roster.HOST + "_group"}),
         ])
 
     def test_rejects_a_group_shared_with_other_factions(self):
         self.native["factions"].rows.append(
-            {"key": "unrelated", "military_group": "host_group"})
+            {"key": "unrelated", "military_group": roster.HOST + "_group"})
         with self.assertRaisesRegex(ValueError, "not faction-specific"):
-            list(roster.permissions(self.native, "host"))
+            list(roster.rows(self.native))
 
 
 if __name__ == "__main__":

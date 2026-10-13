@@ -44,26 +44,22 @@ def regular_units(native, faction):
     }
 
 
-def permissions(native, host):
+def rows(native):
     """Yield only missing troop permissions for HOST's private native group."""
     factions = native["factions"]
-    group = factions.one(key=host)["military_group"]
+    group = factions.one(key=HOST)["military_group"]
     owners = {row["key"] for row in factions.where(military_group=group)}
-    if owners != {host}:
+    if owners != {HOST}:
         raise ValueError(f"Host military group is not faction-specific: {owners}")
 
-    available = campaign_units(native, host)
+    available = campaign_units(native, HOST)
     # Preserve explicit native bans rather than competing with their priority.
     denied = {row["key"] for row in native[
         "units_to_exclusive_faction_permissions"].where(
-            faction=host, allowed="false")}
+            faction=HOST, allowed="false")}
     wanted = set().union(*(regular_units(native, faction)
                            for faction in SOURCE_FACTIONS))
     for unit in sorted(wanted - available - denied):
         yield "units_to_groupings_military_permissions", {
             "unit": unit, "military_group": group,
         }
-
-
-def rows(native):
-    yield from permissions(native, HOST)

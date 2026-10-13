@@ -5,22 +5,21 @@
 (local state (include :everchosen_subjugation.state))
 
 (fn unused-client? [client]
-  (and (world.valid? client) (not (client:is_human))
-       (client:is_dead) (= (client:num_regions) 0)
+  (and (client:is_dead) (= (client:num_regions) 0)
        (= (: (client:character_list) :num_items) 0)
        (= (: (client:military_force_list) :num_items) 0)
        (not (client:was_confederated))
        (not (world.valid? (client:master)))))
 
 (fn available-client? [culture]
-  (let [key (. (state.cultures) culture :faction)
+  (let [key (. (state.config) :cultures culture :faction)
         client (cm:get_faction key)]
     (and (world.valid? client) (not (client:is_human))
          (= (client:culture) culture)
          (or (. (state.saved state.clients-key) key) (unused-client? client)))))
 
 (fn has-leader? [faction]
-  (and (world.valid? faction) (faction:has_faction_leader)
+  (and (faction:has_faction_leader)
        (let [leader (faction:faction_leader)]
          (and (world.valid? leader) (world.valid? (leader:faction))
               (= (: (leader:faction) :name) (faction:name))
@@ -47,7 +46,7 @@
 
 (fn prepare-client [source operation pending]
   (let [client (cm:get_faction operation.client)
-        culture (. (state.cultures) operation.culture)]
+        culture (. (state.config) :cultures operation.culture)]
     (assert (world.valid? client)
             (.. "Client is absent from campaign startpos: " operation.client))
     (assert (not (client:is_human)) "Client faction is human controlled")
@@ -87,7 +86,7 @@
   "Keep Daniel's original faction; a new leader must precede his transfer."
   (if (and (has-leader? source)
            (not= (: (source:faction_leader) :character_subtype_key)
-                 (. (state.targets) operation.source :subtype)))
+                 (. (state.config) :targets operation.source :subtype)))
       (do
         (when (and (not (source:is_vassal_of (world.host)))
                    (not= operation.vassal-turn (cm:turn_number)))
@@ -106,7 +105,7 @@
           (set operation.successor-turn (cm:turn_number))
           (cm:set_saved_value state.pending-key pending)
           (cm:create_force_with_general operation.source nil region x y
-            :general (. (state.cultures) operation.culture :general)
+            :general (. (state.config) :cultures operation.culture :general)
             "" "" "" "" true #(created operation.source $1)))
         false)))
 

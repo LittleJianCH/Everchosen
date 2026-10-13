@@ -40,12 +40,10 @@ NATIVE_INPUTS = {
 
 
 def generated_rows(native):
-    """Rows by table, without duplicates, each matching the native layout."""
+    """Rows by table, without duplicates; write_table validates their layout."""
     result = {}
     for module in BASE_MODULES:
         for table, row in module.rows(native):
-            if set(row) != set(native[table].header):
-                raise ValueError(f"Unexpected fields for {table}: {sorted(row)}")
             rows = result.setdefault(table, [])
             if row not in rows:
                 rows.append(row)

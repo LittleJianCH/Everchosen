@@ -27,7 +27,7 @@
 
 (fn host-faction []
   (let [faction (cm:get_faction data.faction)]
-    (when (and (world.valid? faction) (= (faction:name) data.faction)
+    (when (and (world.valid? faction)
                (faction:is_human) (= (cm:get_campaign_name) data.campaign)
                (not (cm:is_multiplayer)))
       faction)))
@@ -158,7 +158,7 @@
 (fn start []
   (when (host-faction)
     (set config (settings.read))
-    (set pending (or (cm:get_saved_value ticket-key) nil))
+    (set pending (cm:get_saved_value ticket-key))
     (listen :spawn :UniqueAgentSpawned
             (fn [context]
               (let [details (context:unique_agent_details)]

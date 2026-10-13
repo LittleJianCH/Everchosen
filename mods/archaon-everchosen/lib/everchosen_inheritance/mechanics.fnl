@@ -14,9 +14,6 @@
 (fn unlocked? [god]
   (= true (cm:get_saved_value (rules.state-key god))))
 
-(fn ritual-data []
-  (world.static-data))
-
 (fn sync-income [faction]
   (if (unlocked? :nur)
       (when (faction:has_effect_bundle data.income-lock)
@@ -47,14 +44,9 @@
   (plagues.install)
   (when (not native-has-manifestations)
     ;; CA's campaign functions belong to its script environment, not _G.
-    (let [environment (core:get_env)
-          has-rituals environment.faction_has_great_game_rituals
-          unlock-rituals environment.unlock_gg_rituals]
-      (assert (and (= (type has-rituals) :function)
-                   (= (type unlock-rituals) :function))
-              "Native manifestation functions unavailable")
-      (set native-has-manifestations has-rituals)
-      (set native-unlock-manifestations unlock-rituals)
+    (let [environment (core:get_env)]
+      (set native-has-manifestations environment.faction_has_great_game_rituals)
+      (set native-unlock-manifestations environment.unlock_gg_rituals)
       (set environment.faction_has_great_game_rituals has-manifestations)
       (set environment.unlock_gg_rituals unlock-manifestations))))
 
@@ -72,7 +64,7 @@
           (cm:unlock_ritual faction
                             (.. (rules.manifestation-key index) "_uses")))
         (sync-manifestations faction))
-      (each [_ ritual (ipairs (or (. (ritual-data) god) []))]
+      (each [_ ritual (ipairs (or (. (world.static-data) god) []))]
         (cm:unlock_ritual faction ritual))))
 
 (fn refresh-ui []
@@ -108,17 +100,16 @@
       (sync-manifestations faction)
       (cm:set_saved_value ascendant-key ascendant))))
 
-(fn defeated-culture? [culture]
-  (cm:pending_battle_cache_faction_won_battle_against_culture
-    scope.host culture))
-
 (fn reward-battle []
   (when (and (world.host) (unlocked? :gg)
              (not (cm:get_saved_value rewarded-key))
              (cm:pending_battle_cache_faction_won_battle scope.host))
     (let [index (accumulate [found nil i culture (ipairs data.cultures)
                             &until found]
-                  (if (defeated-culture? culture) i))]
+                  (let [won?
+                        (cm:pending_battle_cache_faction_won_battle_against_culture
+                          scope.host culture)]
+                    (if won? i)))]
       (when index
         (cm:faction_add_pooled_resource
           scope.host (.. (rules.manifestation-key index) "_uses") :other 1)

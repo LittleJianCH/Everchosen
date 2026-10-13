@@ -16,14 +16,15 @@
   (out (.. "[Everchosen subjugation] " message)))
 
 (fn eligible? [source]
-  (let [target (and (world.valid? source)
-                    (. (state.targets) (source:name)))]
-    (and (world.host) target (not (source:is_human))
+  (let [host (world.host)
+        target (and (world.valid? source)
+                    (. (state.config) :targets (source:name)))]
+    (and host target (not (source:is_human))
          (= (source:culture) target.culture)
          (or (source:is_dead) target.keep_faction
              (clients.available-client? target.culture))
          (not (. (state.saved state.done-key) (source:name)))
-         (not (. (world.owned (world.host)) target.subtype))
+         (not (. (world.owned host) target.subtype))
          (not (accumulate [protected? false _ key
                            (ipairs (cm:get_human_factions)) &until protected?]
                 (source:is_vassal_of (cm:get_faction key)))))))
@@ -31,7 +32,7 @@
 (fn members [source]
   "Snapshot family IDs before confederation mutates the character list."
   (let [culture (source:culture)
-        subtypes (collect [_ target (pairs (state.targets))]
+        subtypes (collect [_ target (pairs (. (state.config) :targets))]
                    (when (= target.culture culture)
                      (values target.subtype true)))]
     (icollect [lord (world.items (source:character_list))]
@@ -127,7 +128,7 @@
         operation.keep_faction
         (when (clients.prepare-successor source operation pending)
           (cm:change_localised_faction_name operation.source
-            (. (state.cultures) operation.culture :name))
+            (. (state.config) :cultures operation.culture :name))
           (set operation.stage :transfer)
           (cm:set_saved_value state.pending-key pending))
         (let [client (cm:get_faction operation.client)]
@@ -171,44 +172,45 @@
     (cm:callback tick delay)))
 
 (fn accept [manager source]
-  (if (. (state.targets) (source:name))
-      (when (eligible? source)
-        (let [pending (state.saved state.pending-key)
-              key (source:name)
-              culture (source:culture)]
-          (when (not (. pending key))
-            (let [dead? (or (source:is_dead)
-                            (. (state.saved state.challenge-key) key))
-                  family-ids (if dead? [] (members source))]
-              (assert (or dead? (> (length family-ids) 0))
-                      "No target lord in accepted faction")
-              (tset pending key {:source key :culture culture
-                                  :keep_faction
-                                  (. (state.targets) key :keep_faction)
-                                  :client (. (state.cultures) culture :faction)
-                                  :members family-ids :dead (or dead? false)
-                                  :stage :merge :creating false :transfers {}
-                                  :skills {}})
-              (cm:set_saved_value state.pending-key pending)
-              (when (. (state.targets) key :keep_faction)
-                (core:trigger_event
-                  :ScriptEventEverchosenTransferAccepted key))))
-          (request)))
-      (originals.accept manager source)))
+  (let [config (state.config)
+        key (source:name)
+        target (. config.targets key)]
+    (if target
+        (when (eligible? source)
+          (let [pending (state.saved state.pending-key)
+                culture (source:culture)]
+            (when (not (. pending key))
+              (let [dead? (or (source:is_dead)
+                              (. (state.saved state.challenge-key) key))
+                    family-ids (if dead? [] (members source))]
+                (assert (or dead? (> (length family-ids) 0))
+                        "No target lord in accepted faction")
+                (tset pending key {:source key :culture culture
+                                    :keep_faction target.keep_faction
+                                    :client (. config.cultures culture :faction)
+                                    :members family-ids :dead (or dead? false)
+                                    :stage :merge :creating false :transfers {}
+                                    :skills {}})
+                (cm:set_saved_value state.pending-key pending)
+                (when target.keep_faction
+                  (core:trigger_event
+                    :ScriptEventEverchosenTransferAccepted key))))
+            (request)))
+        (originals.accept manager source))))
 
 (fn dilemma [manager winner source]
-  (when (or (not (. (state.targets) (source:name)))
+  (when (or (not (. (state.config) :targets (source:name)))
             (and (world.host? winner) (eligible? source)))
     (originals.dilemma manager winner source)))
 
 (fn challenge [manager key]
-  (when (or (not (. (state.targets) key))
+  (when (or (not (. (state.config) :targets key))
             (and (not (. (state.saved state.pending-key) key))
                  (eligible? (cm:get_faction key))))
     (originals.challenge manager key)))
 
 (fn spawn [manager key units force]
-  (let [extended? (. (state.targets) key)
+  (let [extended? (. (state.config) :targets key)
         dead? (and extended? (: (cm:get_faction key) :is_dead))
         result (originals.spawn manager key units force)]
     (when (and dead? (not= result -1))

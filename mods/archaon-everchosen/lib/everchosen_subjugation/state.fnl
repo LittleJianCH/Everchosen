@@ -11,9 +11,6 @@
 (fn config []
   (. (world.static-data) :subjugation))
 
-(fn targets [] (. (config) :targets))
-(fn cultures [] (. (config) :cultures))
-
 (fn saved [key]
   (or (cm:get_saved_value key) {}))
 
@@ -29,4 +26,4 @@
          (= (: (lord:faction) :name) faction-key))))
 
 {: prefix : pending-key : done-key : challenge-key : clients-key
- : config : targets : cultures : saved : native : character : owned?}
+ : config : saved : native : character : owned?}

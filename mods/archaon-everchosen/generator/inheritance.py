@@ -103,10 +103,6 @@ TABLES = """
     campaign_payload_ui_details
 """.split() + [table for table, *_ in COPIED_ROWS + COPIED_GROUPS]
 
-def copied_rows(native):
-    for table, match, changes in COPIED_ROWS:
-        yield table, dict(native[table].one(**match), **changes)
-
 
 def copied_groups(native):
     for table, source, target, changes in COPIED_GROUPS:
@@ -165,7 +161,9 @@ def portal_permission(native):
 
 
 def rows(native):
-    for derive in (copied_rows, copied_groups, inherited_resources,
+    for table, match, changes in COPIED_ROWS:
+        yield table, dict(native[table].one(**match), **changes)
+    for derive in (copied_groups, inherited_resources,
                    vassal_blessings, portal_permission):
         yield from derive(native)
 

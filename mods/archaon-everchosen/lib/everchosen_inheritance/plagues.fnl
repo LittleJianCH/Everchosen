@@ -9,13 +9,12 @@
   (let [name (faction:name)
         info (. manager.plague_faction_info name)
         unlock (. manager.plague_button_unlock name)]
-    (when (and info unlock)
-      (common.set_context_value (.. "random_plague_component_list_" name)
-                                info.current_symptoms_list)
-      (common.set_context_value (.. "random_plague_creation_count_" name)
-                                info.plague_creation_counter)
-      (common.set_context_value (.. "unlock_plague_button_" name)
-                                unlock.infections_gained))))
+    (common.set_context_value (.. "random_plague_component_list_" name)
+                              info.current_symptoms_list)
+    (common.set_context_value (.. "random_plague_creation_count_" name)
+                              info.plague_creation_counter)
+    (common.set_context_value (.. "unlock_plague_button_" name)
+                              unlock.infections_gained)))
 
 (fn randomise [manager faction]
   (original-randomise manager faction)
@@ -26,11 +25,8 @@
     (refresh-context manager faction)))
 
 (fn install []
-  (assert (= (type nurgle_plagues) :table) "Native plague manager unavailable")
   (when (not original-randomise)
     (set original-randomise nurgle_plagues.randomise_symptom_location)
-    (assert (= (type original-randomise) :function)
-            "Native plague shuffle unavailable")
     (set nurgle_plagues.randomise_symptom_location randomise)))
 
 (fn unlock [faction]

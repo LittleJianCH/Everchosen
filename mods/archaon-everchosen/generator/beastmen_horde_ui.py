@@ -33,10 +33,6 @@ def one(elements, description):
     return elements[0]
 
 
-def element_root(tree):
-    return tree.getroot() if isinstance(tree, ET.ElementTree) else tree
-
-
 def callback(parent, kind, expression, context=None, **properties):
     callbacks = parent.find("callbackwithcontextlist")
     if callbacks is None:
@@ -67,9 +63,8 @@ def character_scope(actor, subtypes):
             f'IsContextValid({actor}.MilitaryForceContext) && ({pairs})')
 
 
-def adapt_character_information(root_element, horde_data):
+def adapt_character_information(root, horde_data):
     """Mutate only the growth background; compose after the Seafang adapter."""
-    root = element_root(root_element)
     reference = one(root.findall(
         "hierarchy/root/character_information/horde_growth/background"),
         "horde growth hierarchy")

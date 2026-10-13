@@ -62,10 +62,7 @@
       (legion.reconcile faction character (. (progress.config) :legions)))
     (refresh-ui)))
 
-(fn safely-reconcile []
-  (let [(ok? message) (pcall reconcile)]
-    (when (not ok?)
-      (out (.. "[Everchosen Daemon Prince] " (tostring message))))))
+(local safely-reconcile (world.guarded "Everchosen Daemon Prince" reconcile))
 
 (fn request []
   (cm:callback safely-reconcile 0.2)
@@ -106,20 +103,13 @@
 
 (fn sacrifice [key]
   (let [faction (world.host)]
-    (when (and faction (not (can-donate? faction key)))
-      (out (.. "[Everchosen Daemon Prince] Sacrifice blocked: " key
-               "; souls=" (progress.resource-value faction data.souls)
-               "; pending=" (tostring (progress.saved :pending)))))
     (when (and faction (can-donate? faction key))
       (let [god (. (progress.config) :gods key)
             amount (progress.donation-amount faction key)
             payload (cm:create_payload)]
         ;; Pending receipts block another donation until this one settles.
         (progress.save :pending
-          {:resource key :spent god.spent :amount amount
-           :glory (progress.resource-value faction key)
-           :souls (progress.resource-value faction data.souls)
-           :total (progress.resource-value faction god.spent) :receipts {}})
+          {:resource key :spent god.spent :receipts {}})
         (payload:faction_pooled_resource_transaction
           data.souls :gifts_of_chaos (- amount) false)
         (payload:faction_pooled_resource_transaction key :events amount false)

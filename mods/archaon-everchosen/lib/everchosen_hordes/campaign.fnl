@@ -99,6 +99,7 @@
     active))
 
 (fn sync []
+  (set sync-pending? false)
   (when (shared.host) (reconcile (saved))))
 
 (fn replenish-unit [entry unit chance]
@@ -131,23 +132,13 @@
             (each [_ unit (ipairs (rules.sorted-keys entry.units))]
               (replenish-unit entry unit (. entry.units unit)))))))))
 
-(fn safely-sync []
-  (set sync-pending? false)
-  (let [(ok? error) (pcall sync)]
-    (when (not ok?) (log (tostring error)))))
-
-(fn safely-refresh []
-  (let [(ok? error) (pcall refresh)]
-    (when (not ok?) (log (tostring error)))))
+(local safely-sync (shared.guarded "Everchosen hordes" sync))
 
 (fn request-sync []
   ;; Recruitment and battle returns can precede the completed model change.
   (when (not sync-pending?)
     (set sync-pending? true)
     (cm:callback safely-sync 0.2)))
-
-(fn related? [context]
-  (world.related-character? (context:character)))
 
 (fn listen [suffix event condition callback]
   (core:add_listener (.. data.prefix suffix) event condition
@@ -157,14 +148,14 @@
   (when (and (not started?) (shared.host))
     (set started? true)
     (safely-sync)
-    (listen :turn :FactionTurnStart #(shared.host? ($1:faction))
-            safely-refresh)
+    (listen :turn :FactionTurnStart #(shared.host? ($1:faction)) refresh)
     (each [_ event (ipairs [:CharacterSelected :CharacterRecruited
                             :CharacterFactionChangeEvent
                             :CharacterFinishedMovingEvent
                             :CharacterHordeBuildingDemolished
                             :MilitaryForceBuildingCompleteEvent])]
-      (listen event event related? request-sync))
+      (listen event event #(world.related-character? ($1:character))
+              request-sync))
     (listen :created :MilitaryForceCreated
       #(shared.host? (: ($1:military_force_created) :faction)) request-sync)
     (listen :stance :ForceAdoptsStance
