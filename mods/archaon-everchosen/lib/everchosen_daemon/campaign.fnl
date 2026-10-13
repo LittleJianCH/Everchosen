@@ -4,14 +4,12 @@
 (local host (include :everchosen_core.data))
 (local world (include :everchosen_core.world))
 
-;; An in-flight payload blocks clicks until its resource events are observed.
-(var busy? false)
 ;; Listener registration belongs to this Lua session.
 (var started? false)
 
 (fn can-donate? [faction key]
   (let [amount (progress.donation-amount faction key)]
-    (and (progress.saved :initialized) (progress.prince faction) (not busy?)
+    (and (progress.saved :initialized) (progress.prince faction)
          (not (progress.saved :pending)) (cm:is_local_players_turn)
          amount (> amount 0)
          (>= (progress.resource-value faction data.souls) amount))))
@@ -19,7 +17,7 @@
 (fn can-dedicate? [faction key]
   (let [god (. (progress.config) :gods key)]
     (and god (progress.saved :initialized) (progress.prince faction)
-         (cm:is_local_players_turn) (not busy?) (not (progress.saved :pending))
+         (cm:is_local_players_turn) (not (progress.saved :pending))
          (not (progress.dedication faction))
          (>= (progress.resource-value faction key) god.dedication_minimum))))
 
@@ -116,19 +114,18 @@
       (let [god (. (progress.config) :gods key)
             amount (progress.donation-amount faction key)
             payload (cm:create_payload)]
+        ;; Pending receipts block another donation until this one settles.
         (progress.save :pending
           {:resource key :spent god.spent :amount amount
            :glory (progress.resource-value faction key)
            :souls (progress.resource-value faction data.souls)
            :total (progress.resource-value faction god.spent) :receipts {}})
-        (set busy? true)
         (payload:faction_pooled_resource_transaction
           data.souls :gifts_of_chaos (- amount) false)
         (payload:faction_pooled_resource_transaction key :events amount false)
         (payload:faction_pooled_resource_transaction
           god.spent :gifts_of_chaos amount false)
         (cm:apply_payload payload faction)
-        (set busy? false)
         (safely-reconcile)
         (request)))))
 
