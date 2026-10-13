@@ -31,7 +31,7 @@ NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
     "ui3.pack": [*inheritance.UI_ADAPTATIONS, *daemon_prince.UI_ADAPTATIONS,
                  "ui/templates/square_medium_text_button.twui.xml",
-                 allied_outposts.UI_PATH,
+                 *allied_outposts.NATIVE_INPUTS,
                  *beastmen_horde_ui.NATIVE_INPUTS],
     # Loaded by the adapter regressions, not by this generator.
     "data_script.pack": ["script/campaign/wh3_campaign_nurgle_plagues.lua",
