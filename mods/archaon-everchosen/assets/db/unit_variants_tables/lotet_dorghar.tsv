@@ -1,0 +1,3 @@
+faction	unit	name	variant	unit_card
+#unit_variants_tables;5;db/unit_variants_tables/lotet_dorghar				
+	lotet_archaon_dorghar	wh_main_chs_cha_archaon_the_everchosen	wh_chs_ch_archaon	wh_main_chs_archaon

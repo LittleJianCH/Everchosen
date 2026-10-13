@@ -9,6 +9,7 @@ sys.path[:0] = [str(Path(__file__).resolve().parent),
 from db_tables import (read_authored, read_table, run_generator,
                        write_localisation, write_table)
 import inheritance
+import dorghar
 import subjugation
 import daemon_prince
 import daemon_legion
@@ -23,7 +24,7 @@ FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
 BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
                 daemon_legion, beastmen_hordes)
-MODULES = (*BASE_MODULES, beastmen_horde_heroes, daemon_skills,
+MODULES = (*BASE_MODULES, dorghar, beastmen_horde_heroes, daemon_skills,
            beastmen_horde_ui)
 TABLES = sorted({table for module in MODULES for table in module.TABLES})
 NATIVE_INPUTS = {
@@ -99,6 +100,8 @@ def generate(native_root, output):
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
     subjugation.validate(native, generated, authored)
+    for table, row in dorghar.rows(native):
+        generated.setdefault(table, []).append(row)
     # Subjugation validates legendary-lord permissions before ordinary camp
     # heroes add their separate, native-derived recruitment permissions.
     for table, row in beastmen_horde_heroes.rows(native):

@@ -1,0 +1,4 @@
+invalid_usage_flag	special_ability
+#special_ability_to_invalid_usage_flags_tables;0;db/special_ability_to_invalid_usage_flags_tables/lotet_dorghar	
+engaged_in_melee	lotet_dorghar_fire_breath
+grounded	lotet_dorghar_fire_breath

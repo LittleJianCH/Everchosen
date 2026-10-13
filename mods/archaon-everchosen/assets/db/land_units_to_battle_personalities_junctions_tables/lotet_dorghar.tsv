@@ -1,0 +1,3 @@
+battle_personality	land_unit	attach	riders_attachment_point	engine_articulation_index	jettison_rider
+#land_units_to_battle_personalities_junctions_tables;2;db/land_units_to_battle_personalities_junctions_tables/lotet_dorghar					
+lotet_archaon_dorghar	lotet_archaon_dorghar	autonomous_rider	ap_riderposition_0	-1	true

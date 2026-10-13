@@ -1,0 +1,3 @@
+effect	icon	priority	icon_negative	category	is_positive_value_good
+#effects_tables;0;db/effects_tables/lotet_dorghar					
+lotet_archaon_dorghar	mount.png	50	mount.png	both	true

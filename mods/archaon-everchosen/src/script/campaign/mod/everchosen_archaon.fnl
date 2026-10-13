@@ -1,3 +1,4 @@
+(local dorghar (include :everchosen_dorghar.campaign))
 (local campaign (include :everchosen_inheritance.campaign))
 (local subjugation (include :everchosen_subjugation.campaign))
 (local daemon (include :everchosen_daemon.campaign))
@@ -13,3 +14,5 @@
 ;; Extend the native subjugation config before inheritance checks its lords.
 (cm:add_first_tick_callback subjugation.start)
 (cm:add_first_tick_callback campaign.start)
+
+(cm:add_first_tick_callback dorghar.start)

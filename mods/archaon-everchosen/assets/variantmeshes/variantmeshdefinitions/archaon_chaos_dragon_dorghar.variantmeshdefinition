@@ -1,0 +1,10 @@
+<VARIANT_MESH>
+	<SLOT name="body" >
+		<VARIANT_MESH model="variantmeshes\wh_variantmodels\dorghar_three_head_dragon.rigid_model_v2" >
+			<META_DATA>audio_armour_type:body</META_DATA>			<META_DATA>audio_entity_type:wh_dlc_dragon_large_2_heads</META_DATA>			<META_DATA>audio_melee_weapon_type:unarmed</META_DATA></VARIANT_MESH>
+	</SLOT>
+	<SLOT name="body" >
+		<VARIANT_MESH model="variantmeshes\wh_variantmodels\dorghar_three_head_dragon_wing.wsmodel" >
+			<META_DATA>audio_armour_type:body</META_DATA>			<META_DATA>audio_entity_type:wh_dlc_dragon_large_2_heads</META_DATA>			<META_DATA>audio_melee_weapon_type:unarmed</META_DATA></VARIANT_MESH>
+	</SLOT>
+</VARIANT_MESH>

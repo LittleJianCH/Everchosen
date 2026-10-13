@@ -1,0 +1,11 @@
+unit_caste	unit_category	unit_class	unit_record	unit_set	exclude
+#unit_set_to_unit_junctions_tables;1;db/unit_set_to_unit_junctions_tables/lotet_dorghar					
+			lotet_archaon_dorghar	all_non_chs	true
+			lotet_archaon_dorghar	all_units_excluding_immune_to_psychology	true
+			lotet_archaon_dorghar	mp_cap_group_lords	false
+			lotet_archaon_dorghar	undivided_characters	false
+			lotet_archaon_dorghar	wh3_dlc20_chs_und_all	false
+			lotet_archaon_dorghar	flying_units	false
+			lotet_archaon_dorghar	mp_cap_group_flying_unit	false
+			lotet_archaon_dorghar	mp_cap_group_rare_single_entities	false
+			lotet_archaon_dorghar	legendary_lord	false

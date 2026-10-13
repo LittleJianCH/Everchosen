@@ -1,0 +1,7 @@
+attribute	attribute_group
+#unit_attributes_to_groups_junctions_tables;2;db/unit_attributes_to_groups_junctions_tables/lotet_dorghar	
+causes_fear	lotet_archaon_dorghar
+encourages	lotet_archaon_dorghar
+strider	lotet_archaon_dorghar
+causes_terror	lotet_archaon_dorghar
+flying	lotet_archaon_dorghar

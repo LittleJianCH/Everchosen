@@ -1,0 +1,3 @@
+model	animation_set	variant	scale	actor	ignore_rider_variant_scale	vfx_filter	banner_relative_to_mount	prebattle_separation_offset
+#campaign_mounts_tables;9;db/campaign_mounts_tables/lotet_dorghar								
+archaon_chaos_dragon_dorghar	cam_bc3b_dlc27_chimera_boss	archaon_chaos_dragon_dorghar	1.0000	wh_main_vo_culture_Dragon_Large	true	0	false	0.0000

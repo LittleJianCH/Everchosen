@@ -1,0 +1,3 @@
+faction	general_unit	unit	siege_unit_attacker	siege_unit_defender	general_portrait	general_uniform	set_piece_character	campaign_exclusive	armory_item_set	supports_upgrades
+#units_custom_battle_permissions_tables;11;db/units_custom_battle_permissions_tables/lotet_dorghar										
+wh_main_chs_chaos	true	lotet_archaon_dorghar	true	true	ui/portraits/portholes/no_culture/chs_ch_archaon_0.png		wh_main_chs_cha_archaon_the_everchosen_0	false		false
