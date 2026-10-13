@@ -375,7 +375,9 @@ def validate(native, generated, authored=None):
     for name, fields in references.items():
         for row in own[name]:
             for field, (target, column) in fields.items():
-                keys = native[target].column(column) | {r[column] for r in own[target]}
+                # The host's availability set is shared with other mechanics.
+                keys = native[target].column(column) | {
+                    r[column] for r in generated.get(target, []) + authored.get(target, [])}
                 if row[field] and row[field] not in keys:
                     raise ValueError(f"Invalid horde reference: {name}.{field}: {row[field]}")
     validate_scope(native, own)
@@ -416,7 +418,9 @@ def validate_scope(native, own):
     base = {r["building_chain"] for r in native[
         "building_chain_availability_sets"].where(id="wh_main_bas_chs")}
     actual = {r["building_chain"] for r in own["building_chain_availability_sets"]}
-    if actual != base | {PREFIX + key for key in chains}:
+    # Other modules contribute their independently validated private chains.
+    if not base <= actual or {key for key in actual if key.startswith(PREFIX)} != {
+            PREFIX + key for key in chains}:
         raise ValueError("Host building availability lost native city chains")
     if own["main_units"] or own["agent_subtype_military_force_creation_overrides"]:
         raise ValueError("Private camps must preserve native units and subtype selectors")

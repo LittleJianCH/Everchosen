@@ -1,0 +1,6 @@
+key	num_instances
+#building_instances_tables;0;db/building_instances_tables/everchosen_allied_outposts	
+everchosen_allied_infantry	1
+everchosen_allied_ranged	1
+everchosen_allied_cavalry	1
+everchosen_allied_monsters	1

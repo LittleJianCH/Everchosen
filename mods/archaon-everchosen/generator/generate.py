@@ -18,11 +18,12 @@ import roster_permissions
 import beastmen_hordes
 import beastmen_horde_ui
 import beastmen_horde_heroes
+import allied_outposts
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
 BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
-                daemon_legion, beastmen_hordes)
+                daemon_legion, beastmen_hordes, allied_outposts)
 MODULES = (*BASE_MODULES, beastmen_horde_heroes, daemon_skills,
            beastmen_horde_ui)
 TABLES = sorted({table for module in MODULES for table in module.TABLES})
@@ -30,6 +31,7 @@ NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
     "ui3.pack": [*inheritance.UI_ADAPTATIONS, *daemon_prince.UI_ADAPTATIONS,
                  "ui/templates/square_medium_text_button.twui.xml",
+                 allied_outposts.UI_PATH,
                  *beastmen_horde_ui.NATIVE_INPUTS],
     # Loaded by the adapter regressions, not by this generator.
     "data_script.pack": ["script/campaign/wh3_campaign_nurgle_plagues.lua",
@@ -116,6 +118,7 @@ def generate(native_root, output):
     daemon_legion.validate(native, generated, authored)
     beastmen_hordes.validate(native, generated, authored)
     beastmen_horde_heroes.validate(native, generated, authored)
+    allied_outposts.validate(native, generated, authored)
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
     write_localisation(output, beastmen_hordes.localisation(native),

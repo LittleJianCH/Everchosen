@@ -1,0 +1,6 @@
+chain	chain_set	slot_template	super_chain	remove
+#slot_template_permitted_building_chains_tables;0;db/slot_template_permitted_building_chains_tables/everchosen_allied_outposts				
+everchosen_allied_infantry		everchosen_allied_annex		false
+everchosen_allied_ranged		everchosen_allied_annex		false
+everchosen_allied_cavalry		everchosen_allied_annex		false
+everchosen_allied_monsters		everchosen_allied_annex		false

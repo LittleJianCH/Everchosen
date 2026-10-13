@@ -184,12 +184,12 @@ def validate(native, generated, authored):
             raise ValueError(f"Invalid effect/scope: {row}")
         if row["effect_bundle_key"] not in bundles:
             raise ValueError(f"Effect for an unauthored bundle: {row}")
-    # Authored groups and criteria must line up with the generated rows.
-    groups = ours("campaign_groups", "id")
+    # Generated rows may reference authored groups or existing native groups.
+    groups = ours("campaign_groups", "id") | native["campaign_groups"].column("id")
     for table, rows in generated.items():
         for row in rows:
             if "campaign_group" in row and row["campaign_group"] not in groups:
-                raise ValueError(f"{table}: unauthored group {row['campaign_group']}")
+                raise ValueError(f"{table}: unknown group {row['campaign_group']}")
     resources = ours("pooled_resources", "key")
     for row in authored.get("campaign_group_member_criteria_pooled_resources", []):
         if row["pooled_resource"] not in resources:
