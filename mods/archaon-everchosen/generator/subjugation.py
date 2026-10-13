@@ -25,7 +25,8 @@ DROWNED = "wh2_dlc17_skill_bst_taurox_unique_drowned_in_blood"
 DROWNED_NODE = "wh2_dlc17_skill_node_bst_taurox_unique_03"
 DROWNED_REPLACEMENT = PREFIX + "drowned_in_blood"
 REPLENISHMENT = "wh_main_effect_force_all_campaign_replenishment_rate"
-CHARGE_BONUS = "wh2_dlc17_effect_charge_bonus_for_all"
+BLOODLUST = "wh_dlc03_effect_bloodlust_modifier_characters"
+RIVER_BONUS = "wh2_dlc17_effect_taurox_river_of_blood_bonus_dummy"
 ZHATAN = "wh3_dlc23_chd_zhatan"
 SUBJUGATOR = "wh3_dlc23_skill_chd_zhatan_subjugator"
 SUBJUGATOR_NODE = "wh3_dlc23_skill_node_chd_zhatan_personal_1"
@@ -285,13 +286,14 @@ def taurox_skills(native):
         {TITANS_NODE: (TITANS, TITANS_REPLACEMENT),
          DROWNED_NODE: (DROWNED, DROWNED_REPLACEMENT)}, "taurox_unique_")
     levels = native["character_skill_level_to_effects_junctions"]
-    # The native River of Blood listener checks the original skill key.
-    # Replace its display-only bonus along with rage, not just the tooltip.
-    drowned_effects = {
-        "wh_dlc03_effect_bloodlust_modifier_characters",
-        "wh2_dlc17_effect_taurox_river_of_blood_bonus_dummy"}
+    drowned_effects = {BLOODLUST, RIVER_BONUS}
     if {r["effect_key"] for r in levels.where(character_skill_key=DROWNED)} != drowned_effects:
         raise ValueError("Native Drowned in Blood effects changed")
+    # The Fennel battle adapter makes the native river handler recognise this
+    # replacement skill; retain its native display effect and scope.
+    for row in levels.where(character_skill_key=DROWNED):
+        if row["effect_key"] != BLOODLUST:
+            yield levels.name, dict(row, character_skill_key=DROWNED_REPLACEMENT)
     levels.one(character_skill_key=TITANS, effect_key=TITANS_CAPACITY,
                level="1", effect_scope="character_to_faction_unseen", value="1.0000")
     levels.one(character_skill_key=TITANS, effect_key=TITANS_ARMOUR,
@@ -477,16 +479,20 @@ def validate(native, generated, authored):
         raise ValueError("Titans bonuses must be valid own-army skill effects")
     native["effect_bonus_value_basic_junction"].one(
         effect=REPLENISHMENT, bonus_value_id="replenishment_percentage_bonus")
-    native["effect_bonus_value_ids_unit_sets"].one(
-        effect=CHARGE_BONUS, bonus_value_id="charge_bonus", unit_set="all_units")
     levels = [r for r in authored["character_skill_level_to_effects_junctions"]
               if r["character_skill_key"] == DROWNED_REPLACEMENT]
-    if len(levels) != 2 or {r["effect_key"] for r in levels} != {
-            REPLENISHMENT, CHARGE_BONUS}:
-        raise ValueError("Drowned in Blood needs replenishment and charge bonuses")
+    if len(levels) != 1 or levels[0]["effect_key"] != REPLENISHMENT:
+        raise ValueError("Drowned in Blood replaces only bloodlust with replenishment")
     if any(r["effect_key"] not in effects or r["level"] != "1"
            or r["effect_scope"] != "general_to_force_own" for r in levels):
         raise ValueError("Drowned in Blood bonuses must affect only his army")
+    kept = [r for r in generated["character_skill_level_to_effects_junctions"]
+            if r["character_skill_key"] == DROWNED_REPLACEMENT]
+    expected = [dict(r, character_skill_key=DROWNED_REPLACEMENT)
+                for r in native["character_skill_level_to_effects_junctions"].where(
+                    character_skill_key=DROWNED, effect_key=RIVER_BONUS)]
+    if kept != expected:
+        raise ValueError("Drowned in Blood must retain its native river bonus")
     native["effect_bonus_value_basic_junction"].one(
         effect=BATTLE_SOULS,
         bonus_value_id="post_battle_pooled_resource_loot_percentage_mod")
@@ -547,4 +553,5 @@ def script_data(native):
     targets[prince] = {"subtype": prince, "culture": "wh3_main_dae_daemons",
                       "keep_faction": True}
     return {"targets": targets, "cultures": cultures,
+            "river_of_blood": {"subtype": TAUROX, "skill": DROWNED_REPLACEMENT},
             "dilemma": PREFIX + "accept"}

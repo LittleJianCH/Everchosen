@@ -34,6 +34,7 @@ NATIVE_INPUTS = {
     # Loaded by the adapter regressions, not by this generator.
     "data_script.pack": ["script/campaign/wh3_campaign_nurgle_plagues.lua",
                          "script/campaign/wh3_campaign_great_game.lua",
+                         "script/campaign/wh2_dlc17_taurox_rampage.lua",
                          "script/campaign/wh3_dlc29_archaon_subjugation.lua"],
 }
 
