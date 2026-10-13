@@ -14,6 +14,7 @@ case "$target" in
 esac
 python3 -I -m unittest discover -s "$root/tests/tools" -p 'test_*.py'
 python3 -I -m unittest discover -s "$root/tests/archaon-everchosen" -p 'test_*.py'
+python3 -I -m unittest discover -s "$root/tests/tamurkhan-chieftains" -p 'test_*.py'
 if [[ "$target" != archaon-everchosen ]]; then
     fennel --add-fennel-path "$root/mods/tamurkhan-chieftains/lib/?.fnl" \
         --globals describe,it --compile \
