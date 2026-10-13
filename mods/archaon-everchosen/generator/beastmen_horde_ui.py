@@ -148,6 +148,23 @@ def use_state(component, state_name):
     component.set("defaultstate", state.get("this"))
 
 
+def capacity_key(building):
+    return PREFIX + "capacity_" + building.removeprefix(PREFIX)
+
+
+def capacity_localisation(native):
+    """Describe the same per-unit capacity limits the campaign script uses."""
+    data = beastmen_hordes.script_data(native)
+    for building, members in sorted(data["buildings"].items()):
+        lines = []
+        for unit in sorted(members):
+            land_unit = native["main_units"].one(unit=unit)["land_unit"]
+            lines.append("{{tr:land_units_onscreen_name_" + land_unit + "}}："
+                         + str(data["units"][unit]["cap"]))
+        yield {"key": capacity_key(building), "text": "\\n".join(lines),
+               "tooltip": "false"}
+
+
 def adapt_tooltip(root, template):
     """Insert a private native recruitment widget, leaving all originals intact."""
     before = ET.tostring(root)
@@ -186,19 +203,35 @@ def adapt_tooltip(root, template):
         panel.remove(native_callbacks)
     callback(panel, "ContextVisibilitySetter", f"{CCO_NAME}.IsPrivate(this)",
              "CcoBuildingLevelRecord", update_constant="")
-    callback(parts["entry_parent"], "ContextList", f"{CCO_NAME}.Pairs(this)",
-             "CcoBuildingLevelRecord", hide_if_empty="")
+    # Keep the summary on its building context instead of dispatching custom
+    # pairs as native recruitment entries.
+    entry = hierarchy.find("entry_parent/unit_entry")
+    for child in list(entry):
+        if child.tag != "unit_name":
+            entry.remove(child)
+    for name in ("unit_cat_frame", "unit_category_icon", "experience",
+                 "garrison_size"):
+        del parts[name]
+    for name in ("entry_parent", "unit_entry", "unit_name"):
+        for callbacks in parts[name].findall("callbackwithcontextlist"):
+            parts[name].remove(callbacks)
     use_state(parts["tx_enables"], "capacity_positive_light")
-    for name in ("unit_name", "garrison_size"):
-        use_state(parts[name], "light")
-        for text in parts[name].findall("states/*/component_text"):
-            text.attrib.pop("textlabel", None)
-            text.attrib.pop("text", None)
-    parts["garrison_size"].set("visible", "true")
-    callback(parts["garrison_size"], "ContextTextLabel", "Second", "CcoPair")
-    callback(parts["unit_name"], "ContextTextLabel", "First.Name", "CcoPair")
-    callback(parts["unit_category_icon"], "ContextImageSetter",
-             "First.CategoryIcon", "CcoPair")
+    use_state(parts["unit_name"], "light")
+    for text in parts["unit_name"].findall("states/*/component_text"):
+        text.attrib.pop("textlabel", None)
+        text.attrib.pop("text", None)
+    callback(parts["unit_name"], "ContextTextLabel",
+             f"{CCO_NAME}.CapacityText(this)", "CcoBuildingLevelRecord")
+    for name, width in (("unit_entry", 390), ("unit_name", 338)):
+        height = f"{CCO_NAME}.CapacityHeight(this)"
+        resize = (f"DoIf(self.Dimensions.y != {height}, "
+                  f"self.Resize({width}, {height}, false))")
+        callback(parts[name], "ContextCommandGiverOnVisibilityChanged",
+                 resize,
+                 "CcoBuildingLevelRecord", on_hide_and_show="")
+        callback(parts[name], "ContextCommandEvent", resize,
+                 "CcoBuildingLevelRecord",
+                 event0="LayoutFinished_building_information")
     for name, x in (("tx_enables", 38), ("unit_name", 52)):
         parts[name].set("docking", "Top Left")
         parts[name].set("component_anchor_point", "0.00,0.00")
@@ -251,6 +284,11 @@ def cco_source(data):
     for key, rule in reversed(sorted(units.items())):
         capacity = (f"GetIfElse(unit.Key == {json.dumps(key)}, "
                     f"{rule['cap']}, {capacity})")
+    text, height = '""', "0"
+    for building, members in reversed(sorted(buildings.items())):
+        match = f"building.Key == {json.dumps(building)}"
+        text = f"GetIfElse({match}, Loc({json.dumps(capacity_key(building))}), {text})"
+        height = f"GetIfElse({match}, {18 * len(members) + 14}, {height})"
     scope = character_scope("character", data["subtypes"])
     return (f"{CCO_NAME}\n{{\n"
             "  IsCharacter(CcoCampaignCharacter character)\n  {\n"
@@ -260,6 +298,10 @@ def cco_source(data):
             f"&& ({keys})\n  }}\n"
             "  Capacity(CcoMainUnitRecord unit)\n  {\n"
             f"    {capacity}\n  }}\n"
+            "  CapacityText(CcoBuildingLevelRecord building)\n  {\n"
+            f"    {text}\n  }}\n"
+            "  CapacityHeight(CcoBuildingLevelRecord building)\n  {\n"
+            f"    {height}\n  }}\n"
             "  Pairs(CcoBuildingLevelRecord building)\n  {\n"
             f'    DatabaseRecordContext("CcoUnitSetRecord", "{UNIT_SET}")'
             ".UnitsInSetList\n"

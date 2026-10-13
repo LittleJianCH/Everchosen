@@ -120,6 +120,8 @@ def generate(native_root, output):
         write_table(output, native[table], rows, FRAGMENT)
     write_localisation(output, beastmen_hordes.localisation(native),
                        "everchosen_horde_names")
+    write_localisation(output, beastmen_horde_ui.capacity_localisation(native),
+                       "everchosen_horde_capacity")
     ui_count = adapt_ui(native_root, output, native)
     beastmen_horde_ui.write_cco(output, native)
     path = output / f"script/campaign/mod/{STATIC_DATA}.lua"
