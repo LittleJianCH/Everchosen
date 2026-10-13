@@ -44,7 +44,8 @@
                   (tset s.bundles key duration)
                   (table.insert s.applications key))}}
           {:__index _G})]
-    (set env._G env)
+    ;; CA loads campaign scripts in core's environment, separate from _G.
+    (set env.core.get_env (fn [] env))
     (set env.require
       (fn [key]
         (when (not (. env.package.loaded key))
