@@ -19,13 +19,17 @@ import roster_permissions
 import beastmen_hordes
 import beastmen_horde_ui
 import beastmen_horde_heroes
+import recruitment_ui
+import vassal_military_buildings
+import vassal_recruitment_discount
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
 BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
-                daemon_legion, beastmen_hordes)
+                daemon_legion, beastmen_hordes, vassal_military_buildings,
+                recruitment_ui)
 MODULES = (*BASE_MODULES, dorghar, beastmen_horde_heroes, daemon_skills,
-           beastmen_horde_ui)
+           beastmen_horde_ui, vassal_recruitment_discount)
 TABLES = sorted({table for module in MODULES for table in module.TABLES})
 NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
@@ -59,6 +63,7 @@ def script_data(native):
         daemon_skills.PRINCE: daemon_skills.skill_mapping(native)}
     data["daemon_prince"] = daemon_prince.script_data(native)
     data["hordes"] = beastmen_hordes.script_data(native)
+    data["vassal_military_buildings"] = vassal_military_buildings.script_data(native)
     return data
 
 
@@ -99,6 +104,9 @@ def generate(native_root, output):
     native = {name: read_table(native_root / "db", name) for name in TABLES}
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
+    building_data = vassal_military_buildings.script_data(native)
+    for table, row in vassal_recruitment_discount.rows(native, building_data):
+        generated.setdefault(table, []).append(row)
     subjugation.validate(native, generated, authored)
     for table, row in dorghar.rows(native):
         generated.setdefault(table, []).append(row)
@@ -119,10 +127,15 @@ def generate(native_root, output):
     daemon_legion.validate(native, generated, authored)
     beastmen_hordes.validate(native, generated, authored)
     beastmen_horde_heroes.validate(native, generated, authored)
+    vassal_recruitment_discount.validate(native, generated, authored,
+                                         building_data)
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
+    recruitment_ui.write_culture_override(native_root, output, native)
     write_localisation(output, beastmen_hordes.localisation(native),
                        "everchosen_horde_names")
+    write_localisation(output, vassal_military_buildings.localisation(native),
+                       "everchosen_vassal_buildings")
     write_localisation(output, beastmen_horde_ui.capacity_localisation(native),
                        "everchosen_horde_capacity")
     ui_count = adapt_ui(native_root, output, native)

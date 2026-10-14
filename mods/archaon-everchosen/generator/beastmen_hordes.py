@@ -4,6 +4,8 @@ from pathlib import Path
 
 from db_tables import read_authored, stable_id
 from host import HOST, CAMPAIGN
+from vassal_military_buildings import CHAINS as VASSAL_CHAINS
+from vassal_military_buildings import PREFIX as VASSAL_PREFIX
 
 PREFIX = "everchosen_horde_"
 CULTURE = "wh_main_chs_chaos"
@@ -375,7 +377,9 @@ def validate(native, generated, authored=None):
     for name, fields in references.items():
         for row in own[name]:
             for field, (target, column) in fields.items():
-                keys = native[target].column(column) | {r[column] for r in own[target]}
+                keys = native[target].column(column) | {
+                    r[column] for r in generated.get(target, [])
+                } | {r[column] for r in authored.get(target, [])}
                 if row[field] and row[field] not in keys:
                     raise ValueError(f"Invalid horde reference: {name}.{field}: {row[field]}")
     validate_scope(native, own)
@@ -416,7 +420,9 @@ def validate_scope(native, own):
     base = {r["building_chain"] for r in native[
         "building_chain_availability_sets"].where(id="wh_main_bas_chs")}
     actual = {r["building_chain"] for r in own["building_chain_availability_sets"]}
-    if actual != base | {PREFIX + key for key in chains}:
+    vassal_chains = {VASSAL_PREFIX + key for keys in VASSAL_CHAINS.values()
+                     for key in keys}
+    if actual != base | {PREFIX + key for key in chains} | vassal_chains:
         raise ValueError("Host building availability lost native city chains")
     if own["main_units"] or own["agent_subtype_military_force_creation_overrides"]:
         raise ValueError("Private camps must preserve native units and subtype selectors")
