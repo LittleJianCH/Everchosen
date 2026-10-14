@@ -17,7 +17,7 @@
 (fn unlocked? [race completed]
   (accumulate [found? false _ target (ipairs race.targets)
                &until found?]
-    (or found? (. completed target))))
+    (or found? (. completed target) false)))
 
 (fn city-count [host subculture]
   (accumulate [total 0 faction (world.factions)]
@@ -56,11 +56,12 @@
             applied (or (cm:get_saved_value data.applied-key) {})]
         (each [_ race (ipairs data.races)]
           (let [config (. generated race.name)
-                unlocked (unlocked? race completed)]
-            (when (not= (. building-state race.name) unlocked)
+                unlocked (unlocked? race completed)
+                state (if unlocked :unlocked :locked)]
+            (when (not= (. building-state race.name) state)
               (cm:restrict_buildings_for_faction
                 scope.host config.levels (not unlocked))
-              (tset building-state race.name unlocked))
+              (tset building-state race.name state))
             (sync-discount host race unlocked applied)))
         (cm:set_saved_value data.applied-key applied)))))
 

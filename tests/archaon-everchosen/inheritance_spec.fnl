@@ -16,6 +16,10 @@
   (accumulate [count 0 _ call (ipairs s.calls)]
     (+ count (if (= (. call 1) kind) 1 0))))
 
+(fn building-restrictions [s]
+  (icollect [_ call (ipairs s.calls)]
+    (when (= (. call 1) :building_restriction) (. call 2))))
+
 (fn hud-component [s id]
   {:visible? true :state :inactive
    :SetVisible
@@ -471,6 +475,32 @@
               (loaded.env.unlock_gg_rituals nil
                 loaded.factions.wh3_main_chs_shadow_legion false)
               (assert.equals (+ count 4) (loaded:count :unlock)))))))
+
+    (it "locks both military trees before independently unlocking each race"
+      (fn []
+        (let [s (sandbox)]
+          (s:start)
+          (let [trees s.objects.everchosen_core_data.vassal_military_buildings
+                refresh (. s.listeners
+                           :everchosen_vassal_recruitment_turn 3)]
+            (assert.equals 2 (s:count :building_restriction))
+            (assert.same [[host trees.norsca.levels true]
+                          [host trees.chaos_dwarfs.levels true]]
+                         (building-restrictions s))
+            (tset s.saved :everchosen_subjugation_completed
+                  {:wh3_dlc23_chd_zhatan true})
+            (refresh)
+            (assert.equals 3 (s:count :building_restriction))
+            (assert.same [host trees.chaos_dwarfs.levels false]
+                         (. (building-restrictions s) 3))
+            (tset s.saved.everchosen_subjugation_completed
+                  :wh_dlc08_nor_norsca true)
+            (refresh)
+            (assert.equals 4 (s:count :building_restriction))
+            (assert.same [host trees.norsca.levels false]
+                         (. (building-restrictions s) 4))
+            (refresh)
+            (assert.equals 4 (s:count :building_restriction))))))
 
     (it "does not initialize inheritance for another player or multiplayer"
       (fn []
