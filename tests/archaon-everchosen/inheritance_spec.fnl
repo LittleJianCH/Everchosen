@@ -144,6 +144,9 @@
    (fn [_ owner features enable?]
      (assert (and (= owner (. s.factions host)) enable?))
      (record s :features features))
+   :restrict_buildings_for_faction
+   (fn [_ owner levels restricted?]
+     (record s :building_restriction [owner levels restricted?]))
    :apply_effect_bundle (fn [_ key owner] (apply-bundle s key owner))
    :remove_effect_bundle (fn [_ key owner] (remove-bundle s key owner))
    :unlock_ritual
@@ -477,6 +480,13 @@
             (set s.multiplayer? settings.multiplayer?)
             (s:start)
             (assert.is_nil s.objects.everchosen_inheritance)
+            (assert.equals 2 (s:count :building_restriction))
+            (each [_ call (ipairs s.calls)]
+              (when (= (. call 1) :building_restriction)
+                (let [[owner levels restricted?] (. call 2)]
+                  (assert.equals host owner)
+                  (assert.is_true (> (length levels) 0))
+                  (assert.is_true restricted?))))
             (assert.equals 0 (s:count :features))
             (assert.is_nil (. s.bundles (.. prefix "infections_locked")))
             (assert.equals 0 (s:count :portal))
