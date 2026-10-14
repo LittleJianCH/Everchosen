@@ -1,12 +1,17 @@
 """Native military recruitment buildings adapted for Archaon's fortresses."""
 
 from db_tables import stable_id
+from roster_permissions import campaign_units
 
 PREFIX = "everchosen_vassal_"
 AVAILABILITY = "everchosen_horde_availability"
 FORTRESS_SET = "wh3_dlc20_secondary_addon_woc_dark_fortress"
 CULTURE = "wh_main_chs_chaos"
 HOST = "wh_main_chs_chaos"
+SOURCE_FACTIONS = {
+    "norsca": "wh_dlc08_nor_norsca",
+    "chaos_dwarfs": "wh3_dlc23_chd_zhatan",
+}
 
 # Native recruitment chains shared by the ordinary racial settlements.
 CHAINS = {
@@ -49,6 +54,10 @@ TABLES = """building_chains building_superchains building_instances
     building_units_allowed building_chain_availability_sets
     building_chain_set_items building_set_to_building_junctions
     settlement_type_to_building_chains_junctions
+    building_effects_junction effect_bonus_value_agent_junction
+    effect_bonus_value_agent_subtype_junctions faction_agent_permitted_subtypes
+    agent_subtypes factions groupings_military main_units campaign_effect_scopes
+    units_to_groupings_military_permissions units_to_exclusive_faction_permissions
 """.split()
 
 
@@ -154,6 +163,89 @@ def rows(native):
         yield "building_units_allowed", dict(
             row, key=stable_id(PREFIX + row["key"], used),
             building=PREFIX + row["building"])
+
+
+def hero_rows(native):
+    """Keep native hero unlocks/caps, supplying at least one at each unlock.
+
+    Capacities use the native agent classes and remain shared with other heroes
+    of those classes. Only the host receives character and base-unit access.
+    """
+    _, levels = selected(native)
+    race_by_chain = {chain: race for race, chains in CHAINS.items()
+                     for chain in chains}
+    availability = {}
+    for row in native["effect_bonus_value_agent_subtype_junctions"].rows:
+        if row["bonus_value_id"] == "availability":
+            availability.setdefault(row["effect"], set()).add(row["subtype"])
+    caps = {row["effect"]: row["agent"]
+            for row in native["effect_bonus_value_agent_junction"].rows
+            if row["bonus_value_id"] == "cap"}
+    permissions = native["faction_agent_permitted_subtypes"]
+    heroes = {}
+    unlocks = set()
+    capacities = set()
+    templates = {}
+    for row in native["building_effects_junction"].rows:
+        building, effect = row["building"], row["effect"]
+        if building not in levels or not (
+                effect in availability or effect in caps):
+            continue
+        if row["context_requirement"]:
+            raise ValueError(f"Conditional military hero effect: {row}")
+        native["campaign_effect_scopes"].one(key=row["effect_scope"])
+        chain = levels[building]["chain"]
+        for subtype in sorted(availability.get(effect, ())):
+            source = SOURCE_FACTIONS[race_by_chain[chain]]
+            permission = permissions.one(faction=source, subtype=subtype)
+            record = native["agent_subtypes"].one(key=subtype)
+            if (permission["mod_disabled"] != "false"
+                    or any(record[key] != "true" for key in (
+                        "auto_generate", "recruitable",
+                        "contributes_to_agent_cap"))):
+                raise ValueError(f"Not an ordinary recruitable hero: {subtype}")
+            heroes[subtype] = permission
+            unlocks.add((building, permission["agent"]))
+        if effect in caps:
+            agent = caps[effect]
+            capacities.add((building, agent))
+            templates.setdefault((chain, agent), row)
+        yield "building_effects_junction", dict(row, building=PREFIX + building)
+
+    for building, agent in sorted(unlocks - capacities):
+        # The source factions can have base capacity that Archaon does not.
+        # Give the first recruitment tier an explicit, building-owned point.
+        template = templates[(levels[building]["chain"], agent)]
+        yield "building_effects_junction", dict(
+            template, building=PREFIX + building, value="1.0000",
+            value_damaged="1.0000", value_ruined="0.0000")
+
+    group = native["factions"].one(key=HOST)["military_group"]
+    native["groupings_military"].one(military_group=group)
+    if {row["key"] for row in native["factions"].where(
+            military_group=group)} != {HOST}:
+        raise ValueError("Military hero access requires Archaon's private group")
+    available = campaign_units(native, HOST)
+    units = set()
+    for subtype, permission in sorted(heroes.items()):
+        expected = dict(permission, faction=HOST)
+        existing = permissions.where(faction=HOST, subtype=subtype)
+        if existing and existing != [expected]:
+            raise ValueError(f"Conflicting host hero permission: {subtype}")
+        if not existing:
+            yield "faction_agent_permitted_subtypes", expected
+        unit = native["agent_subtypes"].one(key=subtype)[
+            "associated_unit_override"]
+        if (native["main_units"].one(unit=unit)["caste"] != "hero"
+                or unit not in campaign_units(native, permission["faction"])):
+            raise ValueError(f"Missing native hero unit permission: {subtype}")
+        if native["units_to_exclusive_faction_permissions"].where(
+                key=unit, faction=HOST, allowed="false"):
+            raise ValueError(f"Host explicitly bans military hero: {unit}")
+        units.add(unit)
+    for unit in sorted(units - available):
+        yield "units_to_groupings_military_permissions", {
+            "unit": unit, "military_group": group}
 
 
 def localisation(native):

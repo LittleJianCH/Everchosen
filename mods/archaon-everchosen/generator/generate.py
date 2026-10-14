@@ -114,6 +114,8 @@ def generate(native_root, output):
     # heroes add their separate, native-derived recruitment permissions.
     for table, row in beastmen_horde_heroes.rows(native):
         generated.setdefault(table, []).append(row)
+    for table, row in vassal_military_buildings.hero_rows(native):
+        generated.setdefault(table, []).append(row)
     # Prince validation requires its isolated tree; global prerequisite
     # validation below must see both that tree and the transferred lords.
     prince_tree = {}
