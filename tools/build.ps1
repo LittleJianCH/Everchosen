@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('all', 'archaon-everchosen', 'tamurkhan-chieftains', 'chaos-equipment')]
+    [ValidateSet('all', 'archaon-everchosen', 'tamurkhan-chieftains', 'chaos-equipment', 'hero-capacity-test')]
     [string]$Mod = 'all',
     [string]$Distribution = 'Ubuntu',
     [string]$VanillaDb

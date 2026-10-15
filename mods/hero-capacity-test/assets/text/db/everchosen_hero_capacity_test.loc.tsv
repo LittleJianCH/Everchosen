@@ -1,0 +1,10 @@
+key	text	tooltip
+#Loc;1;text/db/everchosen_hero_capacity_test.loc		
+effect_bundles_localised_title_everchosen_hero_capacity_test	英雄容量测试	false
+effect_bundles_localised_description_everchosen_hero_capacity_test	每种具体英雄提供1点容量，同一英雄的不同法术系只计算一次；加成累加到各自共享的英雄容量中。	false
+effects_description_everchosen_hero_capacity_test_champion	神尊英雄、巨角公牛、巨身狼人及半人牛陶鲁克共享容量：%+n	false
+effects_description_everchosen_hero_capacity_test_dignitary	鲜血收割者、沼栖妖降灾使及纳垢、奸奇、色孽狂信徒共享容量：%+n	false
+effects_description_everchosen_hero_capacity_test_engineer	魅魔侍女及炼狱堡主共享容量：%+n	false
+effects_description_everchosen_hero_capacity_test_runesmith	虹光惧妖、沼栖妖贵族、恐虐狂信徒及杜鲁齐受祝者共享容量：%+n	false
+effects_description_everchosen_hero_capacity_test_spy	战角兽及瘟疫使徒共享容量：%+n	false
+effects_description_everchosen_hero_capacity_test_wizard	混沌术士、嘶叫萨满、巫术萨满及恶魔铁匠术士共享容量：%+n	false

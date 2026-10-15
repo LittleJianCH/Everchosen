@@ -9,10 +9,12 @@ This repository contains Total War: WARHAMMER III mods. The earlier prototype wo
 | **Archaon: The Everchosen** — main mod | `mods/archaon-everchosen/` |
 | **Tamurkhan Chieftain Progression** — separate submod | `mods/tamurkhan-chieftains/` |
 | **Chaos Equipment for Warriors of Chaos** — separate submod | `mods/chaos-equipment/` |
+| **Hero Capacity Test** — opt-in capacity test pack | `mods/hero-capacity-test/` |
 
 - Equipment eligibility covers Khorne, Nurgle, Tzeentch, Slaanesh, Norsca, Beastmen, and Chaos Dwarfs, and adds Warriors of Chaos culture eligibility for weapons, armour, talismans, enchanted/arcane items, and mounts. Preserve native access and character/skill/rank restrictions; do not grant items or bypass acquisition quests. Keep this data patch out of the other products.
 - Keep all other gameplay in the main mod, including blessings, subjugation, portals, Beastmen hordes, and Norscan outposts. Split out another submod only when the user explicitly selects it; future submods stay in this repository.
 - Give each product distinct build outputs and packaging boundaries. A separate submod does not by itself imply a dependency on the main mod. Define dependencies and coexistence when implementing them, and prevent duplicate listeners or rewards when both packs are loaded.
+- Keep the hero-capacity test pack opt-in: `all` builds and packages only the three production products. The test pack adds starting capacity only; it does not unlock recruitment or grant characters.
 - Equipment eligibility and chieftain progression are independently loadable. Enable the equipment submod alongside progression when chieftains in Warriors of Chaos need their native equipment permissions; do not duplicate the permission patch in progression.
 - Share helpers when needed, without duplicating gameplay or building a general framework ahead of requirements.
 - Do not add a README unless requested.

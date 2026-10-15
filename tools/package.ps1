@@ -1,6 +1,6 @@
 #Requires -Version 7.0
 param(
-    [ValidateSet('all', 'archaon-everchosen', 'tamurkhan-chieftains', 'chaos-equipment')]
+    [ValidateSet('all', 'archaon-everchosen', 'tamurkhan-chieftains', 'chaos-equipment', 'hero-capacity-test')]
     [string]$Mod = 'all',
     [string]$Rpfm = $env:RPFM_CLI,
     [string]$Schema = $env:WH3_SCHEMA,
