@@ -1,4 +1,5 @@
 (local world (include :everchosen_core.world))
+(local rules (include :everchosen_hero_recruitment.rules))
 
 (local prefix "everchosen_hero_")
 (local list-context
@@ -102,7 +103,8 @@
 (fn filter-types [controls state group]
   (restore-types controls state)
   (each [_ button (ipairs (children controls.types))]
-    (when (and (= (button:GetProperty :agent_type_key) group.agent)
+    (when (and (not group.native?)
+               (. state.native-subtypes (button:Id))
                (not (. group.members (button:Id))) (button:Visible))
       (tset state.hidden (button:Id) (button:Address))
       (button:SetVisible false)))
@@ -115,8 +117,7 @@
              (accumulate [selected false _ button
                           (ipairs (children controls.types)) &until selected]
                (and (. group.members (button:Id))
-                    (or (= (button:CurrentState) :selected)
-                        (= (button:CurrentState) :selected_inactive)))))
+                    (rules.selected? (button:CurrentState)))))
          (accumulate [matches true _ card (ipairs (children list))
                       &until (not matches)]
            (if (card:Visible)

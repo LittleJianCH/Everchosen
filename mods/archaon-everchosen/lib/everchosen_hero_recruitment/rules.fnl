@@ -21,6 +21,11 @@
 (fn selectable? [state]
   (not (or (= state :inactive) (= state :selected_inactive))))
 
+(fn selected? [state]
+  (or (= state :selected) (= state :selected_hover)
+      (= state :selected_down) (= state :selected_down_off)
+      (= state :selected_inactive)))
+
 (fn page [entries number size]
   "Return the visible entries and a page number clamped to this catalog."
   (let [pages (math.max 1 (math.ceil (/ (length entries) size)))
@@ -31,4 +36,4 @@
               (. entries index))
             current pages)))
 
-{: catalog : selectable? : page}
+{: catalog : selectable? : selected? : page}

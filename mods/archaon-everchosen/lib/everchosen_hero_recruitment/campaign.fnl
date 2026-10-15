@@ -55,8 +55,9 @@
           group (selected-group state)]
       (view.reserve controls)
       (view.filter-types controls state group)
-      (if (and (= (: (find_uicomponent controls.agents group.agent)
-                     :CurrentState) :selected)
+      (if (and (rules.selected?
+                 (: (find_uicomponent controls.agents group.agent)
+                    :CurrentState))
                (view.matches? controls group))
           (view.unblock controls state)
           (out (.. "[Everchosen hero recruitment] Native candidates did not "
@@ -78,7 +79,7 @@
           selected
           (or (accumulate [selected nil _ button (ipairs candidates)
                            &until selected]
-                (when (= (button:CurrentState) :selected) button))
+                (when (rules.selected? (button:CurrentState)) button))
               (. candidates 1))]
       (view.filter-types controls state group)
       (if (or group.native? selected)
@@ -165,25 +166,33 @@
       (let [controls (view.controls)
             agent (. state.agents state.index)]
         (each [_ button (ipairs (view.children controls.types))]
-          (when (and (= (: (find_uicomponent controls.agents agent)
-                            :CurrentState) :selected)
-                     (button:Visible)
-                     (= (button:GetProperty :agent_type_key) agent))
+          (when (and (rules.selected?
+                       (: (find_uicomponent controls.agents agent)
+                          :CurrentState))
+                     (button:Visible))
             (let [subtype (button:Id)
                   config (. (world.static-data) :hero_recruitment)
                   meta (. config.subtypes subtype)
                   record (when (not meta) (cco :CcoAgentSubtypeRecord subtype))
-                  name (when record (record:Call :OnscreenNameOverride))
-                  icon (when record (record:Call :SmallIcon))]
-              (table.insert state.members
-                {: agent : subtype
-                 :name (if (and name (not= name "")) name
-                           (: (find_uicomponent
-                                (find_uicomponent controls.agents agent)
-                                :label) :GetStateText))
-                 :icon (if (and icon (not= icon "")) icon
-                           (. config.icons agent))})
-              (tset state.observed agent true))))
+                  valid? (or meta (and record
+                                      (record:Call :IsValidContext)
+                                      (= (record:Call :Key) subtype)))]
+              (when valid?
+                (let [name (when record (record:Call :OnscreenNameOverride))
+                      icon (when record (record:Call :SmallIcon))]
+                  (table.insert state.members
+                    {: agent : subtype
+                     :name (if (and name (not= name "")) name
+                               (: (find_uicomponent
+                                    (find_uicomponent controls.agents agent)
+                                    :label) :GetStateText))
+                     :icon (if (and icon (not= icon "")) icon
+                               (. config.icons agent))})
+                  (tset state.native-subtypes subtype true)
+                  (tset state.observed agent true))))))
+        (out (.. "[Everchosen hero recruitment] Native class " agent
+                 ": " (: (find_uicomponent controls.agents agent)
+                         :CurrentState)))
         (set state.index (+ state.index 1))
         (scan-class state)))))
 
@@ -196,16 +205,23 @@
           (view.create controls)
           (set session
             {: preferred :groups [] :members [] :observed {}
-             :hidden {} :index 1 :page 1 :busy? true
+             :hidden {} :native-subtypes {} :index 1 :page 1 :busy? true
              :initial-subtype
              (accumulate [selected nil _ button
                           (ipairs (view.children controls.types))
                           &until selected]
-               (when (= (button:CurrentState) :selected) (button:Id)))
+               (when (rules.selected? (button:CurrentState)) (button:Id)))
              :agents
-             (icollect [_ button (ipairs (view.children controls.agents))]
-               (let [agent (button:GetProperty :agent_type_key)]
-                 (when (and agent (not= agent "")) agent)))})
+             ;; The native class dev button also addresses its parent by ID.
+             (icollect [agent _
+                        (pairs (. (world.static-data)
+                                  :hero_recruitment :icons))]
+               (when (find_uicomponent controls.agents agent) agent))})
+          (table.sort session.agents)
+          (assert (> (length session.agents) 0)
+                  "No native hero capacity classes found")
+          (out (.. "[Everchosen hero recruitment] Found "
+                   (length session.agents) " native capacity classes"))
           (let [controls (view.controls)]
             (controls.private:SetVisible true)
             (render session)
