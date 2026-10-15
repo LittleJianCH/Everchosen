@@ -9,7 +9,7 @@ sys.path[:0] = [str(ROOT / "tools"),
                 str(ROOT / "mods/archaon-everchosen/generator")]
 from db_tables import (read_authored, read_table, run_generator,
                        write_localisation, write_table)
-import hero_families
+import hero_appearance
 from roster_permissions import campaign_units
 
 HOST = "wh_main_chs_chaos"
@@ -19,14 +19,6 @@ FRAGMENT = "everchosen_hero_capacity_test_generated"
 MAIN_CHAIN = "wh3_dlc20_settlement_woc_dark_fortress"
 RECRUIT_SCOPE = "province_to_province_own_unseen"
 HOST_CONTEXT = BUNDLE + "_host"
-# Representative native factions, without incidental invasion-army rosters.
-SOURCE_FACTIONS = (
-    "wh_main_chs_chaos", "wh_dlc03_bst_beastmen", "wh_dlc08_nor_norsca",
-    "wh3_dlc23_chd_zhatan", "wh3_main_dae_daemon_prince",
-    "wh3_main_kho_exiles_of_khorne", "wh3_main_nur_poxmakers_of_nurgle",
-    "wh3_main_sla_seducers_of_slaanesh",
-    "wh3_main_tze_oracles_of_tzeentch",
-)
 CAP_EFFECTS = {
     "champion": "wh_main_effect_agent_cap_increase_champion_exalted_hero",
     "dignitary": "wh3_main_effect_agent_cap_increase_nur_cultist",
@@ -35,7 +27,7 @@ CAP_EFFECTS = {
     "spy": "wh3_main_effect_agent_cap_increase_nur_plagueridden",
     "wizard": "wh_main_effect_agent_cap_increase_wizard_chaos_sorcerer",
 }
-TABLES = sorted(set(hero_families.TABLES) | {
+TABLES = sorted(set(hero_appearance.TABLES) | {
     "effects", "effect_bonus_value_agent_junction", "effect_bundles",
     "effect_bundles_to_effects_junctions", "campaign_effect_scopes",
     "effect_bonus_value_agent_subtype_junctions", "building_chains",
@@ -44,23 +36,9 @@ TABLES = sorted(set(hero_families.TABLES) | {
     "units_to_groupings_military_permissions",
     "units_to_exclusive_faction_permissions",
 })
-NATIVE_INPUTS = {"db.pack": [f"db/{name}_tables" for name in TABLES]}
-
-
-def supported_heroes(native):
-    """Select ordinary heroes with an enabled native source-faction permission."""
-    metadata = hero_families.script_data(native)
-    for faction in SOURCE_FACTIONS:
-        native["factions"].one(key=faction)
-    heroes = {}
-    for row in native["faction_agent_permitted_subtypes"].rows:
-        if (row["faction"] in SOURCE_FACTIONS
-                and row["mod_disabled"] == "false"
-                and row["subtype"] in metadata):
-            existing = heroes.setdefault(row["subtype"], row)
-            if existing["agent"] != row["agent"]:
-                raise ValueError("A test hero belongs to multiple agent classes")
-    return heroes, metadata
+NATIVE_INPUTS = {"db.pack": [f"db/{name}_tables" for name in TABLES],
+                 **hero_appearance.NATIVE_INPUTS}
+supported_heroes = hero_appearance.supported_heroes
 
 
 def capacity_families(native):
@@ -235,6 +213,7 @@ def generate(vanilla, output):
         generated.setdefault(name, []).append(row)
     for name, values in generated.items():
         write_table(output, native[name], values, FRAGMENT)
+    hero_appearance.write_assets(vanilla, output, native, heroes)
     write_localisation(output, recruitment_localisation(heroes, metadata),
                        FRAGMENT)
     print("Hero-capacity test: " + ", ".join(

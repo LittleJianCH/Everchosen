@@ -52,6 +52,11 @@ try {
             }
             Invoke-Rpfm $extract
         }
+        foreach ($portrait in Get-ChildItem -LiteralPath $native -Recurse -File -Filter 'portrait_settings*.bin') {
+            Invoke-Rpfm @('portrait-settings', 'to-json',
+                '--bin-path', $portrait.FullName,
+                '--json-path', ($portrait.FullName + '.json'))
+        }
     }
 
     & (Join-Path $PSScriptRoot 'build.ps1') -Mod $Mod -Distribution $Distribution -VanillaDb $native
@@ -59,6 +64,20 @@ try {
     [System.IO.Directory]::CreateDirectory($dist) | Out-Null
     foreach ($item in $mods) {
         $source = Join-Path $projectRoot "build/$item"
+        foreach ($portrait in Get-ChildItem -LiteralPath $source -Recurse -File -Filter 'portrait_settings*.bin.json') {
+            $binary = $portrait.FullName.Substring(0, $portrait.FullName.Length - 5)
+            Invoke-Rpfm @('portrait-settings', 'from-json',
+                '--json-path', $portrait.FullName, '--bin-path', $binary)
+            $portraitCheck = Join-Path $work ($item + '-' + $portrait.Name)
+            Invoke-Rpfm @('portrait-settings', 'to-json',
+                '--bin-path', $binary, '--json-path', $portraitCheck)
+            $before = Get-Content -LiteralPath $portrait.FullName -Raw |
+                ConvertFrom-Json -Depth 100 | ConvertTo-Json -Depth 100 -Compress
+            $after = Get-Content -LiteralPath $portraitCheck -Raw |
+                ConvertFrom-Json -Depth 100 | ConvertTo-Json -Depth 100 -Compress
+            if ($before -cne $after) { throw 'Portrait settings round-trip changed generated records.' }
+            Remove-Item -LiteralPath $portrait.FullName
+        }
         $name = 'everchosen_' + $item.Replace('-', '_') + '.pack'
         $pack = Join-Path $work $name
         Invoke-Rpfm @('pack', 'create', '-p', $pack)

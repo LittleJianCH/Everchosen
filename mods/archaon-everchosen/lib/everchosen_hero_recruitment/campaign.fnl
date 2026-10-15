@@ -266,6 +266,14 @@
           (let [state session]
             (later finish-selection state 0.1))))))
 
+(fn log-recruited-appearance [context]
+  (let [character (context:character)
+        subtype (character:character_subtype_key)]
+    (when (. (world.static-data) :hero_recruitment :subtypes subtype)
+      (out (.. "[Everchosen hero recruitment] Recruited " subtype
+               "; agent=" (character:character_type_key)
+               "; male=" (tostring (character:is_male)))))))
+
 (fn start []
   (when (and (world.host) (not started?))
     (set started? true)
@@ -276,6 +284,9 @@
       #(= $1.string :character_panel)
       #(run close nil) true)
     (core:add_listener (.. prefix "click") :ComponentLClickUp true
-      #(run click $1) true)))
+      #(run click $1) true)
+    (core:add_listener (.. prefix "appearance") :CharacterRecruited
+      #(world.host? (: ($1:character) :faction))
+      #(run log-recruited-appearance $1) true)))
 
 {: start}

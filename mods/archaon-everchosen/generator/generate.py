@@ -24,6 +24,7 @@ import vassal_military_buildings
 import vassal_recruitment_discount
 import hero_recruitment_ui
 import hero_families
+import hero_appearance
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
@@ -32,10 +33,11 @@ BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
                 recruitment_ui)
 MODULES = (*BASE_MODULES, dorghar, beastmen_horde_heroes, daemon_skills,
            beastmen_horde_ui, vassal_recruitment_discount, hero_recruitment_ui,
-           hero_families)
+           hero_families, hero_appearance)
 TABLES = sorted({table for module in MODULES for table in module.TABLES})
 NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
+    **hero_appearance.NATIVE_INPUTS,
     "ui3.pack": [*inheritance.UI_ADAPTATIONS, *daemon_prince.UI_ADAPTATIONS,
                  *hero_recruitment_ui.NATIVE_INPUTS,
                  "ui/templates/square_medium_text_button.twui.xml",
@@ -141,6 +143,8 @@ def generate(native_root, output):
                                          building_data)
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
+    heroes, _ = hero_appearance.supported_heroes(native)
+    hero_appearance.write_assets(native_root, output, native, heroes)
     recruitment_ui.write_culture_override(native_root, output, native)
     write_localisation(output, beastmen_hordes.localisation(native),
                        "everchosen_horde_names")
