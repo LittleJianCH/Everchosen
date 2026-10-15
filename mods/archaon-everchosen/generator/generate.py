@@ -6,7 +6,7 @@ from pathlib import Path
 MOD = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(Path(__file__).resolve().parent),
                 str(MOD.parents[1] / "tools")]
-from db_tables import (read_authored, read_table, run_generator,
+from db_tables import (lua_literal, read_authored, read_table, run_generator,
                        write_localisation, write_table)
 import inheritance
 import dorghar
@@ -75,24 +75,6 @@ def script_data(native):
         "icons": hero_recruitment_ui.script_data(native),
         "page_size": hero_recruitment_ui.PAGE_SIZE}
     return data
-
-
-def lua_literal(value):
-    """Serialize strings, booleans, lists, and string-keyed dicts as Lua."""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, str):
-        escaped = (value.replace("\\", "\\\\").replace('"', '\\"')
-                   .replace("\n", "\\n"))
-        return f'"{escaped}"'
-    if isinstance(value, dict):
-        return "{" + ",".join(f"[{lua_literal(key)}]={lua_literal(item)}"
-                              for key, item in value.items()) + "}"
-    if isinstance(value, (list, tuple)):
-        return "{" + ",".join(lua_literal(item) for item in value) + "}"
-    raise TypeError(f"No Lua literal for {type(value).__name__}")
 
 
 def adapt_ui(native_root, output, native):
