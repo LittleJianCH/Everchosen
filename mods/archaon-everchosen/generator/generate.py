@@ -22,6 +22,7 @@ import beastmen_horde_heroes
 import recruitment_ui
 import vassal_military_buildings
 import vassal_recruitment_discount
+import hero_recruitment_ui
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
@@ -29,11 +30,12 @@ BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
                 daemon_legion, beastmen_hordes, vassal_military_buildings,
                 recruitment_ui)
 MODULES = (*BASE_MODULES, dorghar, beastmen_horde_heroes, daemon_skills,
-           beastmen_horde_ui, vassal_recruitment_discount)
+           beastmen_horde_ui, vassal_recruitment_discount, hero_recruitment_ui)
 TABLES = sorted({table for module in MODULES for table in module.TABLES})
 NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
     "ui3.pack": [*inheritance.UI_ADAPTATIONS, *daemon_prince.UI_ADAPTATIONS,
+                 *hero_recruitment_ui.UI_ADAPTATIONS,
                  "ui/templates/square_medium_text_button.twui.xml",
                  *beastmen_horde_ui.NATIVE_INPUTS],
     # Loaded by the adapter regressions, not by this generator.
