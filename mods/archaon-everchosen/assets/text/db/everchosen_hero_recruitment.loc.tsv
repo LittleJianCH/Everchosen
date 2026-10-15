@@ -1,14 +1,6 @@
 key	text	tooltip
 #Loc;1;text/db/everchosen_hero_recruitment.loc		
-everchosen_hero_group_champion	冠军类	false
-everchosen_hero_group_wizard	法师类	false
-everchosen_hero_group_spy	密探类	false
-everchosen_hero_group_dignitary	祭司类	false
-everchosen_hero_group_runesmith	符文类	false
-everchosen_hero_group_engineer	工程类	false
-everchosen_hero_group_champion_tooltip	本模组新增：巨角公牛、巨身狼人、半人牛陶鲁克。本栏与神尊英雄共享容量。	false
-everchosen_hero_group_wizard_tooltip	本模组新增：嘶叫萨满（野兽系、死亡系、阴影系、狂野系）、巫术萨满（死亡系、火焰系、金属系）、恶魔铁匠术士（死亡系、火焰系、哈苏特系、金属系）。本栏与混沌术士共享容量。	false
-everchosen_hero_group_spy_tooltip	本模组新增：战角兽。本栏与其他同类英雄共享容量。	false
-everchosen_hero_group_dignitary_tooltip	本模组新增：沼栖妖降灾使（火焰系、阴影系）。本栏与其他同类英雄共享容量。	false
-everchosen_hero_group_runesmith_tooltip	本模组新增：沼栖妖贵族。本栏与其他同类英雄共享容量。	false
-everchosen_hero_group_engineer_tooltip	本模组新增：炼狱堡主。本栏与其他同类英雄共享容量。	false
+everchosen_hero_loading	正在整理英雄分类…	false
+everchosen_hero_page	第 %d / %d 页	false
+everchosen_hero_shared_capacity	此英雄沿用原版的共享容量，当前额度见上方容量显示。	false
+everchosen_hero_unavailable	当前地区暂时无法招募此类英雄	false

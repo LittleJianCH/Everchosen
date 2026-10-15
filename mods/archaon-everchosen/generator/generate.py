@@ -23,6 +23,7 @@ import recruitment_ui
 import vassal_military_buildings
 import vassal_recruitment_discount
 import hero_recruitment_ui
+import hero_families
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
@@ -30,11 +31,13 @@ BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
                 daemon_legion, beastmen_hordes, vassal_military_buildings,
                 recruitment_ui)
 MODULES = (*BASE_MODULES, dorghar, beastmen_horde_heroes, daemon_skills,
-           beastmen_horde_ui, vassal_recruitment_discount, hero_recruitment_ui)
+           beastmen_horde_ui, vassal_recruitment_discount, hero_recruitment_ui,
+           hero_families)
 TABLES = sorted({table for module in MODULES for table in module.TABLES})
 NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
     "ui3.pack": [*inheritance.UI_ADAPTATIONS, *daemon_prince.UI_ADAPTATIONS,
+                 *hero_recruitment_ui.NATIVE_INPUTS,
                  "ui/templates/square_medium_text_button.twui.xml",
                  *beastmen_horde_ui.NATIVE_INPUTS],
     # Loaded by the adapter regressions, not by this generator.
@@ -65,7 +68,10 @@ def script_data(native):
     data["daemon_prince"] = daemon_prince.script_data(native)
     data["hordes"] = beastmen_hordes.script_data(native)
     data["vassal_military_buildings"] = vassal_military_buildings.script_data(native)
-    data["hero_groups"] = hero_recruitment_ui.script_data(native)
+    data["hero_recruitment"] = {
+        "subtypes": hero_families.script_data(native),
+        "icons": hero_recruitment_ui.script_data(native),
+        "page_size": hero_recruitment_ui.PAGE_SIZE}
     return data
 
 
@@ -141,6 +147,7 @@ def generate(native_root, output):
     write_localisation(output, vassal_military_buildings.localisation(native),
                        "everchosen_vassal_buildings")
     ui_count = adapt_ui(native_root, output, native)
+    ui_count += hero_recruitment_ui.write_ui(native_root, output)
     beastmen_horde_ui.write_cco(output, native)
     path = output / f"script/campaign/mod/{STATIC_DATA}.lua"
     path.parent.mkdir(parents=True, exist_ok=True)

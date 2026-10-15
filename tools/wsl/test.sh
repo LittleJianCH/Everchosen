@@ -26,8 +26,9 @@ if [[ "$target" != tamurkhan-chieftains ]]; then
     export EVERCHOSEN_ROOT="$root"
     export EVERCHOSEN_VANILLA_DB="${EVERCHOSEN_VANILLA_DB:-$root/.local/vanilla}"
     bash "$script_dir/build.sh" archaon-everchosen
-    for spec in inheritance subjugation daemon skill_transfer hordes river_of_blood; do
-        fennel --globals describe,it --compile \
+    for spec in inheritance subjugation daemon skill_transfer hordes river_of_blood hero_recruitment; do
+        fennel --add-fennel-path "$root/mods/archaon-everchosen/lib/?.fnl" \
+            --globals describe,it --compile \
             "$root/tests/archaon-everchosen/${spec}_spec.fnl" > "$stage/${spec}_spec.lua"
         luac5.1 -p "$stage/${spec}_spec.lua"
         busted "$stage/${spec}_spec.lua"
