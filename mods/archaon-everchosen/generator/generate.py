@@ -35,7 +35,6 @@ TABLES = sorted({table for module in MODULES for table in module.TABLES})
 NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
     "ui3.pack": [*inheritance.UI_ADAPTATIONS, *daemon_prince.UI_ADAPTATIONS,
-                 *hero_recruitment_ui.UI_ADAPTATIONS,
                  "ui/templates/square_medium_text_button.twui.xml",
                  *beastmen_horde_ui.NATIVE_INPUTS],
     # Loaded by the adapter regressions, not by this generator.
@@ -66,6 +65,7 @@ def script_data(native):
     data["daemon_prince"] = daemon_prince.script_data(native)
     data["hordes"] = beastmen_hordes.script_data(native)
     data["vassal_military_buildings"] = vassal_military_buildings.script_data(native)
+    data["hero_groups"] = hero_recruitment_ui.script_data(native)
     return data
 
 
