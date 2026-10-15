@@ -7,13 +7,15 @@ MOD = Path(__file__).resolve().parents[1]
 ROOT = MOD.parents[1]
 sys.path[:0] = [str(ROOT / "tools"),
                 str(ROOT / "mods/archaon-everchosen/generator")]
-from db_tables import (read_authored, read_table, run_generator,
+from db_tables import (lua_literal, read_authored, read_table, run_generator,
                        write_localisation, write_table)
 import hero_appearance
 from roster_permissions import campaign_units
 
 HOST = "wh_main_chs_chaos"
 BUNDLE = "everchosen_hero_capacity_test"
+EXPERIMENT = BUNDLE + "_families"
+FAMILIES = ("wh3_main_sla_alluress", "wh3_dlc23_chd_infernal_castellan")
 SCOPE = "faction_to_faction_own_unseen"
 FRAGMENT = "everchosen_hero_capacity_test_generated"
 MAIN_CHAIN = "wh3_dlc20_settlement_woc_dark_fortress"
@@ -183,12 +185,42 @@ def recruitment_localisation(heroes, metadata):
                "text": "允许招募英雄：{{tr:" + name + "}}", "tooltip": "false"}
 
 
+def family_experiment(native, heroes, metadata):
+    """Native subtype-cap effects for two families; never change base caps."""
+    template = native["effect_bonus_value_agent_subtype_junctions"].one(
+        bonus_value_id="cap", effect="wh2_main_effect_agent_cap_increase_lzd_slann",
+        subtype="wh2_main_lzd_slann_mage_priest")
+    effect = native["effects"].one(effect=template["effect"])
+    config = {"bundle": EXPERIMENT, "families": {}, "subtypes": {}}
+    rows = []
+    for family in FAMILIES:
+        members = [subtype for subtype in sorted(heroes)
+                   if metadata[subtype]["family"] == family]
+        if not members:
+            raise ValueError(f"Missing test hero family: {family}")
+        config["families"][family] = {"limit": 1, "subtypes": members}
+        for subtype in members:
+            key = EXPERIMENT + "_" + subtype
+            config["subtypes"][subtype] = {
+                "family": family, "effect": key,
+                "base": int(native["agent_subtypes"].one(key=subtype)["cap"])}
+            rows.extend((
+                ("effects", dict(effect, effect=key, priority="0")),
+                ("effect_bonus_value_agent_subtype_junctions",
+                 dict(template, effect=key, subtype=subtype))))
+    return config, rows
+
+
 def generate(vanilla, output):
     native = {name: read_table(vanilla / "db", name) for name in TABLES}
     authored = read_authored(MOD / "assets/db", native)
-    bundle, = authored["effect_bundles"]
+    bundle, = [row for row in authored["effect_bundles"] if row["key"] == BUNDLE]
     if bundle["key"] != BUNDLE or bundle["bundle_target"] != "faction":
         raise ValueError("Hero capacity test bundle must target a faction")
+    experiment_bundle, = [row for row in authored["effect_bundles"]
+                          if row["key"] == EXPERIMENT]
+    if experiment_bundle["bundle_target"] != "faction":
+        raise ValueError("Family capacity experiment must target a faction")
     context, = authored["building_effect_context_expressions"]
     source = native["building_effect_context_expressions"].one(
         key="AislinnBuiltInColony")
@@ -207,15 +239,21 @@ def generate(vanilla, output):
         value="1.0000", value_damaged="1.0000", value_ruined="0.0000")
     families = capacity_families(native)
     heroes, metadata = supported_heroes(native)
+    experiment, experiment_rows = family_experiment(native, heroes, metadata)
     generated = {}
     for name, row in chain(rows(native, families),
-                           recruitment_rows(native, heroes, metadata)):
+                           recruitment_rows(native, heroes, metadata),
+                           experiment_rows):
         generated.setdefault(name, []).append(row)
     for name, values in generated.items():
         write_table(output, native[name], values, FRAGMENT)
     hero_appearance.write_assets(vanilla, output, native, heroes)
     write_localisation(output, recruitment_localisation(heroes, metadata),
                        FRAGMENT)
+    path = output / "script/campaign/mod/everchosen_hero_capacity_test_data.lua"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f'core:add_static_object("{EXPERIMENT}", '
+                    + lua_literal(experiment) + ")\n", encoding="utf-8")
     print("Hero-capacity test: " + ", ".join(
         f"{agent}=+{len(members)}" for agent, members in families.items()))
     print(f"Test recruitment: {len(heroes)} subtypes at "

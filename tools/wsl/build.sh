@@ -31,6 +31,11 @@ for mod in "${targets[@]}"; do
             ;;
     esac
     source_dir="$root/mods/$mod"
+    library_path="$source_dir/lib/?.fnl"
+    if [[ "$mod" == hero-capacity-test ]]; then
+        # Bundle only the shared world helper, not main-mod listeners.
+        library_path+=";$root/mods/archaon-everchosen/lib/?.fnl"
+    fi
     stage=$(mktemp -d "$root/build/.$mod.XXXXXXXX")
     # Asset paths are relative to the pack root. Ignore directory placeholders.
     while IFS= read -r -d '' asset; do
@@ -50,7 +55,7 @@ for mod in "${targets[@]}"; do
             exit 1
         fi
         mkdir -p -- "$(dirname -- "$destination")"
-        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals "$globals" --compile "$source" > "$destination"
+        fennel --add-fennel-path "$library_path" --globals "$globals" --compile "$source" > "$destination"
         count=$((count + 1))
     done < <(find "$source_dir/src" -type f -name '*.fnl' -print0)
     # Check all Lua, including any deliberately authored Lua assets.

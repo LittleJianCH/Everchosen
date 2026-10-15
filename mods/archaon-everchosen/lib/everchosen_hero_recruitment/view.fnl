@@ -48,7 +48,9 @@
 
 (fn show-page [controls entries number pages selected]
   (let [private controls.private
-        config (. (world.static-data) :hero_recruitment)]
+        config (. (world.static-data) :hero_recruitment)
+        capacity-provider
+        (core:get_static_object :everchosen_hero_family_capacity)]
     (for [index 1 config.page_size]
       (let [button (find_uicomponent private (.. prefix "slot_" index))
             group (. entries index)]
@@ -56,12 +58,26 @@
         (when group
           (let [name (if group.name-key
                          (common.get_localised_string group.name-key)
-                         group.name)]
-            (: (find_uicomponent button :label) :SetStateText name)
+                         group.name)
+                capacity (and capacity-provider
+                              (capacity-provider.snapshot group.subtypes))]
+            (: (find_uicomponent button :label) :SetStateText
+               (if capacity
+                   (string.format
+                     (common.get_localised_string
+                       :everchosen_hero_family_capacity_label)
+                     name capacity.used capacity.limit)
+                   name))
             (: (find_uicomponent button :icon) :SetImagePath group.icon 0)
             (button:SetTooltipText
-              (.. name "\n" (common.get_localised_string
-                               :everchosen_hero_shared_capacity)) "" true)
+              (.. name "\n"
+                  (if capacity
+                      (string.format
+                        (common.get_localised_string
+                          :everchosen_hero_family_capacity_tooltip)
+                        capacity.used capacity.limit)
+                      (common.get_localised_string
+                        :everchosen_hero_shared_capacity))) "" true)
             (button:SetState (if group.disabled? :inactive
                                 (= group.key selected) :selected
                                 :active))))))
