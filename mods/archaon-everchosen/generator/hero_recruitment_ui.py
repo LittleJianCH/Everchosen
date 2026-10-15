@@ -16,7 +16,6 @@ NATIVE_INPUTS = (
 )
 ANCHORS = {
     "container": "3A620DFB-CB4E-4BC3-BF1B230582AA59C4",
-    "button": "A9B843F1-669C-49F2-90D1B9248EE4ED62",
     "label": "6664E522-0080-4756-BBDFE1C21F2C9297",
     "icon": "83BE0492-8E0D-4ED0-9B2CCDB88B331291",
     "previous": "7A17A59C-96C3-4E6A-A1B07F368A212C21",
@@ -80,6 +79,18 @@ def validate_ui(tree, native_root):
     for node in hierarchy:
         if parts[node.get("this")].tag != node.tag:
             raise ValueError("Private hero selector hierarchy tag mismatch")
+    panel = root.find(f"hierarchy/root/{ROOT}")
+    for index in range(1, PAGE_SIZE + 1):
+        entry = panel.find(f"everchosen_hero_slot_{index}")
+        button = parts[entry.get("this")]
+        if (button.get("template_id") or button.get("part_of_template")
+                or button.find("states") is None
+                or button.find("componentimages") is None):
+            raise ValueError("Hero family slot must own its states and children")
+        for name in ("label", "icon"):
+            child = entry.find(name)
+            if child is None or parts[child.get("this")].get("id") != name:
+                raise ValueError(f"Hero family slot is missing its {name}")
     definitions = [element.get("this") for element in components.iter()
                    if element.get("this")]
     if len(definitions) != len(set(definitions)):
@@ -112,6 +123,10 @@ def write_ui(native_root, output):
         if len(matches) != 1:
             raise ValueError(f"Hero recruitment UI anchor changed: {name}")
         sources[name] = matches[0]
+    template = ET.parse(native_root / NATIVE_INPUTS[1]).getroot()
+    source_button = template.find("components/square_medium_text_tab_toggle")
+    if source_button is None:
+        raise ValueError("Native hero tab button template changed")
     root = ET.Element("layout", native.attrib)
     hierarchy = ET.SubElement(root, "hierarchy")
     components = ET.SubElement(root, "components")
@@ -136,13 +151,30 @@ def write_ui(native_root, output):
 
     for index in range(1, PAGE_SIZE + 1):
         name = f"everchosen_hero_slot_{index}"
-        button = clone(sources["button"], name)
-        button.set("dimensions", "200.00,42.00")
-        button.set("dock_point", "Top Left")
-        button.set("offset", f"{5 + (index - 1) % 4 * 200}.00,"
-                             f"{(index - 1) // 4 * 42}.00")
-        button.set("is_visible", "false")
-        callbacks = ET.SubElement(button, "callbacks_with_context")
+        # Native recruitment marks its extra label/icon as dynamic children.
+        # This private selector has authored children: materialize the complete
+        # button instead of retaining an external template instance.
+        button = clone(source_button, name)
+        button.attrib.pop("uniqueguid_in_template", None)
+        button.attrib.pop("component_anchor_point", None)
+        button.set("docking", "Top Left")
+        position = (f"{5 + (index - 1) % 4 * 200}.00,"
+                    f"{(index - 1) // 4 * 42}.00")
+        button.set("offset", position)
+        button.set("dock_offset", position)
+        button.set("visible", "false")
+        button.set("allowhorizontalresize", "false")
+        button.set("allowverticalresize", "false")
+        for state in button.find("states"):
+            width, height = int(state.get("width")), int(state.get("height"))
+            state.set("width", "200")
+            state.set("height", "42")
+            for image in state.findall("imagemetrics/image"):
+                image.set("width", str(round(int(image.get("width"))
+                                             * 200 / width)))
+                image.set("height", str(round(int(image.get("height"))
+                                              * 42 / height)))
+        callbacks = ET.SubElement(button, "callbackwithcontextlist")
         ET.SubElement(callbacks, "callback_with_context", callback_id="Button")
         propagate = ET.SubElement(callbacks, "callback_with_context",
                                   callback_id="StatePropagatorCallback")
