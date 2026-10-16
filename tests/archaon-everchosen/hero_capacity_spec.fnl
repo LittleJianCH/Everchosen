@@ -2,99 +2,94 @@
 (local config
   {:families {:alluress {:agent :engineer :subtypes [:shadow :slaanesh]}
               :castellan {:agent :engineer :subtypes [:castellan]}}
-   :subtypes {:shadow {:family :alluress :agent :engineer
-                       :effect :shadow-cap :base -1}
-              :slaanesh {:family :alluress :agent :engineer
-                         :effect :slaanesh-cap :base -1}
-              :castellan {:family :castellan :agent :engineer
-                          :effect :castellan-cap :base -1}}
+   :subtypes {:shadow {:family :alluress :agent :engineer}
+              :slaanesh {:family :alluress :agent :engineer}
+              :castellan {:family :castellan :agent :engineer}}
    :classes {:engineer :engineer-cap}
+   :native_page {:engineer :alluress}
    :counted_subtypes {:shadow :engineer :slaanesh :engineer
                       :castellan :engineer :unique :engineer}})
-(local normalizers {:shadow 1 :slaanesh 1 :castellan 1})
 
-(describe "independent hero family capacities"
+(describe "independent hero quotas and native/private recruitment pages"
   (fn []
-    (it "shares lores while leaving another hero's allowance available"
+    (it "shares lores while private heroes keep their own allowance"
       (fn []
         (let [sources {:shadow 1 :slaanesh 1 :castellan 1}
-              result (rules.plan config sources {} {:shadow 1} normalizers
-                                 {:engineer 1} {})]
-          (assert.same {:shadow 1 :slaanesh 0 :castellan 1} result.targets)
+              counts {:shadow 1}
+              full (rules.plan config sources {} counts
+                               {:engineer 6} false)
+              available (rules.plan config sources {} counts
+                                    {:engineer 6} true)]
           (assert.same {:used 1 :limit 1}
-                       (rules.snapshot config result.families
+                       (rules.snapshot config full.families
                                        [:shadow :slaanesh]))
           (assert.same {:used 0 :limit 1}
-                       (rules.snapshot config result.families [:castellan]))
-          (assert.equals 1 result.effects.engineer-cap)
+                       (rules.snapshot config full.families [:castellan]))
+          (assert.equals 1 full.class-targets.engineer)
+          (assert.equals -5 full.effects.engineer-cap)
+          (assert.equals 2 available.class-targets.engineer)
+          (assert.equals -4 available.effects.engineer-cap)
           (assert.is_nil
-            (rules.snapshot config result.families [:shadow :castellan]))
+            (rules.snapshot config full.families [:shadow :castellan]))
           (assert.is_nil
-            (rules.snapshot config result.families [:unknown])))))
-    (it "counts one building once across lores and follows removed sources"
+            (rules.snapshot config full.families [:unknown])))))
+    (it "compensates actual imported heroes without granting native slots"
       (fn []
         (let [before (rules.plan config
                        {:shadow 2.5 :slaanesh 2.5 :castellan 0}
-                       {:alluress 1} {:shadow 1 :slaanesh 1} normalizers
-                       {:engineer 0} {})
+                       {:alluress 1} {:shadow 1 :slaanesh 1}
+                       {:engineer 0} false)
               after (rules.plan config {} {} {:shadow 1 :slaanesh 1}
-                               normalizers {:engineer 3}
-                               before.class-uplifts)]
+                               {:engineer 5} false)
+              transferred (rules.plan config
+                            {:shadow 1 :slaanesh 1 :castellan 1} {}
+                            {:shadow 3 :castellan 2 :unique 1}
+                            {:engineer 2} false)]
           (assert.same {:used 2 :limit 3} before.families.alluress)
-          (assert.same {:shadow 2 :slaanesh 2 :castellan 0} before.targets)
+          (assert.equals 3 before.class-targets.engineer)
           (assert.same {:used 2 :limit 0} after.families.alluress)
-          (assert.same {:shadow 1 :slaanesh 1 :castellan 0} after.targets)
-          (assert.equals 2 after.effects.engineer-cap))))
-    (it "allows the other hero after an over-limit transfer or unique grant"
-      (fn []
-        (let [result (rules.plan config
-                       {:shadow 1 :slaanesh 1 :castellan 1} {}
-                       {:shadow 3 :unique 1} normalizers
-                       {:engineer 2} {})]
-          (assert.same {:used 3 :limit 1} result.families.alluress)
-          (assert.same {:shadow 3 :slaanesh 0 :castellan 1} result.targets)
-          (assert.equals 3 result.effects.engineer-cap))))
-    (it "keeps soul promotion in the same slot without capping its new form"
+          (assert.equals 0 after.class-targets.engineer)
+          (assert.equals -5 after.effects.engineer-cap)
+          (assert.same {:used 3 :limit 1} transferred.families.alluress)
+          (assert.same {:used 2 :limit 1} transferred.families.castellan)
+          (assert.equals 4 transferred.class-targets.engineer)
+          (assert.equals 2 transferred.effects.engineer-cap))))
+    (it "keeps promotion in the native family's single quota"
       (fn []
         (let [promotion-config
               {:families {:exalted {:agent :champion :subtypes [:undivided]
                                    :promoted_subtypes [:khorne]}
                           :gorebull {:agent :champion :subtypes [:gorebull]}}
-               :subtypes {:undivided {:family :exalted :effect :undivided-cap}
-                          :gorebull {:family :gorebull :effect :gorebull-cap}}
+               :subtypes {:undivided {:family :exalted}
+                          :gorebull {:family :gorebull}}
                :classes {:champion :parent-cap}
+               :native_page {:champion :exalted}
                :counted_subtypes {:undivided :champion :khorne :champion
                                   :gorebull :champion}}
               sources {:undivided 1 :gorebull 1}
-              offsets {:undivided 1 :gorebull 1}
               before (rules.plan promotion-config sources {} {:undivided 1}
-                                 offsets {:champion 2} {})
+                                 {:champion 0} false)
               after (rules.plan promotion-config sources {} {:khorne 1}
-                                offsets {:champion 3} before.class-uplifts)]
+                                {:champion 0} false)
+              imported (rules.plan promotion-config sources {}
+                                   {:khorne 1 :gorebull 1}
+                                   {:champion 3} false)]
           (assert.same {:used 1 :limit 1} before.families.exalted)
           (assert.same before.families.exalted after.families.exalted)
-          (assert.equals 1 before.effects.parent-cap)
-          (assert.equals 0 after.effects.parent-cap)
-          (assert.same {:undivided 0 :gorebull 1} after.targets)
-          (assert.is_nil (. after.targets :khorne))
+          (assert.equals 1 before.class-targets.champion)
+          (assert.equals 1 after.class-targets.champion)
+          (assert.equals 2 imported.class-targets.champion)
+          (assert.equals -1 imported.effects.parent-cap)
           (assert.same {:used 0 :limit 1} after.families.gorebull))))
-    (it "replaces only its prior class contribution when sources change"
+    (it "opens one private slot even when native heroes exceed their quota"
       (fn []
-        (let [result (rules.plan config
-                       {:shadow 2 :slaanesh 2 :castellan 1} {}
-                       {:shadow 1} normalizers {:engineer 7}
-                       {:engineer 6})]
-          (assert.equals 2 result.effects.engineer-cap)
-          (assert.equals 2 result.class-uplifts.engineer))))
-    (it "normalizes subtype totals without changing their native base"
-      (fn []
-        (let [sources {:shadow 2 :slaanesh 2 :castellan 1}
-              offsets {:shadow 1 :slaanesh 0 :castellan 1}
-              result (rules.plan config sources {} {:shadow 1} offsets
-                                 {:engineer 4294967295}
-                                 {:engineer 8})]
-          (assert.same {:shadow 2 :slaanesh 1 :castellan 1} result.targets)
-          (assert.same {:shadow-cap 1 :slaanesh-cap -1 :castellan-cap 1
-                        :engineer-cap 0} result.effects)
-          (assert.equals -1 config.subtypes.shadow.base)
-          (assert.same {:shadow 2 :slaanesh 2 :castellan 1} sources))))))
+        (let [sources {:shadow 1 :slaanesh 1 :castellan 1}
+              counts {:shadow 3 :castellan 1}
+              private (rules.plan config sources {} counts
+                                  {:engineer 0} true)
+              outside (rules.plan config sources {} counts
+                                  {:engineer 7} false)]
+          (assert.equals 5 private.class-targets.engineer)
+          (assert.equals 5 private.effects.engineer-cap)
+          (assert.equals 2 outside.class-targets.engineer)
+          (assert.equals -5 outside.effects.engineer-cap))))))

@@ -1,23 +1,13 @@
-(fn catalog [members metadata]
-  "Group observed native subtypes; different capacity classes stay separate."
-  (let [indexed
-        (accumulate [groups {} index member (ipairs members)]
-          (let [meta (or (. metadata member.subtype) {})
-                key (.. member.agent ":" (or meta.family member.subtype))
-                group (or (. groups key)
-                          {: key :agent member.agent :order index
-                           :name-key meta.name_key
-                           :description-key meta.description_key
-                           :tooltip member.tooltip
-                           :name member.name :icon (or meta.icon member.icon)
-                           :subtypes [] :members {}})]
-            (when (not (. group.members member.subtype))
-              (tset group.members member.subtype true)
-              (table.insert group.subtypes member.subtype))
-            (tset groups key group)
-            groups))
-        result (icollect [_ group (pairs indexed)] group)]
-    (table.sort result #(< $1.order $2.order))
+(fn catalog [families]
+  "Use explicit family records; opening the panel never scans native classes."
+  (let [result
+        (icollect [key family (pairs families)]
+          {: key :agent family.agent :private? family.private
+           :name-key family.name_key :description-key family.description_key
+           :icon family.icon :subtypes family.subtypes
+           :members (collect [_ subtype (ipairs family.subtypes)]
+                      (values subtype true))})]
+    (table.sort result #(< $1.key $2.key))
     result))
 
 (fn selectable? [state]

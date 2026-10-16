@@ -15,10 +15,6 @@
     (collect [subtype _ (pairs config.subtypes)]
       (values subtype (bonuses:agent_subtype_value subtype :cap)))))
 
-(fn subtype-caps [host config]
-  (collect [subtype _ (pairs config.subtypes)]
-    (values subtype (host:agent_subtype_cap subtype))))
-
 (fn class-caps [host config]
   (collect [agent _ (pairs config.classes)]
     (values agent (host:agent_cap agent))))
@@ -59,10 +55,10 @@
   (let [result (external-capacities host config.external)
         bonuses (host:bonus_values)]
     ;; Permanent native capacity rewards modify the base class capacity.
-    ;; Subtract active bonuses, including our uplift, to retain those rewards.
+    ;; Subtract active effect bonuses to retain only permanent base rewards.
     (each [agent families (pairs config.native_families)]
       (let [cap (host:agent_cap agent)
-            base (if (= cap 4294967295) 0
+            base (if (>= cap 4294967295) 0
                      (math.max 0 (- cap (bonuses:agent_value agent :cap))))]
         (each [_ family (ipairs families)]
           (tset result family (+ base (or (. result family) 0))))))
@@ -80,4 +76,4 @@
                     (+ source.value (or (. result family) 0)))))))
       result))))
 
-{: counts : subtype-bonuses : subtype-caps : class-caps : extras}
+{: counts : subtype-bonuses : class-caps : extras}

@@ -26,14 +26,17 @@ for mod in "${targets[@]}"; do
         archaon-everchosen)
             globals=cm,core,out,common,nurgle_plagues,find_uicomponent,cco,UIComponent,CampaignUI
             ;;
-        tamurkhan-chieftains|chaos-equipment|hero-capacity-test)
+        tamurkhan-chieftains|chaos-equipment)
             globals=cm,core,out,common
+            ;;
+        hero-capacity-test)
+            globals=cm,core,out,common,find_uicomponent,cco,UIComponent
             ;;
     esac
     source_dir="$root/mods/$mod"
     library_path="$source_dir/lib/?.fnl"
     if [[ "$mod" == hero-capacity-test ]]; then
-        # Reuse the capacity controller; its registry prevents double starts.
+        # Reuse the capacity controller and private hero selector.
         library_path+=";$root/mods/archaon-everchosen/lib/?.fnl"
     fi
     stage=$(mktemp -d "$root/build/.$mod.XXXXXXXX")
@@ -43,6 +46,11 @@ for mod in "${targets[@]}"; do
         mkdir -p -- "$stage/$(dirname -- "$relative")"
         cp -- "$asset" "$stage/$relative"
     done < <(find "$source_dir/assets" -type f ! -name .gitkeep -print0)
+    if [[ "$mod" == hero-capacity-test ]]; then
+        mkdir -p -- "$stage/text/db"
+        cp -- "$root/mods/archaon-everchosen/assets/text/db/everchosen_hero_recruitment.loc.tsv" \
+            "$stage/text/db/everchosen_hero_recruitment.loc.tsv"
+    fi
     if [[ -f "$source_dir/generator/generate.py" ]]; then
         python3 "$source_dir/generator/generate.py" --vanilla "${EVERCHOSEN_VANILLA_DB:-$root/.local/vanilla}" --output "$stage"
     fi

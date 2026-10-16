@@ -201,6 +201,10 @@
     (set env.core.get_env (fn [] env))
     ;; Each campaign session has a fresh cache for Fennel's bundled loaders.
     (set env.package {:preload {} :loaded {}})
+    ;; Hero recruitment has its own model/UI boundary regressions.
+    (each [_ module (ipairs [:everchosen_hero_capacity.campaign
+                             :everchosen_hero_recruitment.campaign])]
+      (tset env.package.preload module (fn [] {:start (fn [])})))
     (set env.require #(require-module env $1))
     env))
 

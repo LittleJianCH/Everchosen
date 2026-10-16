@@ -1,4 +1,4 @@
-"""A private, paginated hero-family selector using native recruitment tabs."""
+"""An alternate hero-family page above the original native candidate list."""
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 from uuid import NAMESPACE_URL, uuid5
@@ -149,8 +149,9 @@ def write_ui(native_root, output):
         components.append(part)
     panel = node
 
-    for index in range(1, PAGE_SIZE + 1):
-        name = f"everchosen_hero_slot_{index}"
+    for index in range(1, PAGE_SIZE + 2):
+        mode = index == PAGE_SIZE + 1
+        name = "everchosen_hero_mode" if mode else f"everchosen_hero_slot_{index}"
         # Native recruitment marks its extra label/icon as dynamic children.
         # This private selector has authored children: materialize the complete
         # button instead of retaining an external template instance.
@@ -158,22 +159,23 @@ def write_ui(native_root, output):
         button.attrib.pop("uniqueguid_in_template", None)
         button.attrib.pop("component_anchor_point", None)
         button.set("docking", "Top Left")
-        position = (f"{5 + (index - 1) % 4 * 200}.00,"
+        position = ("5.00,86.00" if mode else
+                    f"{5 + (index - 1) % 4 * 200}.00,"
                     f"{(index - 1) // 4 * 42}.00")
         button.set("offset", position)
         button.set("dock_offset", position)
-        button.set("visible", "false")
+        button.set("visible", "true" if mode else "false")
         button.set("allowhorizontalresize", "false")
         button.set("allowverticalresize", "false")
         for state in button.find("states"):
             width, height = int(state.get("width")), int(state.get("height"))
             state.set("width", "200")
-            state.set("height", "42")
+            state.set("height", "32" if mode else "42")
             for image in state.findall("imagemetrics/image"):
                 image.set("width", str(round(int(image.get("width"))
                                              * 200 / width)))
                 image.set("height", str(round(int(image.get("height"))
-                                              * 42 / height)))
+                                              * (32 if mode else 42) / height)))
         callbacks = ET.SubElement(button, "callbackwithcontextlist")
         ET.SubElement(callbacks, "callback_with_context", callback_id="Button")
         propagate = ET.SubElement(callbacks, "callback_with_context",
@@ -186,6 +188,11 @@ def write_ui(native_root, output):
             part = clone(sources[child], f"{name}_{child}")
             part.tag = child
             part.set("id", child)
+            if mode and child == "icon":
+                part.set("visible", "false")
+            if mode and child == "label":
+                for state in part.find("states"):
+                    state.set("height", "32")
             ET.SubElement(entry, child, this=part.get("this"))
             components.append(part)
 

@@ -7,10 +7,12 @@ MOD = Path(__file__).resolve().parents[1]
 ROOT = MOD.parents[1]
 sys.path[:0] = [str(ROOT / "tools"),
                 str(ROOT / "mods/archaon-everchosen/generator")]
-from db_tables import (read_authored, read_table, run_generator,
+from db_tables import (lua_literal, read_authored, read_table, run_generator,
                        write_localisation, write_table)
 import hero_appearance
 import hero_capacity
+import hero_families
+import hero_recruitment_ui
 from roster_permissions import campaign_units
 
 HOST = "wh_main_chs_chaos"
@@ -21,7 +23,8 @@ MAIN_CHAIN = "wh3_dlc20_settlement_woc_dark_fortress"
 RECRUIT_SCOPE = "province_to_province_own_unseen"
 HOST_CONTEXT = BUNDLE + "_host"
 CAP_EFFECTS = hero_capacity.CAP_EFFECTS
-TABLES = sorted(set(hero_appearance.TABLES) | set(hero_capacity.TABLES) | {
+TABLES = sorted(set(hero_appearance.TABLES) | set(hero_capacity.TABLES)
+                | set(hero_families.TABLES) | set(hero_recruitment_ui.TABLES) | {
     "effects", "effect_bonus_value_agent_junction", "effect_bundles",
     "effect_bundles_to_effects_junctions", "campaign_effect_scopes",
     "effect_bonus_value_agent_subtype_junctions", "building_chains",
@@ -31,7 +34,8 @@ TABLES = sorted(set(hero_appearance.TABLES) | set(hero_capacity.TABLES) | {
     "units_to_exclusive_faction_permissions",
 })
 NATIVE_INPUTS = {"db.pack": [f"db/{name}_tables" for name in TABLES],
-                 **hero_appearance.NATIVE_INPUTS}
+                 **hero_appearance.NATIVE_INPUTS,
+                 "ui3.pack": list(hero_recruitment_ui.NATIVE_INPUTS)}
 
 
 def rows(native, families):
@@ -187,6 +191,15 @@ def generate(vanilla, output):
     appearances, _ = hero_appearance.supported_heroes(native)
     hero_appearance.write_assets(vanilla, output, native, appearances)
     hero_capacity.write_assets(native, output)
+    hero_recruitment_ui.write_ui(vanilla, output)
+    ui_data = {"hero_recruitment": {
+        "subtypes": hero_families.script_data(native),
+        "icons": hero_recruitment_ui.script_data(native),
+        "page_size": hero_recruitment_ui.PAGE_SIZE}}
+    path = output / "script/campaign/mod/everchosen_hero_capacity_test_ui_data.lua"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('core:add_static_object("everchosen_hero_capacity_test_ui_data", '
+                    + lua_literal(ui_data) + ")\n", encoding="utf-8")
     write_localisation(output, recruitment_localisation(heroes, metadata),
                        FRAGMENT)
     print(f"Hero-capacity test: {len(families)} independent families +1 each")

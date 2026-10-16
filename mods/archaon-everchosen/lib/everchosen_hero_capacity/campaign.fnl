@@ -2,37 +2,27 @@
 (local scope (include :everchosen_core.data))
 (local model (include :everchosen_hero_capacity.world))
 (local rules (include :everchosen_hero_capacity.rules))
+(local data (include :everchosen_hero_capacity.data))
 
-(local config-key :everchosen_hero_capacity_data)
-(local saved-key :everchosen_hero_capacity_state)
-(local controller-key :everchosen_hero_capacity_controller)
-(local provider-key :everchosen_hero_family_capacity)
-
-;; These values describe this campaign's currently applied execution bundle.
+;; Derived capacity state is rebuilt from owned heroes and active sources.
 (var config nil)
-(var normalizers nil)
-(var applied {})
-(var last-uplifts {})
 (var current-plan nil)
-(var published? false)
+;; A single temporary slot belongs to the open private recruitment page.
+(var private? false)
 ;; Coalesce deferred ownership/building notifications and invalidate old reads.
 (var pending? false)
-(var measuring? false)
+(var working? false)
 (var generation 0)
 
 (fn run [callback ...]
   (let [(ok? error) (pcall callback ...)]
     (when (not ok?)
       (set current-plan nil)
-      (set normalizers nil)
-      (set applied {})
-      (set last-uplifts {})
       (set pending? false)
-      (set measuring? false)
+      (set working? false)
       (set generation (+ generation 1))
-      (when config
-        (cm:remove_effect_bundle config.bundle scope.host)
-        (cm:clear_saved_value saved-key))
+      (when config (cm:remove_effect_bundle config.bundle scope.host))
+      (core:trigger_custom_event data.failed {})
       (out (.. "[Everchosen hero capacity] " (tostring error))))))
 
 (fn apply-values [host effects]
@@ -40,118 +30,66 @@
     (each [effect value (pairs effects)]
       (bundle:add_effect effect :faction_to_faction_own_unseen value))
     (bundle:set_duration 0)
-    (cm:remove_effect_bundle config.bundle (host:name))
-    (cm:apply_custom_effect_bundle_to_faction bundle host)
-    (set applied effects)))
+    (cm:apply_custom_effect_bundle_to_faction bundle host)))
 
 (fn snapshot [subtypes]
   (when (and current-plan (world.host))
     (rules.snapshot config current-plan.families subtypes)))
 
+(fn ready []
+  (and current-plan (not pending?) (not working?)))
+
 (fn verify [ticket plan]
   (when (= ticket generation)
     (let [host (world.host)]
       (when host
-        (let [actual (model.subtype-caps host config)]
-          (each [subtype target (pairs plan.targets)]
-            (assert (= (. actual subtype) target)
-                    (.. "Hero capacity did not reach target: " subtype
-                        " target=" target " actual=" (. actual subtype)))))
-        (each [agent _ (pairs config.classes)]
-          (assert (>= (host:agent_cap agent)
-                      (. plan.class-targets agent))
-                  (.. "Native hero class still restricts families: " agent)))
+        (each [agent target (pairs plan.class-targets)]
+          (let [actual (host:agent_cap agent)]
+            (assert (or (= actual target)
+                        (and (>= actual 4294967295)
+                             (>= target 4294967295)))
+                    (.. "Native hero capacity did not reach target: " agent
+                        " target=" target " actual=" actual))))
         (set current-plan plan)
-        (when (not published?)
-          (core:add_static_object provider-key
-            {: snapshot :ready #(not (not current-plan))})
-          (set published? true))))))
+        (set working? false)
+        (core:trigger_custom_event data.ready {})))))
+
+(fn calculate [ticket]
+  (when (= ticket generation)
+    (let [host (world.host)]
+      (when host
+        (let [plan (rules.plan config (model.subtype-bonuses host config)
+                               (model.extras host config) (model.counts host)
+                               (model.class-caps host config) private?)]
+          (apply-values host plan.effects)
+          (cm:callback #(run verify ticket plan) 0.1))))))
 
 (fn refresh []
   (set pending? false)
-  (let [host (world.host)]
-    (when (and host normalizers)
-      (let [present? (host:has_effect_bundle config.bundle)
-            bonuses (model.subtype-bonuses host config)
-            sources (collect [subtype record (pairs config.subtypes)]
-                      (values subtype
-                        (- (. bonuses subtype)
-                           (if present? (or (. applied record.effect) 0) 0))))
-            class-caps (model.class-caps host config)
-            plan (rules.plan config sources (model.extras host config)
-                             (model.counts host) normalizers
-                             class-caps
-                             (if present? last-uplifts {}))]
-        (set plan.class-targets
-          (collect [agent cap (pairs class-caps)]
-            (values agent
-              (if (= cap 4294967295) cap
-                  (+ (- cap (if present?
-                                (or (. last-uplifts agent) 0) 0))
-                     (. plan.class-uplifts agent))))))
-        (set generation (+ generation 1))
-        (set current-plan nil)
-        (apply-values host plan.effects)
-        (set last-uplifts plan.class-uplifts)
-        ;; Save the applied values immediately, including saves before verify.
-        (cm:set_saved_value saved-key
-          {: normalizers : applied :uplifts last-uplifts})
-        (let [ticket generation]
-          (cm:callback #(run verify ticket plan) 0.1))))))
-
-(fn measure-second [first first-bonuses]
-  (let [host (world.host)]
-    (when host
-      (let [second (model.subtype-caps host config)
-            second-bonuses (model.subtype-bonuses host config)
-            failures
-            (icollect [subtype value (pairs first)]
-              (when (not (and (< (. second subtype) 4294967295)
-                              (= (. second subtype) (+ value 1))
-                              (= (. second-bonuses subtype)
-                                 (+ (. first-bonuses subtype) 1))))
-                (let [record (. config.subtypes subtype)]
-                  (string.format
-                    "%s base=%s cap=%s->%s bonus=%s->%s class=%s:%s"
-                    subtype record.base value (. second subtype)
-                    (. first-bonuses subtype) (. second-bonuses subtype)
-                    record.agent (host:agent_cap record.agent)))))]
-        (assert (= (length failures) 0)
-                (.. "Unsupported native subtype capacities:\n"
-                    (table.concat failures "\n")))
-        ;; Keep only the native base offset, never a building's current bonus.
-        (set normalizers
-          (collect [subtype value (pairs first)]
-            (values subtype (- (. first-bonuses subtype) value))))
-        (set measuring? false)
-        (refresh)))))
-
-(fn measure-first []
-  (let [host (world.host)]
-    (when host
-      (let [first (model.subtype-caps host config)
-            bonuses (model.subtype-bonuses host config)]
-        (apply-values host
-          (collect [_ record (pairs config.subtypes)]
-            (values record.effect 2)))
-        (cm:callback #(run measure-second first bonuses) 0.1)))))
-
-(fn measure []
-  (set pending? false)
-  (set measuring? true)
-  (let [host (world.host)]
-    (when host
-      (apply-values host
-        (collect [_ record (pairs config.subtypes)]
-          (values record.effect 1)))
-      (cm:callback #(run measure-first) 0.1))))
+  (when (world.host)
+    (set generation (+ generation 1))
+    (set working? true)
+    (set current-plan nil)
+    ;; Mask recruitment before removing our contribution. Reading a clamped
+    ;; total minus a negative contribution cannot recover the native baseline.
+    (core:trigger_custom_event data.updating {})
+    (cm:remove_effect_bundle config.bundle scope.host)
+    (let [ticket generation]
+      (cm:callback #(run calculate ticket) 0.1))))
 
 (fn request []
-  (when (and (not measuring?) (not pending?))
+  (when (not pending?)
     (set pending? true)
     (set generation (+ generation 1))
-    ;; A failed probe can retry on the next relevant event, never in a loop.
-    (cm:callback #(run (if normalizers refresh measure)) 0.1)))
+    (core:trigger_custom_event data.updating {})
+    (let [ticket generation]
+      (cm:callback #(when (= ticket generation) (run refresh)) 0.1))))
+
+(fn set-private [open?]
+  (when (or (not= private? open?)
+            (and (not working?) (not (ready))))
+    (set private? open?)
+    (refresh)))
 
 (fn tracked? [character]
   (and (world.valid? character)
@@ -179,11 +117,15 @@
 
 (fn start []
   (when (world.host)
-    (let [controller (core:get_static_object controller-key)]
+    (let [controller (core:get_static_object data.controller)]
       (if controller (controller.request)
-          (let [saved (cm:get_saved_value saved-key)]
-            (set config (assert (core:get_static_object config-key)))
-            (core:add_static_object controller-key {: request})
+          (do
+            (set config (assert (core:get_static_object data.config)))
+            (core:add_static_object data.controller {: request})
+            (core:add_static_object data.provider
+              {: snapshot : ready :pending #(or pending? working?)
+               :request #(run request)
+               :set-private #(run set-private $1)})
             (listen :CharacterRecruited tracked-character? refresh)
             (each [_ event (ipairs [:CharacterConvalescedOrKilled
                                     :CharacterFactionChangeEvent
@@ -194,6 +136,8 @@
             (listen :FactionTurnStart #(world.host? ($1:faction)) request)
             (listen :PanelOpenedCampaign
                     #(= $1.string :character_panel) request)
+            (listen :PanelClosedCampaign
+                    #(= $1.string :character_panel) #(set-private false))
             ;; Re-query current ownership after native asynchronous commands.
             (each [_ event (ipairs [:FactionJoinsConfederation
                                     :BuildingCompleted
@@ -202,12 +146,6 @@
                                     :ResearchCompleted
                                     :RegionFactionChangeEvent])]
               (listen event true request))
-            (if saved
-                (do
-                  (set normalizers saved.normalizers)
-                  (set applied saved.applied)
-                  (set last-uplifts saved.uplifts)
-                  (request))
-                (measure)))))))
+            (refresh))))))
 
 {:start #(run start)}

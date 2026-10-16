@@ -1,6 +1,6 @@
 key	text	tooltip
 #Loc;1;text/db/everchosen_hero_recruitment.loc		
-everchosen_hero_loading	正在整理英雄分类…	false
 everchosen_hero_page	第 %d / %d 页	false
-everchosen_hero_family_capacity_label	%s %d/%d	false
 everchosen_hero_unavailable	当前地区暂时无法招募此类英雄	false
+everchosen_hero_private_page	其他英雄	false
+everchosen_hero_native_page	返回常规英雄	false
