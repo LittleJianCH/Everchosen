@@ -1,4 +1,4 @@
-"""An alternate hero-family page above the original native candidate list."""
+"""A unified hero-family header and a separate disabled recruitment visual."""
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 from uuid import NAMESPACE_URL, uuid5
@@ -6,6 +6,8 @@ from uuid import NAMESPACE_URL, uuid5
 TABLES = ("agent_culture_details",)
 PANEL = "ui/campaign ui/character_panel.twui.xml"
 UI_PATH = "ui/everchosen/hero_families.twui.xml"
+BLOCKED_PATH = "ui/everchosen/hero_confirm_blocked.twui.xml"
+BLOCKED = "everchosen_hero_confirm_blocked"
 ROOT = "everchosen_hero_families"
 PAGE_SIZE = 8
 NATIVE_INPUTS = (
@@ -13,6 +15,7 @@ NATIVE_INPUTS = (
     "ui/templates/square_medium_text_tab_toggle.twui.xml",
     "ui/templates/cycle_button_arrow_previous.twui.xml",
     "ui/templates/cycle_button_arrow_next.twui.xml",
+    "ui/templates/square_large_text_button.twui.xml",
 )
 ANCHORS = {
     "container": "3A620DFB-CB4E-4BC3-BF1B230582AA59C4",
@@ -67,7 +70,7 @@ def clone(source, name):
     return part
 
 
-def validate_ui(tree, native_root):
+def validate_ui(tree, native_root, header=True):
     """Check local component/state/image references and native template links."""
     root = tree.getroot()
     components = root.find("components")
@@ -80,7 +83,7 @@ def validate_ui(tree, native_root):
         if parts[node.get("this")].tag != node.tag:
             raise ValueError("Private hero selector hierarchy tag mismatch")
     panel = root.find(f"hierarchy/root/{ROOT}")
-    for index in range(1, PAGE_SIZE + 1):
+    for index in range(1, PAGE_SIZE + 1) if header else ():
         entry = panel.find(f"everchosen_hero_slot_{index}")
         button = parts[entry.get("this")]
         if (button.get("template_id") or button.get("part_of_template")
@@ -149,9 +152,8 @@ def write_ui(native_root, output):
         components.append(part)
     panel = node
 
-    for index in range(1, PAGE_SIZE + 2):
-        mode = index == PAGE_SIZE + 1
-        name = "everchosen_hero_mode" if mode else f"everchosen_hero_slot_{index}"
+    for index in range(1, PAGE_SIZE + 1):
+        name = f"everchosen_hero_slot_{index}"
         # Native recruitment marks its extra label/icon as dynamic children.
         # This private selector has authored children: materialize the complete
         # button instead of retaining an external template instance.
@@ -159,23 +161,22 @@ def write_ui(native_root, output):
         button.attrib.pop("uniqueguid_in_template", None)
         button.attrib.pop("component_anchor_point", None)
         button.set("docking", "Top Left")
-        position = ("5.00,86.00" if mode else
-                    f"{5 + (index - 1) % 4 * 200}.00,"
+        position = (f"{5 + (index - 1) % 4 * 200}.00,"
                     f"{(index - 1) // 4 * 42}.00")
         button.set("offset", position)
         button.set("dock_offset", position)
-        button.set("visible", "true" if mode else "false")
+        button.set("visible", "false")
         button.set("allowhorizontalresize", "false")
         button.set("allowverticalresize", "false")
         for state in button.find("states"):
             width, height = int(state.get("width")), int(state.get("height"))
             state.set("width", "200")
-            state.set("height", "32" if mode else "42")
+            state.set("height", "42")
             for image in state.findall("imagemetrics/image"):
                 image.set("width", str(round(int(image.get("width"))
                                              * 200 / width)))
                 image.set("height", str(round(int(image.get("height"))
-                                              * (32 if mode else 42) / height)))
+                                              * 42 / height)))
         callbacks = ET.SubElement(button, "callbackwithcontextlist")
         ET.SubElement(callbacks, "callback_with_context", callback_id="Button")
         propagate = ET.SubElement(callbacks, "callback_with_context",
@@ -188,11 +189,6 @@ def write_ui(native_root, output):
             part = clone(sources[child], f"{name}_{child}")
             part.tag = child
             part.set("id", child)
-            if mode and child == "icon":
-                part.set("visible", "false")
-            if mode and child == "label":
-                for state in part.find("states"):
-                    state.set("height", "32")
             ET.SubElement(entry, child, this=part.get("this"))
             components.append(part)
 
@@ -222,4 +218,54 @@ def write_ui(native_root, output):
     destination.parent.mkdir(parents=True, exist_ok=True)
     ET.indent(tree, space="\t")
     tree.write(destination, encoding="utf-8", xml_declaration=True)
-    return 1
+    write_blocked(native_root, output)
+    return 2
+
+
+def write_blocked(native_root, output):
+    """Materialize the native inactive button without any recruitment callback."""
+    tree = ET.parse(native_root / NATIVE_INPUTS[-1])
+    root = tree.getroot()
+    remap = {value: str(uuid5(NAMESPACE_URL, f"{BLOCKED}/{value}")).upper()
+             for element in root.iter()
+             for attr, value in element.attrib.items()
+             if attr in {"this", "uniqueguid"}}
+    for element in root.iter():
+        element.attrib.pop("uniqueguid_in_template", None)
+        for attr, value in list(element.attrib.items()):
+            if value in remap:
+                element.set(attr, remap[value])
+    hierarchy = root.find("hierarchy/root/square_large_text_button")
+    hierarchy.tag = BLOCKED
+    components = root.find("components")
+    button = components.find("square_large_text_button")
+    button.tag = BLOCKED
+    button.set("id", BLOCKED)
+    button.set("offset", "0.00,0.00")
+    button.set("visible", "false")
+    button.set("priority", "300")
+    inactive = button.find('states/*[@name="inactive"]')
+    if inactive is None or inactive.get("disabled") != "true":
+        raise ValueError("Native inactive recruitment button changed")
+    button.set("currentstate", inactive.get("this"))
+    button.set("defaultstate", inactive.get("this"))
+    for state in button.find("states"):
+        state.set("width", "300")
+        for image in state.findall("imagemetrics/image"):
+            image.set("width", "300")
+    flame = hierarchy.find("button_flame")
+    hierarchy.remove(flame)
+    components.remove(components.find("button_flame"))
+    label = components.find("button_txt")
+    label.set("offset", "0.00,0.00")
+    for text in label.findall("states/*/component_text"):
+        text.attrib.pop("textlabel", None)
+        text.set("text", "")
+    neutral = components.find("root")
+    for state in neutral.find("states"):
+        state.set("width", "300")
+        state.set("height", "51")
+    validate_ui(tree, native_root, header=False)
+    destination = output / BLOCKED_PATH
+    ET.indent(tree, space="\t")
+    tree.write(destination, encoding="utf-8", xml_declaration=True)

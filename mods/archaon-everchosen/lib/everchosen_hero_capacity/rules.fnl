@@ -22,32 +22,27 @@
           limit (math.max 0 (math.floor (+ source (or (. extras family) 0))))]
       (values family {: used : limit}))))
 
-(fn class-targets [config families counts private?]
+(fn class-targets [config counts]
   (collect [agent _ (pairs config.classes)]
-    (let [retained (. families (. config.native_page agent))
-          used (accumulate [total 0 subtype class
+    (let [used (accumulate [total 0 subtype class
                             (pairs config.counted_subtypes)]
-                 (+ total (if (= class agent) (or (. counts subtype) 0) 0)))
-          ;; Imported heroes consume their own quota, not the native family's.
-          imported (- used retained.used)
-          native (+ retained.limit imported)]
-      ;; One extra native slot keeps private-page candidates accessible even
-      ;; when the retained hero is full. The private page gates its own quota.
-      (values agent (if private? (+ (math.max native used) 1) native)))))
+                 (+ total (if (= class agent) (or (. counts subtype) 0) 0)))]
+      ;; The unified page enforces every family quota. Keep one native slot
+      ;; available through panel closure until the hiring command completes.
+      (values agent (+ used 1)))))
 
-(fn plan [config source-bonus extras counts native-caps private?]
-  "Plan family quotas and the six native recruitment capacities.
-  native-caps must be read without this controller's effect bundle.
-  private? opens one shared navigation slot, never a per-family cap switch."
+(fn plan [config source-bonus extras counts native-caps]
+  "Plan family quotas and one native hiring slot per class.
+  native-caps must be read without this controller's effect bundle."
   (let [families (family-state config source-bonus extras counts)
-        targets (class-targets config families counts private?)
+        targets (class-targets config counts)
         effects (collect [agent effect (pairs config.classes)]
                   (let [native (. native-caps agent)]
                     (assert (< native unlimited)
                             (.. "Cannot constrain unlimited hero class: " agent))
                     (values effect
                       (- (. targets agent) native))))]
-    {: families : effects :class-targets targets : private?}))
+    {: families : effects :class-targets targets}))
 
 (fn snapshot [config families subtypes]
   "Return used/limit for one known family, or nil for mixed/unknown subtypes."

@@ -13,6 +13,7 @@ import hero_appearance
 import hero_capacity
 import hero_families
 import hero_recruitment_ui
+import beastmen_hero_economy
 from roster_permissions import campaign_units
 
 HOST = "wh_main_chs_chaos"
@@ -24,6 +25,7 @@ RECRUIT_SCOPE = "province_to_province_own_unseen"
 HOST_CONTEXT = BUNDLE + "_host"
 CAP_EFFECTS = hero_capacity.CAP_EFFECTS
 TABLES = sorted(set(hero_appearance.TABLES) | set(hero_capacity.TABLES)
+                | set(beastmen_hero_economy.TABLES)
                 | set(hero_families.TABLES) | set(hero_recruitment_ui.TABLES) | {
     "effects", "effect_bonus_value_agent_junction", "effect_bundles",
     "effect_bundles_to_effects_junctions", "campaign_effect_scopes",
@@ -191,6 +193,7 @@ def generate(vanilla, output):
     appearances, _ = hero_appearance.supported_heroes(native)
     hero_appearance.write_assets(vanilla, output, native, appearances)
     hero_capacity.write_assets(native, output)
+    beastmen_hero_economy.write_assets(native, output)
     hero_recruitment_ui.write_ui(vanilla, output)
     ui_data = {"hero_recruitment": {
         "subtypes": hero_families.script_data(native),

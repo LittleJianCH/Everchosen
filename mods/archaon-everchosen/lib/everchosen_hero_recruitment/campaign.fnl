@@ -5,11 +5,12 @@
 
 (local prefix "everchosen_hero_")
 
-;; Only the current panel and its outstanding native selection live here.
+;; The live panel and its previous hidden instance retain their fixed layout.
 (var session nil)
-;; A closed or rebuilt panel invalidates all its delayed UI commands.
+(var closed-session nil)
+;; Delayed native selection commands belong to one panel generation.
 (var generation 0)
-;; One native private-page recruitment command may await its creation event.
+;; One native recruitment command may await its character creation event.
 (var recruiting nil)
 
 (fn current? [state]
@@ -26,8 +27,13 @@
   (accumulate [found nil _ group (ipairs state.groups) &until found]
     (when (= group.key key) group)))
 
+(fn same-panel? [state controls]
+  (and state (= state.address (controls.panel:Address))
+       (= state.frame (controls.frame:Address))
+       (= state.parent (controls.parent:Address))))
+
 (fn selected-class [controls]
-  (accumulate [found nil agent _ (pairs (. (config) :native_page))
+  (accumulate [found nil agent _ (pairs (. (config) :classes))
                &until found]
     (let [button (find_uicomponent controls.agents agent)]
       (when (and button (rules.selected? (button:CurrentState))) agent))))
@@ -38,7 +44,7 @@
       (set generation (+ generation 1))
       (when session
         (let [controls (view.controls true)]
-          (when controls (view.block controls))))
+          (when controls (view.block controls session))))
       (out (.. "[Everchosen hero recruitment] " (tostring error))))))
 
 (fn later [callback state delay]
@@ -46,27 +52,26 @@
 
 (fn render [state]
   (let [controls (view.controls)
-        private (icollect [_ group (ipairs state.groups)]
-                  (when group.private? group))
         size (. (world.static-data) :hero_recruitment :page_size)
-        (entries page pages) (rules.page private state.page size)]
+        (entries page pages) (rules.page state.groups state.page size)]
     (set state.page page)
     (set state.page-entries entries)
-    (view.native-labels controls state.groups state)
-    (view.show-page controls entries page pages state.selected state.private?)))
+    (view.show-page controls entries page pages state.selected)))
 
 (fn refresh-gate [state]
   (when (current? state)
     (let [controls (view.controls)
           group (group-by-key state state.selected)
           provider (capacity)
-          snapshot (and group (provider.snapshot group.subtypes))]
+          snapshot (and group (provider.snapshot group.subtypes))
+          full? (and snapshot (>= snapshot.used snapshot.limit))]
       (when snapshot (view.show-capacity controls state group snapshot))
-      (view.gate controls
+      (view.gate controls state
         (and (not state.busy?) (not recruiting) (not (provider.pending))
-             (provider.ready) snapshot (< snapshot.used snapshot.limit)
+             (provider.ready) snapshot (not full?)
              (= (selected-class controls) group.agent)
-             (view.matches? controls group))))))
+             (view.matches? controls group))
+        (when full? :everchosen_hero_capacity_full)))))
 
 (fn finish-selection [state]
   (when (and (current? state) (not ((. (capacity) :pending))))
@@ -99,14 +104,12 @@
       (when (and selected (not (rules.selected? (selected:CurrentState))))
         (selected:SimulateLClick))
       (set state.phase :finish)
-      ;; Return to native rules only after its retained subtype is selected.
-      (when (not state.private?) ((. (capacity) :set-private) false))
       (if selected
           (later finish-selection state 0.1)
           (do
             (set state.busy? false)
             (controls.selection:SetInteractive true)
-            (view.gate controls false)
+            (view.gate controls state false :everchosen_hero_unavailable)
             (: (find_uicomponent controls.private :everchosen_hero_page)
                :SetStateText
                (common.get_localised_string :everchosen_hero_unavailable)))))))
@@ -126,131 +129,158 @@
                        (rules.selected? (button:CurrentState))))
               (do
                 (when (not (rules.selected? (button:CurrentState)))
-                  ;; Native callbacks own the pool, costs, portraits and traits.
+                  ;; Preserve the native pool, portraits, traits and hire command.
                   (controls.agents:SetVisible true)
                   (button:SimulateLClick)
-                  (controls.agents:SetVisible (not state.private?)))
+                  (controls.agents:SetVisible false))
                 (set state.phase :subtype)
                 (later choose-subtype state 0.1))
               (do
                 (set state.busy? false)
-                (view.gate controls false)))))))
+                (view.gate controls state false)))))))
 
 (fn select-family [state group]
   (when (and (current? state) group (not state.busy?))
     (set state.selected group.key)
     (set state.busy? true)
     (set state.phase :class)
-    (view.block (view.controls))
-    (when state.private? ((. (capacity) :set-private) true))
+    (view.block (view.controls) state)
     (render state)
     (navigate-family state)))
-
-(fn native-group [state agent]
-  (group-by-key state (. (config) :native_page agent)))
-
-(fn change-mode [state]
-  (let [group (group-by-key state state.selected)]
-    (if state.private?
-        (do
-          (set state.private? false)
-          (select-family state (native-group state group.agent)))
-        (let [private
-              (or (group-by-key state state.last-private)
-                  (accumulate [found nil _ candidate (ipairs state.groups)
-                               &until found]
-                    (when candidate.private? candidate)))]
-          (set state.private? true)
-          (select-family state private)))))
 
 (fn initialise-selection [state]
   (when (current? state)
     (let [controls (view.controls)
-          agent (or (selected-class controls)
-                    (accumulate [found nil candidate _
-                                 (pairs (. (config) :native_page))
-                                 &until found]
-                      (let [button
-                            (find_uicomponent controls.agents candidate)]
-                        (when (and button
-                                   (rules.selectable? (button:CurrentState)))
-                          candidate))))]
-      (when agent (select-family state (native-group state agent))))))
+          selected
+          (or (group-by-key state state.selected)
+              (accumulate [found nil _ button
+                           (ipairs (view.children controls.types))
+                           &until found]
+                (when (rules.selected? (button:CurrentState))
+                  (let [record (. (config) :subtypes (button:Id))]
+                    (when record (group-by-key state record.family)))))
+              (group-by-key state :wh_main_chs_exalted_hero)
+              (. state.groups 1))]
+      (set state.page
+        (accumulate [page 1 index group (ipairs state.groups)]
+          (if (= group.key selected.key)
+              (math.ceil
+                (/ index (. (world.static-data) :hero_recruitment :page_size)))
+              page)))
+      (select-family state selected))))
 
 (fn begin []
   (when (world.host)
-    (let [controls (view.controls)]
-      (when controls
-        (when session (view.restore controls session))
-        (view.create controls)
-        (let [groups (rules.catalog (. (config) :families))]
-          (set session
-            {: groups :page 1 :hidden {} :labels {} :private? false
-             :generation generation :busy? false
-             :native-subtypes
-             (collect [subtype _ (pairs (. (config) :subtypes))]
-               (values subtype true))}))
-        (view.reserve-frame controls session)
-        (view.block controls)
-        (render session)
-        (later initialise-selection session 0.05)))))
+    (let [all-controls (view.controls true)
+          controls (view.controls)
+          previous (or session closed-session)]
+      (if controls
+          (do
+            (if (same-panel? previous controls)
+                (do
+                  (set session previous)
+                  (set session.generation generation)
+                  (set session.busy? false)
+                  (set session.phase nil)
+                  (view.restore-types controls session))
+                (do
+                  (view.create controls)
+                  (let [groups (rules.catalog (. (config) :families))]
+                    (set session
+                      {: groups :page 1 :hidden {} :blocked {}
+                       :generation generation :busy? false
+                       :address (controls.panel:Address)
+                       :frame (controls.frame:Address)
+                       :parent (controls.parent:Address)
+                       :confirmers
+                       (collect [_ button
+                                 (ipairs [controls.confirm controls.raise])]
+                         (values (button:Address) true))
+                       :native-subtypes
+                       (accumulate
+                         [known (collect [subtype _
+                                          (pairs (. (config) :subtypes))]
+                                  (values subtype true))
+                          _ family (pairs (. (config) :families))]
+                         (do
+                           (each [_ subtype
+                                  (ipairs family.promoted_subtypes)]
+                             (tset known subtype true))
+                           known))}))
+                  (view.reserve-frame controls session)))
+            (set closed-session nil)
+            (view.block controls session)
+            (render session)
+            (initialise-selection session)
+            true)
+          (when (and all-controls (same-panel? previous all-controls))
+            ;; The next native lord view may share the outer panel components.
+            (view.restore-types all-controls previous)
+            (view.close all-controls previous)
+            (set session nil)
+            (set closed-session nil))))))
 
 (fn close []
   (set generation (+ generation 1))
   (when session
-    (let [closed session
-          controls (view.controls true)]
-      (set session nil)
-      (when controls (view.restore controls closed))
-      ((. (capacity) :set-private) false))))
+    ;; Do not alter native selected subtype/card context while its queued hire
+    ;; processes the click. Reuse or clean this hidden layout at the next open.
+    (set closed-session session)
+    (set session nil)))
 
 (fn request []
   (set generation (+ generation 1))
-  (let [controls (view.controls)]
-    (when controls (view.block controls)))
-  (let [ticket generation]
-    (cm:callback #(when (= ticket generation) (run begin nil)) 0.1)))
+  (when (not (begin))
+    (let [ticket generation]
+      ;; Some native callbacks create the controls just after PanelOpened.
+      (cm:callback #(when (= ticket generation) (run begin nil)) 0.1))))
+
+(fn confirmation [context]
+  (let [state (or session closed-session)]
+    (when (and state
+               (or (= context.string :button_confirm)
+                   (= context.string :button_raise))
+               (. state.confirmers
+                  (: (UIComponent context.component) :Address)))
+      (let [group (group-by-key state state.selected)
+            provider (capacity)
+            snapshot (provider.snapshot group.subtypes)
+            host (world.host)]
+        (out (.. "[Everchosen hero recruitment] Confirm " group.key
+                 " used=" (tostring (and snapshot snapshot.used))
+                 " limit=" (tostring (and snapshot snapshot.limit))
+                 " class=" group.agent
+                 " cap=" (tostring (and host (host:agent_cap group.agent)))))
+        ;; The creation event may already have synchronously queued refresh.
+        (when (not (provider.pending)) (set recruiting group.members))
+        ;; The compiled native callback may still read this button's state.
+        ;; Defer our visual gate until the current click has finished dispatch.
+        (when (current? session) (later refresh-gate session 0.05))
+        true))))
 
 (fn click [context]
-  (when (and (current? session) (not session.busy?))
-    (let [id context.string
-          controls (view.controls)
-          slot (tonumber (string.match id "^everchosen_hero_slot_(%d+)$"))]
-      (if (and (= id :everchosen_hero_mode)
-               (view.clicked? controls.private context))
-          (change-mode session)
-          (and session.private? slot (view.clicked? controls.private context))
-          (let [group (. session.page-entries slot)]
-            (when group
-              (set session.last-private group.key)
-              (select-family session group)))
-          (and session.private? (= id :everchosen_hero_prev)
-               (view.clicked? controls.private context))
-          (do (set session.page (- session.page 1)) (render session))
-          (and session.private? (= id :everchosen_hero_next)
-               (view.clicked? controls.private context))
-          (do (set session.page (+ session.page 1)) (render session))
-          (and (not session.private?) (. (config) :native_page id)
-               (view.clicked? controls.agents context))
-          (select-family session (native-group session id))
-          (and (or (= id :button_cycle_left) (= id :button_cycle_right))
-               (view.clicked? (find_uicomponent controls.panel :footer) context))
-          (request)
-          (and session.private?
-               (or (= id :button_confirm) (= id :button_raise))
-               (view.clicked? (find_uicomponent controls.panel :footer) context))
-          (do
-            ;; A synchronous creation event may already have queued refresh.
-            (when (not ((. (capacity) :pending)))
-              (set recruiting
-                (. (group-by-key session session.selected) :members)))
-            (view.block controls))
-          (do
-            (refresh-gate session)
-            (later refresh-gate session 0.05))))))
+  (when (not (confirmation context))
+    (when (and (current? session) (not session.busy?))
+      (let [id context.string
+            controls (view.controls)
+            slot (tonumber (string.match id "^everchosen_hero_slot_(%d+)$"))]
+        (if (and slot (view.clicked? controls.private context))
+            (select-family session (. session.page-entries slot))
+            (and (= id :everchosen_hero_prev)
+                 (view.clicked? controls.private context))
+            (do (set session.page (- session.page 1)) (render session))
+            (and (= id :everchosen_hero_next)
+                 (view.clicked? controls.private context))
+            (do (set session.page (+ session.page 1)) (render session))
+            (and (or (= id :button_cycle_left) (= id :button_cycle_right))
+                 (view.clicked? controls.footer context))
+            (request)
+            (do
+              (refresh-gate session)
+              (later refresh-gate session 0.05)))))))
 
 (fn capacity-updating []
-  (when (current? session) (view.block (view.controls))))
+  (when (current? session) (view.block (view.controls) session)))
 
 (fn capacity-ready []
   (when (current? session)
@@ -263,25 +293,26 @@
           (render session)))))
 
 (fn recruited [context]
-  (when (and recruiting
-             (. recruiting (: (context:character) :character_subtype_key)))
-    (set recruiting nil))
+  (let [subtype (: (context:character) :character_subtype_key)]
+    (when (. (config) :subtypes subtype)
+      (out (.. "[Everchosen hero recruitment] CharacterRecruited " subtype)))
+    (when (and recruiting (. recruiting subtype)) (set recruiting nil)))
   (when (current? session)
-    ;; The creation event disables the next click before a delayed cap refresh.
-    (view.block (view.controls))
+    (view.block (view.controls) session)
     (later refresh-gate session 0.1)))
 
 (fn turn-start []
   ;; A normal hire is immediate; no UI command remains pending next own turn.
   (when recruiting
-    (when (current? session) (view.block (view.controls)))
+    (when (current? session) (view.block (view.controls) session))
     (set recruiting nil)
     ((. (capacity) :request))))
 
 (fn hover [context]
   (when (and (current? session)
              (or (= context.string :button_confirm)
-                 (= context.string :button_raise)))
+                 (= context.string :button_raise)
+                 (= context.string :everchosen_hero_confirm_blocked)))
     (refresh-gate session)))
 
 (fn start []

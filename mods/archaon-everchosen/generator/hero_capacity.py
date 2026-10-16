@@ -23,15 +23,6 @@ NATIVE_FAMILIES = {
     "champion": ("wh_main_chs_exalted_hero",),
     "wizard": ("wh_main_chs_chaos_sorcerer",),
 }
-# One family per native class; every other family uses the private page.
-RETAINED_FAMILIES = {
-    "champion": "wh_main_chs_exalted_hero",
-    "wizard": "wh_main_chs_chaos_sorcerer",
-    "dignitary": "wh3_main_kho_bloodreaper",
-    "runesmith": "wh3_main_tze_iridescent_horror",
-    "spy": "wh3_main_nur_plagueridden",
-    "engineer": "wh3_main_sla_alluress",
-}
 # Dedicated heroes are promotion forms, never an extra direct recruit source.
 PROMOTED_FAMILIES = {
     "wh3_dlc20_chs_exalted_hero_mkho": "wh_main_chs_exalted_hero",
@@ -122,7 +113,6 @@ def families(native):
             "name_key": metadata[subtype]["name_key"],
             "description_key": metadata[subtype]["description_key"],
             "icon": metadata[subtype]["icon"],
-            "private": family not in RETAINED_FAMILIES.values(),
             "subtypes": [],
             "promoted_subtypes": [],
             "source_effect": source_effect(family)})
@@ -139,9 +129,6 @@ def families(native):
 
 def script_data(native):
     grouped = families(native)
-    for agent, family in RETAINED_FAMILIES.items():
-        if grouped[family]["agent"] != agent:
-            raise ValueError(f"Native page hero class changed: {family}")
     agents = native["agent_subtypes"]
     # Unique heroes and chieftains can occupy the native parent class too.
     # Ignore globally ambiguous classes instead of assigning one arbitrarily.
@@ -195,7 +182,6 @@ def script_data(native):
             for subtype in record["subtypes"]},
         "classes": {agent: PREFIX + "parent_" + agent for agent in CAP_EFFECTS},
         "native_families": NATIVE_FAMILIES,
-        "native_page": RETAINED_FAMILIES,
         "counted_subtypes": counted, "external": external, "skills": skills,
     }
 

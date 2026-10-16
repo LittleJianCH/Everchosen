@@ -1,7 +1,6 @@
-;; The native UI and capacity provider are observation boundaries here.
-;; The fixture never invents candidate generation, pricing or cap arithmetic.
+;; Native candidate generation, prices and class-cap arithmetic are observed
+;; inputs. Only the real recruitment controller and targeted view rules run.
 (local root (assert (os.getenv :EVERCHOSEN_ROOT)))
-(local mode :everchosen_hero_mode)
 (local updating :ScriptEventEverchosenHeroCapacityUpdating)
 (local ready :ScriptEventEverchosenHeroCapacityReady)
 
@@ -12,26 +11,31 @@
 (fn scenario [pending?]
   (let [s {:queue [] :listeners {} :logs [] :class-clicks []
            :subtype-clicks [] :enabled? false :pending? pending?
+           :prepares 0 :creates 0 :closes 0 :restores 0
+           :mutations 0
            :selected-class :wizard :selected-subtype :chaos-fire
-           :snapshots {:sorcerer {:used 0 :limit 1}
-                       :alluress {:used 0 :limit 1}
-                       :a-shaman {:used 1 :limit 1}
-                       :b-castellan {:used 0 :limit 1}}}
+           :snapshots {:a-sorcerer {:used 0 :limit 1}
+                       :b-alluress {:used 0 :limit 1}
+                       :c-shaman {:used 1 :limit 1}
+                       :d-castellan {:used 0 :limit 1}}}
         families
-        {:sorcerer {:agent :wizard :private false :subtypes [:chaos-fire]}
-         :alluress {:agent :engineer :private false :subtypes [:slaanesh]}
-         :a-shaman {:agent :wizard :private true :subtypes [:fire :death]}
-         :b-castellan {:agent :engineer :private true :subtypes [:castellan]}}
-        metadata {:chaos-fire {:family :sorcerer}
-                  :slaanesh {:family :alluress}
-                  :fire {:family :a-shaman} :death {:family :a-shaman}
-                  :castellan {:family :b-castellan}}
+        {:a-sorcerer {:agent :wizard :subtypes [:chaos-fire]
+                     :promoted_subtypes [:marked-fire]}
+         :b-alluress {:agent :engineer :subtypes [:slaanesh]
+                     :promoted_subtypes []}
+         :c-shaman {:agent :wizard :subtypes [:fire :death]
+                   :promoted_subtypes []}
+         :d-castellan {:agent :engineer :subtypes [:castellan]
+                      :promoted_subtypes []}}
+        metadata {:chaos-fire {:family :a-sorcerer}
+                  :slaanesh {:family :b-alluress}
+                  :fire {:family :c-shaman} :death {:family :c-shaman}
+                  :castellan {:family :d-castellan}}
         config {: families :subtypes metadata
-                :native_page {:wizard :sorcerer :engineer :alluress}}
+                :classes {:wizard :wizard-cap :engineer :engineer-cap}}
         objects {:everchosen_hero_capacity_data config}
         provider {:pending #(not (not s.pending?))
                   :ready #(not s.pending?)
-                  :set-private #(set s.private? $1)
                   :request (fn []
                              (set s.requested? true)
                              (set s.pending? true))
@@ -41,29 +45,49 @@
         types (collect [_ subtype
                         (ipairs [:chaos-fire :slaanesh :fire :death :castellan])]
                 (values subtype
-                  {:Visible (fn [] true)
+                  {:Id (fn [] subtype) :Visible (fn [] true)
                    :CurrentState #(if (= subtype s.selected-subtype)
                                       :selected :active)
                    :SimulateLClick (fn []
                      (table.insert s.subtype-clicks subtype)
                      (set s.selected-subtype subtype))}))
-        controls {: agents : types :private {:kind :private}
-                  :panel {:footer {:kind :footer}}
-                  :selection {:SetInteractive (fn [])}}
-        world {:host (fn [] true) :host? (fn [] true)
-               :static-data #(do {:hero_recruitment {:page_size 8}})}
-        view {:controls (fn [] controls) :create (fn [])
-              :reserve-frame (fn []) :restore (fn [])
-              :restore-types (fn []) :filter-types (fn [])
-              :native-labels (fn []) :show-capacity (fn [])
-              :block #(set s.enabled? false)
-              :gate (fn [_ enabled?] (set s.enabled? (not (not enabled?))))
+        confirm {:Address (fn [] 4)}
+        controls {: agents : types : confirm :private {:kind :private}
+                  :panel {:Address (fn [] 1)}
+                  :frame {:Address (fn [] 2)}
+                  :parent {:Address (fn [] 3)}
+                  :footer {:kind :footer}
+                  :selection {:SetInteractive
+                              #(set s.mutations (+ s.mutations 1))}}
+        host {:agent_cap (fn [] 2)}
+        world {:host (fn [] host) :host? (fn [] true)
+               :static-data #(do {:hero_recruitment {:page_size 2}})}
+        view {:controls (fn [] controls)
+              :create #(set s.creates (+ s.creates 1))
+              :reserve-frame #(set s.prepares (+ s.prepares 1))
+              :close #(set s.closes (+ s.closes 1))
+              :restore-types #(set s.restores (+ s.restores 1))
+              :filter-types (fn []) :show-capacity (fn [])
+              :block (fn []
+                       (set s.mutations (+ s.mutations 1))
+                       (set s.enabled? false))
+              :gate (fn [_ _ enabled? reason]
+                      (set s.mutations (+ s.mutations 1))
+                      (set s.enabled? (not (not enabled?)))
+                      (set s.reason reason))
               :matches? (fn [] true)
+              :children (fn [parent]
+                          (assert.equals types parent)
+                          (icollect [_ subtype
+                                     (ipairs [:chaos-fire :slaanesh :fire
+                                              :death :castellan])]
+                            (. types subtype)))
               :clicked? (fn [parent context] (= parent.kind context.origin))
-              :show-page (fn [_ entries _ _ selected private?]
+              :show-page (fn [_ entries page pages selected]
                            (set s.groups entries)
-                           (set s.selected selected)
-                           (set s.rendered-private? private?))}
+                           (set s.page page)
+                           (set s.pages pages)
+                           (set s.selected selected))}
         env (setmetatable
           {:package {:preload {} :loaded {}}
            :out #(table.insert s.logs $1)
@@ -109,17 +133,20 @@
                           :everchosen_hero_recruitment.view
                           :everchosen_hero_recruitment.campaign])]
       (tset env.package.loaded key nil))
-    (set s.native-matches? (. (s.native-view-loader) :matches?))
+    (set s.native-view (s.native-view-loader))
     ((. (env.require :everchosen_hero_recruitment.campaign) :start))
     (set s.emit
       (fn [event context]
         (let [listener (assert (. s.listeners event))]
           (when (or (= true listener.predicate) (listener.predicate context))
             (listener.callback context)))))
-    (set s.click #(s.emit :ComponentLClickUp {:string $1 :origin $2}))
+    (set s.click
+      #(s.emit :ComponentLClickUp
+        {:string $1 :origin $2 :component confirm}))
     (set s.step #((assert (table.remove s.queue 1))))
     (set s.drain
       (fn []
+        ;; Bound callbacks so a controller retry loop fails this fixture.
         (var remaining 40)
         (while (and (. s.queue 1) (> remaining 0))
           (set remaining (- remaining 1))
@@ -129,11 +156,11 @@
       (fn [subtype]
         (s.emit :CharacterRecruited
           {:character (fn [] {:character_subtype_key (fn [] subtype)
-                              :faction (fn [] true)})})))
+                              :faction (fn [] host)})})))
     (s.emit :PanelOpenedCampaign {:string :character_panel})
     s))
 
-(describe "native candidate recruitment through two hero pages"
+(describe "unified native-candidate hero recruitment"
   (fn []
     (it "requires a nonempty matching native candidate list"
       (fn []
@@ -143,9 +170,9 @@
                         :types (native-list
                                  [{:Id (fn [] :fire)
                                    :CurrentState (fn [] :selected_hover)}])}]
-          (assert.is_falsy (s.native-matches? controls group))
+          (assert.is_falsy (s.native-view.matches? controls group))
           (set controls.selection.character_list {:list_box (native-list [])})
-          (assert.is_falsy (s.native-matches? controls group))
+          (assert.is_falsy (s.native-view.matches? controls group))
           (let [observed {:subtype :fire}
                 character {:Call (fn [_ query]
                                    (assert.equals :AgentSubtypeRecordContext.Key
@@ -158,50 +185,85 @@
                                           character)}]
             (set controls.selection.character_list.list_box
               (native-list [card]))
-            (assert.is_truthy (s.native-matches? controls group))
+            (assert.is_truthy (s.native-view.matches? controls group))
             (set observed.subtype :castellan)
-            (assert.is_falsy (s.native-matches? controls group))))))
-    (it "opens the current native family and only switches requested classes"
+            (assert.is_falsy (s.native-view.matches? controls group))))))
+    (it "shows its own disabled copy without changing native recruitment state"
+      (fn []
+        (let [s (scenario)
+              observed {:native-visible? true :native-state :active}
+              native {:Id (fn [] :button_confirm) :Address (fn [] 12)
+                      :Visible #(do observed.native-visible?)
+                      :SetVisible #(set observed.native-visible? $2)
+                      :CurrentState #(do observed.native-state)
+                      :SetState #(error "Native state belongs to the engine")
+                      :Width (fn [] 100) :Height (fn [] 20)
+                      :Position (fn [] (values 10 30))}
+              proxy {:Resize (fn []) :MoveTo (fn [])
+                     :SetState #(set observed.proxy-state $2)
+                     :SetVisible #(set observed.proxy-visible? $2)
+                     :SetTooltipText #(set observed.tooltip $2)
+                     :button_txt {:SetState #(set observed.label-state $2)
+                                  :SetStateText (fn [])}}
+              controls {:confirm native :blocked proxy
+                        :footer {:button_confirm native}}
+              state {:blocked {}}]
+          (s.native-view.gate controls state false :everchosen_hero_capacity_full)
+          (assert.is_false observed.native-visible?)
+          (assert.is_true observed.proxy-visible?)
+          (assert.equals :inactive observed.proxy-state)
+          (assert.equals :inactive observed.label-state)
+          (assert.equals :everchosen_hero_capacity_full observed.tooltip)
+          (assert.equals :active (native:CurrentState))
+          ;; Native affordability can change while our own quota blocks input.
+          (set observed.native-state :inactive)
+          (s.native-view.gate controls state true)
+          (assert.is_true observed.native-visible?)
+          (assert.is_false observed.proxy-visible?)
+          (assert.equals :inactive (native:CurrentState)))))
+    (it "prepares once immediately and paginates all families in one catalog"
       (fn []
         (let [s (scenario)]
+          (assert.equals 1 s.prepares)
+          (assert.equals 1 s.creates)
           (s.drain)
           (assert.same [] s.class-clicks)
           (assert.same [] s.subtype-clicks)
-          (assert.equals :sorcerer s.selected)
-          (assert.is_false s.rendered-private?)
-          (s.click mode :private)
-          (s.drain)
-          (assert.is_true s.private?)
-          (assert.is_true s.rendered-private?)
-          (assert.same [:fire] s.subtype-clicks)
-          (assert.same [:a-shaman :b-castellan]
+          (assert.equals :a-sorcerer s.selected)
+          (assert.same [:a-sorcerer :b-alluress]
                        (icollect [_ group (ipairs s.groups)] group.key))
+          (assert.equals 2 s.pages)
+          (s.click :everchosen_hero_next :private)
+          (assert.same [:c-shaman :d-castellan]
+                       (icollect [_ group (ipairs s.groups)] group.key))
+          (s.click :everchosen_hero_slot_1 :private)
+          (s.drain)
+          (assert.same [:fire] s.subtype-clicks)
           (s.click :everchosen_hero_slot_2 :private)
           (s.drain)
           (assert.same [:engineer] s.class-clicks)
           (assert.same [:fire :castellan] s.subtype-clicks)
-          (s.click mode :private)
+          (s.click :button_cycle_right :footer)
           (s.drain)
-          (assert.equals :alluress s.selected)
-          (assert.is_false s.private?)
-          (assert.same [:engineer] s.class-clicks)
-          (assert.same [:fire :castellan :slaanesh] s.subtype-clicks))))
-    (it "gates pending and full families while another private family has room"
+          (assert.equals 1 s.prepares)
+          (assert.equals 1 s.creates)
+          (assert.equals 0 s.closes)
+          (assert.equals :d-castellan s.selected))))
+    (it "blocks a full family while another family has room"
       (fn []
         (let [s (scenario true)]
-          (s.step)
-          (s.step)
+          (assert.is_false s.enabled?)
           (assert.same [] s.class-clicks)
           (assert.same [] s.subtype-clicks)
-          (assert.is_false s.enabled?)
           (set s.pending? false)
           (s.emit ready {})
           (s.drain)
           (assert.is_true s.enabled?)
-          (s.click mode :private)
+          (s.click :everchosen_hero_next :private)
+          (s.click :everchosen_hero_slot_1 :private)
           (s.drain)
-          (assert.equals :a-shaman s.selected)
           (assert.is_false s.enabled?)
+          (assert.equals :everchosen_hero_capacity_full s.reason)
           (s.click :everchosen_hero_slot_2 :private)
           (s.drain)
           (assert.is_true s.enabled?)
@@ -211,28 +273,42 @@
           (set s.pending? false)
           (s.emit ready {})
           (assert.is_true s.enabled?))))
-    (it "locks in-flight hiring through refreshes and revalidates on a new turn"
+    (it "keeps a late native confirmation locked through closing and reopening"
       (fn []
         (let [s (scenario)]
-          (set s.snapshots.a-shaman {:used 0 :limit 1})
+          (set s.snapshots.c-shaman {:used 0 :limit 1})
           (s.drain)
-          (s.click mode :private)
+          (s.click :everchosen_hero_next :private)
+          (s.click :everchosen_hero_slot_1 :private)
           (s.drain)
-          (assert.is_true s.enabled?)
-          (s.click :button_confirm :footer)
+          (let [restores s.restores]
+            (s.emit :PanelClosedCampaign {:string :character_panel})
+            (assert.equals restores s.restores)
+            (assert.equals 0 s.closes))
+          ;; The engine may close before Lua receives this exact button event.
+          (let [mutations s.mutations]
+            (s.click :button_confirm :footer)
+            (assert.equals mutations s.mutations))
+          (s.emit :PanelOpenedCampaign {:string :character_panel})
+          (s.drain)
           (assert.is_false s.enabled?)
+          (assert.equals 1 s.prepares)
           (s.emit ready {})
           (s.hire :castellan)
-          (s.drain)
-          (s.click :everchosen_hero_slot_2 :private)
           (s.drain)
           (assert.is_false s.enabled?)
           (s.hire :fire)
           (s.drain)
           (assert.is_true s.enabled?)
-          ;; A rejected native command may have no creation event. The next
-          ;; host turn requires a fresh verified reading before retrying.
-          (s.click :button_confirm :footer)
+          ;; Leave the original native button intact for the rest of its click
+          ;; dispatch. Our latch gates only the next deferred UI refresh.
+          (let [mutations s.mutations]
+            (s.click :button_confirm :footer)
+            (assert.equals mutations s.mutations))
+          (assert.is_true s.enabled?)
+          (s.drain)
+          (assert.is_false s.enabled?)
+          (s.emit ready {})
           (assert.is_false s.enabled?)
           (s.emit :FactionTurnStart {:faction (fn [] true)})
           (assert.is_true s.requested?)

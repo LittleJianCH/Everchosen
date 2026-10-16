@@ -26,6 +26,7 @@ import hero_recruitment_ui
 import hero_families
 import hero_appearance
 import hero_capacity
+import beastmen_hero_economy
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
@@ -34,7 +35,7 @@ BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
                 recruitment_ui)
 MODULES = (*BASE_MODULES, dorghar, beastmen_horde_heroes, daemon_skills,
            beastmen_horde_ui, vassal_recruitment_discount, hero_recruitment_ui,
-           hero_families, hero_appearance, hero_capacity)
+           hero_families, hero_appearance, hero_capacity, beastmen_hero_economy)
 TABLES = sorted({table for module in MODULES for table in module.TABLES})
 NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
@@ -134,6 +135,7 @@ def generate(native_root, output):
     heroes, _ = hero_appearance.supported_heroes(native)
     hero_appearance.write_assets(native_root, output, native, heroes)
     hero_capacity.write_assets(native, output)
+    beastmen_hero_economy.write_assets(native, output)
     recruitment_ui.write_culture_override(native_root, output, native)
     write_localisation(output, beastmen_hordes.localisation(native),
                        "everchosen_horde_names")

@@ -1,25 +1,23 @@
 (local rules (include :everchosen_hero_recruitment.rules))
 
-(describe "native and private hero-page rules"
+(describe "unified hero-family catalog rules"
   (fn []
     (it "uses explicit hero families without scanning native classes"
       (fn []
         (let [groups (rules.catalog
-                       {:shaman {:agent :wizard :private true
+                       {:shaman {:agent :wizard
                                  :name_key :shaman-name
                                  :description_key :shaman-description
                                  :icon "shaman.png" :subtypes [:fire :death]}
-                        :sorcerer {:agent :wizard :private false
+                        :sorcerer {:agent :wizard
                                    :name_key :sorcerer-name
                                    :subtypes [:chaos-fire :chaos-death]}})]
           (assert.equals 2 (length groups))
           (assert.equals :shaman (. groups 1 :key))
-          (assert.is_true (. groups 1 :private?))
           (assert.same [:fire :death] (. groups 1 :subtypes))
           (assert.equals :shaman-name (. groups 1 :name-key))
           (assert.equals :shaman-description (. groups 1 :description-key))
           (assert.same {:fire true :death true} (. groups 1 :members))
-          (assert.is_false (. groups 2 :private?))
           (assert.equals :wizard (. groups 2 :agent)))))
     (it "recognises native selected-hover and selected-inactive states"
       (fn []

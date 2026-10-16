@@ -2,7 +2,7 @@
   "Use explicit family records; opening the panel never scans native classes."
   (let [result
         (icollect [key family (pairs families)]
-          {: key :agent family.agent :private? family.private
+          {: key :agent family.agent
            :name-key family.name_key :description-key family.description_key
            :icon family.icon :subtypes family.subtypes
            :members (collect [_ subtype (ipairs family.subtypes)]

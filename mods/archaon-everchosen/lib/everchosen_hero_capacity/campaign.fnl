@@ -7,8 +7,6 @@
 ;; Derived capacity state is rebuilt from owned heroes and active sources.
 (var config nil)
 (var current-plan nil)
-;; A single temporary slot belongs to the open private recruitment page.
-(var private? false)
 ;; Coalesce deferred ownership/building notifications and invalidate old reads.
 (var pending? false)
 (var working? false)
@@ -60,7 +58,7 @@
       (when host
         (let [plan (rules.plan config (model.subtype-bonuses host config)
                                (model.extras host config) (model.counts host)
-                               (model.class-caps host config) private?)]
+                               (model.class-caps host config))]
           (apply-values host plan.effects)
           (cm:callback #(run verify ticket plan) 0.1))))))
 
@@ -84,12 +82,6 @@
     (core:trigger_custom_event data.updating {})
     (let [ticket generation]
       (cm:callback #(when (= ticket generation) (run refresh)) 0.1))))
-
-(fn set-private [open?]
-  (when (or (not= private? open?)
-            (and (not working?) (not (ready))))
-    (set private? open?)
-    (refresh)))
 
 (fn tracked? [character]
   (and (world.valid? character)
@@ -124,8 +116,7 @@
             (core:add_static_object data.controller {: request})
             (core:add_static_object data.provider
               {: snapshot : ready :pending #(or pending? working?)
-               :request #(run request)
-               :set-private #(run set-private $1)})
+               :request #(run request)})
             (listen :CharacterRecruited tracked-character? refresh)
             (each [_ event (ipairs [:CharacterConvalescedOrKilled
                                     :CharacterFactionChangeEvent
@@ -136,8 +127,6 @@
             (listen :FactionTurnStart #(world.host? ($1:faction)) request)
             (listen :PanelOpenedCampaign
                     #(= $1.string :character_panel) request)
-            (listen :PanelClosedCampaign
-                    #(= $1.string :character_panel) #(set-private false))
             ;; Re-query current ownership after native asynchronous commands.
             (each [_ event (ipairs [:FactionJoinsConfederation
                                     :BuildingCompleted

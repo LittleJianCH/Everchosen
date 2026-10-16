@@ -11,21 +11,30 @@
 (local header-height 122)
 
 (fn controls [include-hidden?]
-  "Re-query only the native recruitment controls used by the two pages."
+  "Re-query the known native recruitment controls without a UI tree scan."
   (let [panel (find_uicomponent (core:get_ui_root) :character_panel)
         parent (and panel (find_uicomponent panel :lords_and_agents_holder
-                                            :agent_parent))]
-    (when (and parent
+                                            :agent_parent))
+        frame (and panel
+                   (find_uicomponent panel :character_panel_info_holder))
+        agents (and parent (find_uicomponent parent :list_box))
+        selection (and panel
+                       (find_uicomponent panel :general_selection_panel))
+        footer (and panel (find_uicomponent panel :footer))
+        confirm (and footer (find_uicomponent footer :button_confirm))]
+    (when (and parent frame agents selection footer confirm
                (or include-hidden? (and (panel:Visible) (parent:Visible))))
       {: panel : parent
-       :frame (find_uicomponent panel :character_panel_info_holder)
-       :agents (find_uicomponent parent :list_box)
+       : frame : agents
        :capacity (find_uicomponent parent :dy_agent_cap)
        :load-character (find_uicomponent panel :footer :button_load_character)
-       :confirm (find_uicomponent panel :footer :button_confirm)
+       : confirm
        :raise (find_uicomponent panel :footer :button_raise)
+       : footer
+       :blocked (find_uicomponent panel :footer
+                  :everchosen_hero_confirm_blocked)
        :private (find_uicomponent parent :everchosen_hero_families)
-       :selection (find_uicomponent panel :general_selection_panel)
+       : selection
        :types (find_uicomponent panel :general_selection_panel
                 :lore_select_parent :wizard_type :type_list)})))
 
@@ -45,18 +54,23 @@
 
 (fn create [controls]
   (core:get_or_create_component :everchosen_hero_families
-    :ui/everchosen/hero_families controls.parent))
+    :ui/everchosen/hero_families controls.parent)
+  (core:get_or_create_component :everchosen_hero_confirm_blocked
+    :ui/everchosen/hero_confirm_blocked controls.footer))
 
 (fn reserve-frame [controls state]
-  ;; Freeze one outer frame once; switching pages never hides its layout rows.
+  ;; Prepare once on opening; neither family nor settlement cycling resizes it.
   (set state.frame-height (controls.frame:Height))
   (set state.header-height (controls.parent:Height))
+  (set state.agents-height (controls.agents:Height))
   (common.call_context_command
     (.. frame-context ".ListLayoutContext.SetSizeToContents(false)"))
   (controls.frame:Resize (controls.frame:Width)
     (+ state.frame-height (- header-height state.header-height)))
   (common.call_context_command
     (.. list-context ".ListLayoutContext.SetSizeToContents(false)"))
+  ;; Native ResizeToFitTarget reads this hidden list's height on selection.
+  (controls.agents:Resize 810 header-height)
   (controls.parent:Resize 810 header-height)
   (when controls.load-character
     (set state.load-character
@@ -64,12 +78,12 @@
        :visible (controls.load-character:Visible)})
     (controls.load-character:SetVisible false)))
 
-(fn show-page [controls entries number pages selected private?]
+(fn show-page [controls entries number pages selected]
   (controls.private:SetVisible true)
-  (controls.agents:SetVisible (not private?))
+  (controls.agents:SetVisible false)
   (for [index 1 (. (world.static-data) :hero_recruitment :page_size)]
     (let [button (find_uicomponent controls.private (.. prefix "slot_" index))
-          group (and private? (. entries index))]
+          group (. entries index)]
       (button:SetVisible (not (not group)))
       (when group
         (: (find_uicomponent button :label) :SetStateText
@@ -78,14 +92,6 @@
         (button:SetTooltipText
           (common.get_localised_string group.description-key) "" true)
         (button:SetState (if (= group.key selected) :selected :active)))))
-  (let [mode (find_uicomponent controls.private :everchosen_hero_mode)]
-    (: (find_uicomponent mode :label) :SetStateText
-       (common.get_localised_string
-         (if private? :everchosen_hero_native_page
-                      :everchosen_hero_private_page))))
-  (each [_ id (ipairs [:everchosen_hero_page :everchosen_hero_prev
-                      :everchosen_hero_next])]
-    (: (find_uicomponent controls.private id) :SetVisible private?))
   (: (find_uicomponent controls.private :everchosen_hero_page) :SetStateText
      (string.format (common.get_localised_string :everchosen_hero_page)
                     number pages))
@@ -94,31 +100,43 @@
   (: (find_uicomponent controls.private :everchosen_hero_next)
      :SetState (if (< number pages) :active :inactive)))
 
-(fn native-labels [controls groups state]
-  (each [_ group (ipairs groups)]
-    (when (not group.private?)
-      (let [button (find_uicomponent controls.agents group.agent)]
-        (when button
-          (let [label (find_uicomponent button :label)]
-            (when (not (. state.labels group.agent))
-              (tset state.labels group.agent
-                {:address (button:Address) :text (label:GetStateText)
-                 :tooltip (button:GetTooltipText)}))
-            (label:SetStateText (common.get_localised_string group.name-key)))
-          (: (find_uicomponent button :icon) :SetImagePath group.icon 0)
-          (button:SetTooltipText
-            (common.get_localised_string group.description-key) "" true))))))
+(fn release-buttons [controls state]
+  (each [id saved (pairs state.blocked)]
+    (let [button (find_uicomponent controls.footer id)]
+      (when (and button (= (button:Address) saved.address))
+        (button:SetVisible saved.visible))))
+  (set state.blocked {})
+  (when controls.blocked (controls.blocked:SetVisible false)))
 
-(fn gate [controls enabled?]
-  ;; Native active/inactive states continue to enforce funds and buildings.
-  (each [_ button (ipairs [controls.confirm controls.raise])]
-    (when button
-      (button:SetInteractive
-        (and enabled? (rules.selectable? (button:CurrentState)))))))
+(fn gate [controls state enabled? reason]
+  ;; Only our disabled copy changes state. The native buttons retain all of
+  ;; their engine-owned affordability, building, and candidate conditions.
+  (if enabled?
+      (release-buttons controls state)
+      (do
+        (each [_ button (ipairs [controls.confirm controls.raise])]
+          (when button
+            (when (not (. state.blocked (button:Id)))
+              (tset state.blocked (button:Id)
+                {:address (button:Address) :visible (button:Visible)}))
+            (button:SetVisible false)))
+        (when controls.blocked
+          (let [proxy controls.blocked
+                (x y) (controls.confirm:Position)]
+            (proxy:Resize (controls.confirm:Width) (controls.confirm:Height))
+            (proxy:MoveTo x y)
+            (proxy:SetState :inactive)
+            (: (find_uicomponent proxy :button_txt) :SetState :inactive)
+            (: (find_uicomponent proxy :button_txt) :SetStateText
+               (common.get_localised_string :everchosen_hero_recruit_label))
+            (proxy:SetTooltipText
+              (common.get_localised_string
+                (or reason :everchosen_hero_recruit_pending)) "" true)
+            (proxy:SetVisible true))))))
 
-(fn block [controls]
+(fn block [controls state]
   (controls.selection:SetInteractive false)
-  (gate controls false))
+  (gate controls state false))
 
 (fn restore-types [controls state]
   (each [subtype address (pairs state.hidden)]
@@ -164,29 +182,24 @@
     (controls.capacity:SetTooltipText
       (common.get_localised_string group.description-key) "" true)))
 
-(fn restore [controls state]
-  (restore-types controls state)
+(fn close [controls state]
+  ;; A queued native hire may still read its selected subtype after closing.
+  ;; Restore those buttons on the next open, never while submitting the hire.
   (when controls.private (controls.private:SetVisible false))
   (controls.agents:SetVisible true)
   (controls.selection:SetInteractive true)
-  (gate controls true)
-  (each [agent saved (pairs state.labels)]
-    (let [button (find_uicomponent controls.agents agent)]
-      (when (and button (= (button:Address) saved.address))
-        (: (find_uicomponent button :label) :SetStateText saved.text)
-        (button:SetTooltipText saved.tooltip "" true))))
+  (release-buttons controls state)
   (when (and controls.load-character state.load-character
              (= (controls.load-character:Address) state.load-character.address))
     (controls.load-character:SetVisible state.load-character.visible))
   (controls.parent:Resize 810 state.header-height)
+  (controls.agents:Resize 810 state.agents-height)
   (controls.frame:Resize (controls.frame:Width) state.frame-height)
   (common.call_context_command
     (.. list-context ".ListLayoutContext.SetSizeToContents(true)"))
   (common.call_context_command
-    (.. frame-context ".ListLayoutContext.SetSizeToContents(true)"))
-  (controls.agents:Layout)
-  (controls.frame:Layout))
+    (.. frame-context ".ListLayoutContext.SetSizeToContents(true)")))
 
 {: controls : children : clicked? : create : reserve-frame : show-page
- : native-labels : gate : block : restore-types : filter-types : matches?
- : show-capacity : restore}
+ : gate : block : restore-types : filter-types : matches? : show-capacity
+ : close}

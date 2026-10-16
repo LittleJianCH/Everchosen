@@ -14,7 +14,6 @@
               :slaanesh {:family :alluress :agent :engineer}
               :castellan {:family :castellan :agent :engineer}}
    :classes {:engineer :engineer-cap}
-   :native_page {:engineer :alluress}
    :counted_subtypes {:shadow :engineer :slaanesh :engineer
                       :castellan :engineer}
    :external {:marker_path "unused-test-marker"} :skills []
@@ -143,11 +142,10 @@
 
 (describe "shared hero-family capacity controller"
   (fn []
-    (it "opens one private-page slot and restores native accounting on close"
+    (it "keeps recruitment headroom when the native panel closes"
       (fn []
         (let [baseline (reading {:shadow 1 :slaanesh 1 :castellan 1} 6)
-              s (fixture true [(round baseline 1) (round baseline 2)
-                               (round baseline 1)])]
+              s (fixture true [(round baseline 2)])]
           (s.start)
           (assert.is_truthy ((. (s.provider) :pending)))
           (assert.is_falsy ((. (s.provider) :ready)))
@@ -157,31 +155,25 @@
           (assert.same [updating ready] s.events)
           (assert.same {:used 1 :limit 1} (s.snapshot [:shadow :slaanesh]))
           (assert.same {:used 0 :limit 1} (s.snapshot [:castellan]))
-          (assert.same {:engineer-cap -5} (. s.applied 1 :effects))
-          ((. (s.provider) :set-private) true)
-          (assert.is_falsy ((. (s.provider) :ready)))
-          (s.drain)
           (assert.is_truthy ((. (s.provider) :ready)))
-          (assert.same {:engineer-cap -4} (. s.applied 2 :effects))
+          (assert.same {:engineer-cap -4} (. s.applied 1 :effects))
           (assert.same {:used 1 :limit 1} (s.snapshot [:shadow :slaanesh]))
           (assert.same {:used 0 :limit 1} (s.snapshot [:castellan]))
-          ;; Selecting a family must not recalculate native capacities.
-          ((. (s.provider) :set-private) true)
+          ;; Native hiring may close its panel before CharacterRecruited.
+          ;; Closing it must leave the pending command's slot intact.
+          (let [closed (. s.listeners :PanelClosedCampaign)]
+            (when closed (closed.callback {:string :character_panel})))
           (assert.same [] s.queue)
-          (assert.equals 2 (length s.applied))
-          ((. (s.provider) :set-private) false)
-          (s.drain)
-          (assert.same {:engineer-cap -5} (. s.applied 3 :effects))
+          (assert.equals 1 (length s.applied))
+          (assert.equals 1 (length s.removed))
+          (assert.is_true s.present?)
           (assert.equals 1 s.opening)
           (assert.equals 1 s.ui-starts))))
-    (it "masks immediately after a private hire and compensates its actual use"
+    (it "masks after a real hire and derives headroom from actual ownership"
       (fn []
         (let [baseline (reading {:shadow 1 :slaanesh 1 :castellan 1} 6)
-              s (fixture true [(round baseline 1) (round baseline 2)
-                               (round baseline 3) (round baseline 2)])]
+              s (fixture true [(round baseline 2) (round baseline 3)])]
           (s.start)
-          (s.drain)
-          ((. (s.provider) :set-private) true)
           (s.drain)
           (let [host (: (. s.characters 1) :faction)
                 hired {:character_subtype_key (fn [] :castellan)
@@ -197,25 +189,22 @@
           (s.drain)
           (assert.same {:used 1 :limit 1} (s.snapshot [:castellan]))
           (assert.same {:used 1 :limit 1} (s.snapshot [:shadow :slaanesh]))
-          (assert.same {:engineer-cap -3} (. s.applied 3 :effects))
-          ((. (s.provider) :set-private) false)
-          (s.drain)
-          (assert.same {:engineer-cap -4} (. s.applied 4 :effects)))))
+          (assert.same {:engineer-cap -3} (. s.applied 2 :effects)))))
     (it "removes its negative adjustment before re-reading changed sources"
       (fn []
         (let [first (reading {:shadow 1 :slaanesh 1 :castellan 1} 7)
               changed (reading {:shadow 2 :slaanesh 2 :castellan 0} 9)
-              s (fixture true [(round first 1)
-                               (round changed 2) (round first 1)])]
+              s (fixture true [(round first 2)
+                               (round changed 2) (round first 2)])]
           (s.start)
           (s.drain)
-          (assert.same {:engineer-cap -6} (. s.applied 1 :effects))
+          (assert.same {:engineer-cap -5} (. s.applied 1 :effects))
           (s.refresh)
           (assert.same {:used 1 :limit 2} (s.snapshot [:shadow :slaanesh]))
           (assert.same {:engineer-cap -7} (. s.applied 2 :effects))
           (s.refresh)
           (assert.same {:used 1 :limit 1} (s.snapshot [:shadow :slaanesh]))
-          (assert.same {:engineer-cap -6} (. s.applied 3 :effects))
+          (assert.same {:engineer-cap -5} (. s.applied 3 :effects))
           (assert.equals 3 s.baseline-reads))))
     (it "re-derives a normal load without another grant or counting its bundle"
       (fn []
@@ -235,7 +224,7 @@
     (it "keeps failed reads unready and retries only on a relevant event"
       (fn []
         (let [baseline (reading {:shadow 1 :slaanesh 1 :castellan 1} 0)
-              s (fixture true [(round baseline 0) (round baseline 1)])]
+              s (fixture true [(round baseline 0) (round baseline 2)])]
           (s.start)
           (s.drain)
           (assert.is_falsy ((. (s.provider) :ready)))
@@ -255,7 +244,7 @@
     (it "shares one controller between main and test without duplicate listeners"
       (fn []
         (let [baseline (reading {:shadow 1 :slaanesh 1 :castellan 1} 0)
-              s (fixture true [(round baseline 1) (round baseline 1)])]
+              s (fixture true [(round baseline 2) (round baseline 2)])]
           (s.other-start)
           (let [registered s.registrations]
             (s.start)
