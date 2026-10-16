@@ -222,6 +222,8 @@
           (table.sort session.agents)
           (assert (> (length session.agents) 0)
                   "No native hero capacity classes found")
+          ;; Session cleanup must be available before changing outer layout.
+          (view.reserve-frame controls)
           (out (.. "[Everchosen hero recruitment] Found "
                    (length session.agents) " native capacity classes"))
           (let [controls (view.controls)]

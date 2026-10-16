@@ -4,8 +4,8 @@
 (local fire :wh_dlc08_nor_shaman_sorcerer_fire)
 (local death :wh_dlc08_nor_shaman_sorcerer_death)
 
-(fn scenario []
-  (let [s {:queue [] :listeners {} :logs [] :clicks 0}
+(fn scenario [fail-layout?]
+  (let [s {:queue [] :listeners {} :logs [] :clicks 0 :restored? false}
         label {:GetStateText (fn [] "巫术萨满")}
         class {:Id (fn [] :wizard) :GetProperty (fn [] nil)
                :CurrentState (fn [] :selected_hover) :label label
@@ -24,7 +24,10 @@
                :static-data (fn [] {:hero_recruitment
                  {:page_size 8 :icons {:wizard "wizard.png"}
                   :subtypes metadata}})}
-        view {:controls (fn [] controls) :create (fn []) :restore (fn [])
+        view {:controls (fn [] controls) :create (fn [])
+              :restore (fn [] (set s.restored? true))
+              :reserve-frame (fn []
+                               (when fail-layout? (error "Layout failed")))
               :reserve (fn []) :block (fn []) :unblock (fn [])
               :restore-types (fn [])
               :children (fn [parent]
@@ -75,6 +78,12 @@
 
 (describe "native hero-family discovery"
   (fn []
+    (it "restores the native page if outer-layout reservation fails"
+      (fn []
+        (let [s (scenario true)]
+          (assert.is_true s.restored?)
+          (assert.equals 0 s.clicks)
+          (assert.is_nil s.groups))))
     (it "uses native class IDs and accepts a selected-hover class"
       (fn []
         (let [s (scenario)]

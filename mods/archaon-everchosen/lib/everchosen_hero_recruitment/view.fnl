@@ -5,6 +5,10 @@
 (local list-context
   (.. "RootComponent.ChildContext(\"character_panel\")"
       ".ChildContext(\"agent_parent\").ChildContext(\"list_box\")"))
+(local frame-context
+  (.. "RootComponent.ChildContext(\"character_panel\")"
+      ".ChildContext(\"character_panel_info_holder\")"))
+(local header-height 122)
 
 (fn controls [include-hidden?]
   "Re-query native controls instead of keeping UI objects across callbacks."
@@ -14,6 +18,7 @@
     (when (and parent
                (or include-hidden? (and (panel:Visible) (parent:Visible))))
       {: panel : parent
+       :frame (find_uicomponent panel :character_panel_info_holder)
        :agents (find_uicomponent parent :list_box)
        :capacity (find_uicomponent parent :dy_agent_cap)
        :private (find_uicomponent parent :everchosen_hero_families)
@@ -39,12 +44,20 @@
   ;; ResizeToFitTarget keeps the native header aligned to its list_box.
   (common.call_context_command
     (.. list-context ".ListLayoutContext.SetSizeToContents(false)"))
-  (controls.agents:Resize 810 122)
-  (controls.parent:Resize 810 122)
+  (controls.agents:Resize 810 header-height)
+  (controls.parent:Resize 810 header-height)
   (when controls.capacity
     (let [provider (core:get_static_object :everchosen_hero_family_capacity)]
       (controls.capacity:SetVisible (not (and provider (provider.ready))))))
   (controls.agents:SetVisible false))
+
+(fn reserve-frame [controls]
+  ;; Hiding the candidate/footer containers must not collapse their outer list.
+  ;; Reserve the extra header height once, before native navigation starts.
+  (common.call_context_command
+    (.. frame-context ".ListLayoutContext.SetSizeToContents(false)"))
+  (controls.frame:Resize (controls.frame:Width)
+    (+ (controls.frame:Height) (- header-height (controls.parent:Height)))))
 
 (fn create [controls]
   (core:get_or_create_component :everchosen_hero_families
@@ -159,7 +172,11 @@
     (controls.capacity:SetVisible state.capacity-visible))
   (common.call_context_command
     (.. list-context ".ListLayoutContext.SetSizeToContents(true)"))
-  (controls.agents:Layout))
+  (controls.agents:Layout)
+  (common.call_context_command
+    (.. frame-context ".ListLayoutContext.SetSizeToContents(true)"))
+  (controls.frame:Layout))
 
-{: controls : children : clicked? : reserve : create : show-page : block : unblock
+{: controls : children : clicked? : reserve : reserve-frame : create
+ : show-page : block : unblock
  : restore-types : filter-types : matches? : restore}
