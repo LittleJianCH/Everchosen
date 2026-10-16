@@ -33,7 +33,7 @@ for mod in "${targets[@]}"; do
     source_dir="$root/mods/$mod"
     library_path="$source_dir/lib/?.fnl"
     if [[ "$mod" == hero-capacity-test ]]; then
-        # Bundle only the shared world helper, not main-mod listeners.
+        # Reuse the capacity controller; its registry prevents double starts.
         library_path+=";$root/mods/archaon-everchosen/lib/?.fnl"
     fi
     stage=$(mktemp -d "$root/build/.$mod.XXXXXXXX")

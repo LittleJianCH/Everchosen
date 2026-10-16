@@ -2,6 +2,8 @@
 
 from db_tables import stable_id
 from roster_permissions import campaign_units
+import hero_capacity
+import hero_families
 
 PREFIX = "everchosen_vassal_"
 AVAILABILITY = "everchosen_horde_availability"
@@ -58,7 +60,7 @@ TABLES = """building_chains building_superchains building_instances
     effect_bonus_value_agent_subtype_junctions faction_agent_permitted_subtypes
     agent_subtypes factions groupings_military main_units campaign_effect_scopes
     units_to_groupings_military_permissions units_to_exclusive_faction_permissions
-""".split()
+""".split() + list(hero_families.TABLES)
 
 
 def selected(native):
@@ -166,10 +168,10 @@ def rows(native):
 
 
 def hero_rows(native):
-    """Keep native hero unlocks/caps, supplying at least one at each unlock.
+    """Keep native hero unlocks, giving capacity only to their own families.
 
-    Capacities use the native agent classes and remain shared with other heroes
-    of those classes. Only the host receives character and base-unit access.
+    Retain each native capacity amount and damage rule, supplying at least one
+    at each recruitment tier. Only the host has the private building chains.
     """
     _, levels = selected(native)
     race_by_chain = {chain: race for race, chains in CHAINS.items()
@@ -182,9 +184,12 @@ def hero_rows(native):
             for row in native["effect_bonus_value_agent_junction"].rows
             if row["bonus_value_id"] == "cap"}
     permissions = native["faction_agent_permitted_subtypes"]
+    by_subtype = {subtype: family
+                  for family, record in hero_capacity.families(native).items()
+                  for subtype in record["subtypes"]}
     heroes = {}
-    unlocks = set()
-    capacities = set()
+    unlocks = {}
+    capacities = {}
     templates = {}
     for row in native["building_effects_junction"].rows:
         building, effect = row["building"], row["effect"]
@@ -205,20 +210,31 @@ def hero_rows(native):
                         "contributes_to_agent_cap"))):
                 raise ValueError(f"Not an ordinary recruitable hero: {subtype}")
             heroes[subtype] = permission
-            unlocks.add((building, permission["agent"]))
+            unlocks.setdefault((building, permission["agent"]), set()).add(
+                by_subtype[subtype])
         if effect in caps:
             agent = caps[effect]
-            capacities.add((building, agent))
+            if (building, agent) in capacities:
+                raise ValueError(f"Multiple native military hero caps: {building}")
+            capacities[building, agent] = row
             templates.setdefault((chain, agent), row)
-        yield "building_effects_junction", dict(row, building=PREFIX + building)
+        else:
+            yield "building_effects_junction", dict(row, building=PREFIX + building)
 
-    for building, agent in sorted(unlocks - capacities):
-        # The source factions can have base capacity that Archaon does not.
-        # Give the first recruitment tier an explicit, building-owned point.
-        template = templates[(levels[building]["chain"], agent)]
-        yield "building_effects_junction", dict(
-            template, building=PREFIX + building, value="1.0000",
-            value_damaged="1.0000", value_ruined="0.0000")
+    if capacities.keys() - unlocks.keys():
+        raise ValueError("Native military capacity lacks a hero-family unlock")
+    for (building, agent), families in sorted(unlocks.items()):
+        template = capacities.get((building, agent))
+        if template is None:
+            # The source factions can have base capacity that Archaon does not.
+            # Give the first recruitment tier a building-owned family point.
+            template = dict(templates[levels[building]["chain"], agent],
+                            value="1.0000", value_damaged="1.0000",
+                            value_ruined="0.0000")
+        for family in sorted(families):
+            yield "building_effects_junction", dict(
+                template, building=PREFIX + building,
+                effect=hero_capacity.source_effect(family))
 
     group = native["factions"].one(key=HOST)["military_group"]
     native["groupings_military"].one(military_group=group)

@@ -206,6 +206,8 @@
           (set session
             {: preferred :groups [] :members [] :observed {}
              :hidden {} :native-subtypes {} :index 1 :page 1 :busy? true
+             :capacity-visible (and controls.capacity
+                                    (controls.capacity:Visible))
              :initial-subtype
              (accumulate [selected nil _ button
                           (ipairs (view.children controls.types))

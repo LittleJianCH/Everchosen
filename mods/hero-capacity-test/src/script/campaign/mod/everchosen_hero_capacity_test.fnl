@@ -1,6 +1,6 @@
 (local faction-key :wh_main_chs_chaos)
 (local bundle-key :everchosen_hero_capacity_test)
-(local experiment (include :everchosen_hero_capacity_test.campaign))
+(local capacity (include :everchosen_hero_capacity.campaign))
 
 (fn start []
   (when (and (= (cm:get_campaign_name) :main_warhammer)
@@ -12,6 +12,6 @@
           ;; Duration zero is permanent; ordinary reloads retain this bundle.
           (cm:apply_effect_bundle bundle-key faction-key 0)
           (out "[Everchosen hero capacity test] Applied opening capacity."))
-        (experiment.start)))))
+        (capacity.start)))))
 
 (cm:add_first_tick_callback start)

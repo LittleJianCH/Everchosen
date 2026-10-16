@@ -6,6 +6,7 @@
 (local river (include :everchosen_subjugation.river_of_blood))
 (local vassal-recruitment (include :everchosen_vassal_recruitment.campaign))
 (local hero-recruitment (include :everchosen_hero_recruitment.campaign))
+(local hero-capacity (include :everchosen_hero_capacity.campaign))
 
 (cm:add_pre_first_tick_callback campaign.prepare)
 ;; The game separately loads generated static data before first tick;
@@ -16,6 +17,7 @@
 ;; Extend the native subjugation config before inheritance checks its lords.
 (cm:add_first_tick_callback subjugation.start)
 (cm:add_first_tick_callback vassal-recruitment.start)
+(cm:add_first_tick_callback hero-capacity.start)
 (cm:add_first_tick_callback hero-recruitment.start)
 (cm:add_first_tick_callback campaign.start)
 

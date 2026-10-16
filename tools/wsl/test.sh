@@ -26,7 +26,7 @@ if [[ "$target" == all || "$target" == archaon-everchosen ]]; then
     export EVERCHOSEN_ROOT="$root"
     export EVERCHOSEN_VANILLA_DB="${EVERCHOSEN_VANILLA_DB:-$root/.local/vanilla}"
     bash "$script_dir/build.sh" archaon-everchosen
-    for spec in inheritance subjugation daemon skill_transfer hordes river_of_blood hero_recruitment hero_recruitment_adapter; do
+    for spec in inheritance subjugation daemon skill_transfer hordes river_of_blood hero_recruitment hero_recruitment_adapter hero_capacity; do
         fennel --add-fennel-path "$root/mods/archaon-everchosen/lib/?.fnl" \
             --globals describe,it --compile \
             "$root/tests/archaon-everchosen/${spec}_spec.fnl" > "$stage/${spec}_spec.lua"
@@ -37,7 +37,7 @@ fi
 if [[ "$target" == hero-capacity-test ]]; then
     export EVERCHOSEN_ROOT="$root"
     bash "$script_dir/build.sh" hero-capacity-test
-    for spec in rules campaign; do
+    for spec in campaign; do
         fennel --add-fennel-path "$root/mods/hero-capacity-test/lib/?.fnl" \
             --globals describe,it --compile \
             "$root/tests/hero-capacity-test/${spec}_spec.fnl" > "$stage/${spec}_spec.lua"

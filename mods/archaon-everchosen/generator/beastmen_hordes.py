@@ -436,7 +436,9 @@ def validate_scope(native, own):
     native_effects = [dict(r, building=PREFIX + r["building"])
                       for r in native["building_effects_junction"].rows
                       if r["building"] in levels and r["effect"] not in REMOVED_EFFECTS]
-    retained = [r for r in own["building_effects_junction"] if not r["effect"].startswith(PREFIX)]
+    retained = [r for r in own["building_effects_junction"]
+                if not r["effect"].startswith((
+                    PREFIX, "everchosen_hero_capacity_source_"))]
     order = lambda row: (row["building"], row["effect"], row["effect_scope"])
     if sorted(native_effects, key=order) != sorted(retained, key=order):
         raise ValueError("Private camps must preserve applicable native building effects")

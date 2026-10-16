@@ -15,6 +15,7 @@
                (or include-hidden? (and (panel:Visible) (parent:Visible))))
       {: panel : parent
        :agents (find_uicomponent parent :list_box)
+       :capacity (find_uicomponent parent :dy_agent_cap)
        :private (find_uicomponent parent :everchosen_hero_families)
        :selection (find_uicomponent panel :general_selection_panel)
        :types (find_uicomponent panel :general_selection_panel
@@ -40,6 +41,9 @@
     (.. list-context ".ListLayoutContext.SetSizeToContents(false)"))
   (controls.agents:Resize 810 122)
   (controls.parent:Resize 810 122)
+  (when controls.capacity
+    (let [provider (core:get_static_object :everchosen_hero_family_capacity)]
+      (controls.capacity:SetVisible (not (and provider (provider.ready))))))
   (controls.agents:SetVisible false))
 
 (fn create [controls]
@@ -77,7 +81,7 @@
                           :everchosen_hero_family_capacity_tooltip)
                         capacity.used capacity.limit)
                       (common.get_localised_string
-                        :everchosen_hero_shared_capacity))) "" true)
+                        :everchosen_hero_native_capacity))) "" true)
             (button:SetState (if group.disabled? :inactive
                                 (= group.key selected) :selected
                                 :active))))))
@@ -151,6 +155,8 @@
   (unblock controls state)
   (when controls.private (controls.private:SetVisible false))
   (controls.agents:SetVisible true)
+  (when (and controls.capacity (not= state.capacity-visible nil))
+    (controls.capacity:SetVisible state.capacity-visible))
   (common.call_context_command
     (.. list-context ".ListLayoutContext.SetSizeToContents(true)"))
   (controls.agents:Layout))

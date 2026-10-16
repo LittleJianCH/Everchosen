@@ -1,11 +1,11 @@
 """Native hero recruitment at Archaon's private Beastmen camp buildings.
 
-Agent-type capacities remain shared with the host's other heroes of that type.
-The camp unlocks recruitment and supplies capacity; native candidate generation,
-costs, and the recruitment command are unchanged.
+The camp unlocks recruitment and supplies independent family capacity; native
+candidate generation, costs, and the recruitment command are unchanged.
 """
 from host import HOST
 import beastmen_hordes as hordes
+import hero_capacity
 
 SOURCE_FACTION = "wh_dlc03_bst_beastmen"
 HEROES = {
@@ -17,6 +17,11 @@ HEROES = {
     ),
     "champion": ("wh_dlc03_bst_gorebull",),
     "spy": ("wh2_dlc17_bst_wargor",),
+}
+HERO_FAMILIES = {
+    "wizard": "wh_dlc03_bst_bray_shaman",
+    "champion": "wh_dlc03_bst_gorebull",
+    "spy": "wh2_dlc17_bst_wargor",
 }
 # Agent type, native effect presentation/binding, and an actual native camp
 # building whose capacity row supplies the scope and undamaged/damaged values.
@@ -40,7 +45,7 @@ TABLES = """agent_subtypes faction_agent_permitted_subtypes
 
 
 def capacity_effect(agent):
-    return hordes.PREFIX + "hero_capacity_" + agent
+    return hero_capacity.source_effect(HERO_FAMILIES[agent])
 
 
 def hero_units(native):
@@ -97,8 +102,8 @@ def permission_rows(native):
 def recruitment_buildings(native):
     """One (building, agent type) per native camp recruitment unlock.
 
-The four magic lores share one wizard capacity. Hidden upgrade effects still
-grant availability and must retain that capacity when their building upgrades.
+The four magic lores share one Bray Shaman capacity. Hidden upgrade effects
+still grant availability and retain that capacity when their building upgrades.
 """
     _, _, levels = hordes.graph(native)
     types = {subtype: agent for agent, subtypes in HEROES.items()
@@ -139,13 +144,6 @@ def capacity_templates(native):
 
 def rows(native):
     yield from permission_rows(native)
-    for agent, effect, _, _ in CAPACITY_SOURCES:
-        yield "effects", dict(native["effects"].one(effect=effect),
-                              effect=capacity_effect(agent))
-        binding = native["effect_bonus_value_agent_junction"].one(
-            effect=effect, bonus_value_id="cap", agent=agent)
-        yield "effect_bonus_value_agent_junction", dict(
-            binding, effect=capacity_effect(agent))
     templates = capacity_templates(native)
     for building, agent in sorted(recruitment_buildings(native)):
         yield "building_effects_junction", dict(
@@ -193,10 +191,16 @@ def validate(native, generated, authored):
     for effect, agent in effects.items():
         if effect not in known_effects:
             raise ValueError(f"Missing private hero-capacity effect: {effect}")
-        bindings = [r for r in additions("effect_bonus_value_agent_junction")
+        bindings = [r for r in additions("effect_bonus_value_agent_subtype_junctions")
                     if r["effect"] == effect]
-        if bindings != [{"effect": effect, "bonus_value_id": "cap", "agent": agent}]:
-            raise ValueError(f"Incorrect shared hero-capacity binding: {effect}")
+        expected = [{"effect": effect, "bonus_value_id": "cap", "subtype": subtype}
+                    for subtype in HEROES[agent]]
+        if sorted(bindings, key=lambda r: r["subtype"]) != sorted(
+                expected, key=lambda r: r["subtype"]):
+            raise ValueError(f"Incorrect family hero-capacity binding: {effect}")
+        if any(r["effect"] == effect for r in additions(
+                "effect_bonus_value_agent_junction")):
+            raise ValueError(f"Camp hero capacity cannot use a shared pool: {effect}")
     actual = [r for r in additions("building_effects_junction")
               if r["effect"] in effects]
     expected = {(hordes.PREFIX + building, capacity_effect(agent))

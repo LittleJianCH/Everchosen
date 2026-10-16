@@ -2,7 +2,7 @@ key	text	tooltip
 #Loc;1;text/db/everchosen_hero_recruitment.loc		
 everchosen_hero_loading	正在整理英雄分类…	false
 everchosen_hero_page	第 %d / %d 页	false
-everchosen_hero_shared_capacity	此英雄沿用原版的共享容量，当前额度见上方容量显示。	false
+everchosen_hero_native_capacity	此英雄沿用其原有容量规则。	false
 everchosen_hero_family_capacity_label	%s %d/%d	false
 everchosen_hero_family_capacity_tooltip	独立容量（已用/上限）：%d/%d。同种英雄的不同法术系共用此额度。	false
 everchosen_hero_unavailable	当前地区暂时无法招募此类英雄	false
