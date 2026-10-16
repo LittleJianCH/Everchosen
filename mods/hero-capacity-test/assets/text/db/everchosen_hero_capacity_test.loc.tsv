@@ -1,4 +1,4 @@
 key	text	tooltip
 #Loc;1;text/db/everchosen_hero_capacity_test.loc		
 effect_bundles_localised_title_everchosen_hero_capacity_test	英雄容量测试	false
-effect_bundles_localised_description_everchosen_hero_capacity_test	每种具体英雄各增加1格独立容量，同种英雄的不同法术系共用；可以与对应建筑、技能加成叠加。艾查恩的一级及以上黑暗要塞主城开放全部测试英雄招募。	false
+effect_bundles_localised_description_everchosen_hero_capacity_test	每种具体英雄各增加1格独立容量，同种英雄的不同法术系共用；可以与对应建筑、技能加成叠加。艾查恩的一级及以上黑暗要塞主城开放测试英雄招募；神尊英雄和混沌术士仅可直接招募统合版本，四神形态仍需灵魂晋升，晋升前后占同一格容量。	false

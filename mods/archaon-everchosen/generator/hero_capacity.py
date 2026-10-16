@@ -19,13 +19,18 @@ CAP_EFFECTS = {
     "spy": "wh3_main_effect_agent_cap_increase_nur_plagueridden",
 }
 NATIVE_FAMILIES = {
-    "champion": (
-        "wh_main_chs_exalted_hero", "wh3_dlc20_chs_exalted_hero_mkho",
-        "wh3_dlc20_chs_exalted_hero_mnur", "wh3_dlc24_chs_exalted_hero_mtze",
-        "wh3_dlc27_chs_exalted_hero_msla"),
-    "wizard": (
-        "wh_main_chs_chaos_sorcerer", "wh3_dlc25_chs_sorcerer_mnur",
-        "wh3_dlc20_chs_sorcerer_msla", "wh3_dlc20_chs_sorcerer_mtze"),
+    "champion": ("wh_main_chs_exalted_hero",),
+    "wizard": ("wh_main_chs_chaos_sorcerer",),
+}
+# Dedicated heroes are promotion forms, never an extra direct recruit source.
+PROMOTED_FAMILIES = {
+    "wh3_dlc20_chs_exalted_hero_mkho": "wh_main_chs_exalted_hero",
+    "wh3_dlc20_chs_exalted_hero_mnur": "wh_main_chs_exalted_hero",
+    "wh3_dlc24_chs_exalted_hero_mtze": "wh_main_chs_exalted_hero",
+    "wh3_dlc27_chs_exalted_hero_msla": "wh_main_chs_exalted_hero",
+    "wh3_dlc25_chs_sorcerer_mnur": "wh_main_chs_chaos_sorcerer",
+    "wh3_dlc20_chs_sorcerer_msla": "wh_main_chs_chaos_sorcerer",
+    "wh3_dlc20_chs_sorcerer_mtze": "wh_main_chs_chaos_sorcerer",
 }
 NATIVE_BUILDINGS = {
     "champion": tuple("wh3_dlc20_woc_dark_fortress_warriors_" + str(tier)
@@ -89,19 +94,32 @@ def source_effect(family):
     return PREFIX + "source_" + family
 
 
-def families(native):
-    """Group the supported ordinary subtypes, preserving distinct god marks."""
+def recruitable_heroes(native):
+    """Keep dedicated Chaos heroes on their native soul-promotion path."""
     heroes, metadata = hero_appearance.supported_heroes(native)
+    return ({subtype: record for subtype, record in heroes.items()
+             if metadata[subtype]["family"] not in PROMOTED_FAMILIES}, metadata)
+
+
+def families(native):
+    """Group direct recruits; promotion forms use their original hero slot."""
+    heroes, metadata = recruitable_heroes(native)
     result = {}
     for subtype, permission in sorted(heroes.items()):
         family = metadata[subtype]["family"]
         record = result.setdefault(family, {
             "agent": permission["agent"],
             "name_key": metadata[subtype]["name_key"], "subtypes": [],
+            "promoted_subtypes": [],
             "source_effect": source_effect(family)})
         if record["agent"] != permission["agent"]:
             raise ValueError(f"Hero family spans agent classes: {family}")
         record["subtypes"].append(subtype)
+    all_heroes, _ = hero_appearance.supported_heroes(native)
+    for subtype in sorted(all_heroes):
+        original = PROMOTED_FAMILIES.get(metadata[subtype]["family"])
+        if original:
+            result[original]["promoted_subtypes"].append(subtype)
     return result
 
 

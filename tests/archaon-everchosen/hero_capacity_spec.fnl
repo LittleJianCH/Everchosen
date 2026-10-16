@@ -54,6 +54,30 @@
           (assert.same {:used 3 :limit 1} result.families.alluress)
           (assert.same {:shadow 3 :slaanesh 0 :castellan 1} result.targets)
           (assert.equals 3 result.effects.engineer-cap))))
+    (it "keeps soul promotion in the same slot without capping its new form"
+      (fn []
+        (let [promotion-config
+              {:families {:exalted {:agent :champion :subtypes [:undivided]
+                                   :promoted_subtypes [:khorne]}
+                          :gorebull {:agent :champion :subtypes [:gorebull]}}
+               :subtypes {:undivided {:family :exalted :effect :undivided-cap}
+                          :gorebull {:family :gorebull :effect :gorebull-cap}}
+               :classes {:champion :parent-cap}
+               :counted_subtypes {:undivided :champion :khorne :champion
+                                  :gorebull :champion}}
+              sources {:undivided 1 :gorebull 1}
+              offsets {:undivided 1 :gorebull 1}
+              before (rules.plan promotion-config sources {} {:undivided 1}
+                                 offsets {:champion 2} {})
+              after (rules.plan promotion-config sources {} {:khorne 1}
+                                offsets {:champion 3} before.class-uplifts)]
+          (assert.same {:used 1 :limit 1} before.families.exalted)
+          (assert.same before.families.exalted after.families.exalted)
+          (assert.equals 1 before.effects.parent-cap)
+          (assert.equals 0 after.effects.parent-cap)
+          (assert.same {:undivided 0 :gorebull 1} after.targets)
+          (assert.is_nil (. after.targets :khorne))
+          (assert.same {:used 0 :limit 1} after.families.gorebull))))
     (it "replaces only its prior class contribution when sources change"
       (fn []
         (let [result (rules.plan config

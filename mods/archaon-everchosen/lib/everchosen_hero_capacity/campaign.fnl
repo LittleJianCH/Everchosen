@@ -148,6 +148,11 @@
   (and (world.valid? character)
        (. config.counted_subtypes (character:character_subtype_key))))
 
+(fn promotion-finished []
+  ;; Native promotion deletes the previous hero 0.5 seconds after this event.
+  ;; request adds its own delay, so it observes the final faction list.
+  (cm:callback request 0.5))
+
 (fn tracked-character? [context] (tracked? (context:character)))
 
 (fn related-character? [context]
@@ -176,6 +181,7 @@
                                     :CharacterSkillPointAllocated])]
               (listen event related-character? request))
             (listen :CharacterDestroyed tracked-destruction? request)
+            (listen :ScriptEventCharacterUpgraded true promotion-finished)
             (listen :FactionTurnStart #(world.host? ($1:faction)) request)
             (listen :PanelOpenedCampaign
                     #(= $1.string :character_panel) request)

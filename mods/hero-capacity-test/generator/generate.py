@@ -32,7 +32,6 @@ TABLES = sorted(set(hero_appearance.TABLES) | set(hero_capacity.TABLES) | {
 })
 NATIVE_INPUTS = {"db.pack": [f"db/{name}_tables" for name in TABLES],
                  **hero_appearance.NATIVE_INPUTS}
-supported_heroes = hero_appearance.supported_heroes
 
 
 def rows(native, families):
@@ -128,9 +127,7 @@ def recruitment_rows(native, heroes, metadata):
             if row["effect"] in available_effects[agent]]
         if not templates:
             raise ValueError(f"Missing native class availability: {agent}")
-        # Marked heroes can have subtype-only hidden effects. Use a real
-        # class unlock from this family, or another supported family of the
-        # same class, while binding only this family's precise subtypes below.
+        # Bind this family's exact lores while retaining the native class gate.
         template = min(templates, key=lambda row: (
             row["effect"] not in family_effects, row["effect"]))
         yield "effects", dict(native["effects"].one(effect=template["effect"]),
@@ -180,14 +177,15 @@ def generate(vanilla, output):
         effect_scope=RECRUIT_SCOPE, context_requirement="",
         value="1.0000", value_damaged="1.0000", value_ruined="0.0000")
     families = hero_capacity.families(native)
-    heroes, metadata = supported_heroes(native)
+    heroes, metadata = hero_capacity.recruitable_heroes(native)
     generated = {}
     for name, row in chain(rows(native, families),
                            recruitment_rows(native, heroes, metadata)):
         generated.setdefault(name, []).append(row)
     for name, values in generated.items():
         write_table(output, native[name], values, FRAGMENT)
-    hero_appearance.write_assets(vanilla, output, native, heroes)
+    appearances, _ = hero_appearance.supported_heroes(native)
+    hero_appearance.write_assets(vanilla, output, native, appearances)
     hero_capacity.write_assets(native, output)
     write_localisation(output, recruitment_localisation(heroes, metadata),
                        FRAGMENT)

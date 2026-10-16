@@ -5,8 +5,11 @@
     (let [source (accumulate [highest (- math.huge)
                              _ subtype (ipairs record.subtypes)]
                     (math.max highest (or (. source-bonus subtype) 0)))
-          used (accumulate [total 0 _ subtype (ipairs record.subtypes)]
-                 (+ total (or (. counts subtype) 0)))
+          used (+ (accumulate [total 0 _ subtype (ipairs record.subtypes)]
+                    (+ total (or (. counts subtype) 0)))
+                  (accumulate [total 0 _ subtype
+                               (ipairs (or record.promoted_subtypes []))]
+                    (+ total (or (. counts subtype) 0))))
           limit (math.max 0 (math.floor (+ source (or (. extras family) 0))))]
       (values family {: used : limit}))))
 
@@ -27,10 +30,19 @@
                       (let [state (. families family)]
                         (+ total (if (= record.agent agent)
                                      (math.max 0 (- state.limit state.used))
-                                     0))))]
+                                     0))))
+          ;; Native soul promotion creates the new hero before deleting the old.
+          promotion-slot
+          (accumulate [reserved 0 _ record (pairs config.families)]
+            (if (and (= record.agent agent)
+                     (next (or record.promoted_subtypes []))
+                     (accumulate [owned? false _ subtype
+                                  (ipairs record.subtypes) &until owned?]
+                       (> (or (. counts subtype) 0) 0)))
+                1 reserved))]
       (values agent
         (if (= observed unlimited) 0
-            (math.max 0 (- (+ used remaining)
+            (math.max 0 (- (+ used remaining promotion-slot)
                            (- observed (or (. last-uplifts agent) 0)))))))))
 
 (fn plan [config source-bonus extras counts normalizers class-caps
@@ -38,6 +50,7 @@
   "Plan independent family limits and host-only native cap effects.
   source-bonus excludes our previous subtype overrides; extras is per family.
   counts includes wounded heroes and every cap-contributing unique subtype.
+  Promotion forms count toward their original family but keep native caps.
   normalizers turn native subtype bonuses into total caps; class-caps are
   observed totals including last-uplifts. Return families, targets, effects,
   and the class-uplifts to subtract from the next observed class totals."
