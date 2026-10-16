@@ -32,7 +32,7 @@
       (set generation (+ generation 1))
       (when config
         (cm:remove_effect_bundle config.bundle scope.host)
-        (cm:set_saved_value saved-key nil))
+        (cm:clear_saved_value saved-key))
       (out (.. "[Everchosen hero capacity] " (tostring error))))))
 
 (fn apply-values [host effects]
@@ -103,13 +103,22 @@
   (let [host (world.host)]
     (when host
       (let [second (model.subtype-caps host config)
-            second-bonuses (model.subtype-bonuses host config)]
-        (each [subtype value (pairs first)]
-          (assert (and (< (. second subtype) 4294967295)
-                       (= (. second subtype) (+ value 1))
-                       (= (. second-bonuses subtype)
-                          (+ (. first-bonuses subtype) 1)))
-                  (.. "Unsupported native subtype capacity: " subtype)))
+            second-bonuses (model.subtype-bonuses host config)
+            failures
+            (icollect [subtype value (pairs first)]
+              (when (not (and (< (. second subtype) 4294967295)
+                              (= (. second subtype) (+ value 1))
+                              (= (. second-bonuses subtype)
+                                 (+ (. first-bonuses subtype) 1))))
+                (let [record (. config.subtypes subtype)]
+                  (string.format
+                    "%s base=%s cap=%s->%s bonus=%s->%s class=%s:%s"
+                    subtype record.base value (. second subtype)
+                    (. first-bonuses subtype) (. second-bonuses subtype)
+                    record.agent (host:agent_cap record.agent)))))]
+        (assert (= (length failures) 0)
+                (.. "Unsupported native subtype capacities:\n"
+                    (table.concat failures "\n")))
         ;; Keep only the native base offset, never a building's current bonus.
         (set normalizers
           (collect [subtype value (pairs first)]

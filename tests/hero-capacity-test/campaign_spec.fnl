@@ -42,7 +42,12 @@
                                (assert.equals saved-key key) s.saved)
             :set_saved_value (fn [_ key value]
                                (assert.equals saved-key key)
+                               (assert (not= value nil)
+                                       "Native saved values cannot be nil")
                                (set s.saved value))
+            :clear_saved_value (fn [_ key]
+                                 (assert.equals saved-key key)
+                                 (set s.saved nil))
             :add_first_tick_callback (fn [_ callback] (set s.start callback))
             :callback (fn [_ callback] (table.insert s.queue callback))
             :apply_effect_bundle (fn [_ key faction turns]
