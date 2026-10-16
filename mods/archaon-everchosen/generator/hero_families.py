@@ -1,7 +1,8 @@
 """Native names and icons for the hero families shown by Archaon's UI."""
 
 TABLES = ("agent_subtypes", "agent_culture_details",
-          "faction_agent_permitted_subtypes", "factions", "main_units")
+          "faction_agent_permitted_subtypes", "factions", "main_units",
+          "cultures_subcultures")
 
 SUBCULTURES = {
     "wh_main_sc_chs_chaos", "wh_dlc03_sc_bst_beastmen",
@@ -81,13 +82,18 @@ def script_data(native):
     The campaign UI discovers the actual available subtypes from native
     buttons. A subtype absent here keeps its own family and native CCO label.
     """
-    factions = {row["key"] for row in native["factions"].rows
+    cultures = {row["subculture"]: row["culture"]
+                for row in native["cultures_subcultures"].rows}
+    factions = {row["key"]: cultures[row["subculture"]]
+                for row in native["factions"].rows
                 if row["subculture"] in SUBCULTURES}
-    permitted = {row["subtype"]
-                 for row in native["faction_agent_permitted_subtypes"].rows
-                 if row["faction"] in factions
-                 and row["agent"] not in ("general", "colonel", "minister")
-                 and row["mod_disabled"] == "false"}
+    permitted = {}
+    for row in native["faction_agent_permitted_subtypes"].rows:
+        if (row["faction"] in factions
+                and row["agent"] not in ("general", "colonel", "minister")
+                and row["mod_disabled"] == "false"):
+            permitted.setdefault(row["subtype"], set()).add(
+                (row["agent"], factions[row["faction"]]))
     units = {row["unit"]: row for row in native["main_units"].rows}
     heroes = {
         row["key"]: row for row in native["agent_subtypes"].rows
@@ -120,5 +126,20 @@ def script_data(native):
         icon = row["small_icon"] or next(iter(culture_icons), "")
         if not icon:
             raise ValueError(f"Missing native hero-family icon: {subtype}")
-        result[subtype] = {"family": family, "name_key": name, "icon": icon}
+        original = sorted((detail for detail in
+                           native["agent_culture_details"].rows
+                           if detail["associated_unit"] == row[
+                               "associated_unit_override"]
+                           and detail["recruitable_in_ui"] == "true"
+                           and (detail["agent"], detail["culture"])
+                           in permitted[subtype]),
+                          key=lambda detail: detail["key"])
+        if name.startswith("agent_culture_details_onscreen_name_"):
+            description = name.replace("_onscreen_name_", "_description_text_", 1)
+        elif original:
+            description = "agent_culture_details_description_text_" + original[0]["key"]
+        else:
+            description = "agent_subtypes_description_text_override_" + subtype
+        result[subtype] = {"family": family, "name_key": name, "icon": icon,
+                           "description_key": description}
     return result

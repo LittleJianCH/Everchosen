@@ -87,14 +87,9 @@
                    name))
             (: (find_uicomponent button :icon) :SetImagePath group.icon 0)
             (button:SetTooltipText
-              (.. name "\n"
-                  (if capacity
-                      (string.format
-                        (common.get_localised_string
-                          :everchosen_hero_family_capacity_tooltip)
-                        capacity.used capacity.limit)
-                      (common.get_localised_string
-                        :everchosen_hero_native_capacity))) "" true)
+              (if group.description-key
+                  (common.get_localised_string group.description-key)
+                  (or group.tooltip "")) "" true)
             (button:SetState (if group.disabled? :inactive
                                 (= group.key selected) :selected
                                 :active))))))

@@ -125,6 +125,7 @@
               name (: (find_uicomponent button :label) :GetStateText)]
           (table.insert state.groups
             {:key (.. "native:" agent) : agent : name :native? true
+             :tooltip (button:GetTooltipText)
              :disabled? (not (rules.selectable? (button:CurrentState)))
              :icon (. config.icons agent) :subtypes [] :members {}}))))
     (set state.busy? false)
@@ -182,6 +183,7 @@
                       icon (when record (record:Call :SmallIcon))]
                   (table.insert state.members
                     {: agent : subtype
+                     :tooltip (when (not meta) (button:GetTooltipText))
                      :name (if (and name (not= name "")) name
                                (: (find_uicomponent
                                     (find_uicomponent controls.agents agent)

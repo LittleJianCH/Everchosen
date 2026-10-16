@@ -7,6 +7,8 @@
                 group (or (. groups key)
                           {: key :agent member.agent :order index
                            :name-key meta.name_key
+                           :description-key meta.description_key
+                           :tooltip member.tooltip
                            :name member.name :icon (or meta.icon member.icon)
                            :subtypes [] :members {}})]
             (when (not (. group.members member.subtype))
