@@ -44,7 +44,9 @@
       (set generation (+ generation 1))
       (when session
         (let [controls (view.controls true)]
-          (when controls (view.block controls session))))
+          (when controls
+            (view.hide-types controls)
+            (view.block controls session))))
       (out (.. "[Everchosen hero recruitment] " (tostring error))))))
 
 (fn later [callback state delay]
@@ -78,6 +80,7 @@
     (let [controls (view.controls)
           group (group-by-key state state.selected)]
       (view.filter-types controls state group)
+      (view.show-types controls)
       (set state.busy? false)
       (set state.phase nil)
       (controls.selection:SetInteractive true)
@@ -88,6 +91,8 @@
   (when (current? state)
     (let [controls (view.controls)
           group (group-by-key state state.selected)
+          _ (do (view.filter-types controls state group)
+                (view.show-types controls))
           candidates
           (icollect [_ subtype (ipairs group.subtypes)]
             (let [button (and controls.types
@@ -100,14 +105,15 @@
                            &until found]
                 (when (rules.selected? (button:CurrentState)) button))
               (. candidates 1))]
-      (view.filter-types controls state group)
       (when (and selected (not (rules.selected? (selected:CurrentState))))
         (selected:SimulateLClick))
+      (view.hide-types controls)
       (set state.phase :finish)
       (if selected
           (later finish-selection state 0.1)
           (do
             (set state.busy? false)
+            (view.show-types controls)
             (controls.selection:SetInteractive true)
             (view.gate controls state false :everchosen_hero_unavailable)
             (: (find_uicomponent controls.private :everchosen_hero_page)
@@ -123,7 +129,7 @@
               button (find_uicomponent controls.agents group.agent)]
           (assert ((. (capacity) :ready))
                   "Native hero capacity has not been verified")
-          (view.restore-types controls state)
+          (view.filter-types controls state group)
           (if (and button
                    (or (rules.selectable? (button:CurrentState))
                        (rules.selected? (button:CurrentState))))
@@ -133,6 +139,7 @@
                   (controls.agents:SetVisible true)
                   (button:SimulateLClick)
                   (controls.agents:SetVisible false))
+                (view.hide-types controls)
                 (set state.phase :subtype)
                 (later choose-subtype state 0.1))
               (do
@@ -145,6 +152,7 @@
     (set state.busy? true)
     (set state.phase :class)
     (view.block (view.controls) state)
+    (view.hide-types (view.controls))
     (render state)
     (navigate-family state)))
 
@@ -181,8 +189,7 @@
                   (set session previous)
                   (set session.generation generation)
                   (set session.busy? false)
-                  (set session.phase nil)
-                  (view.restore-types controls session))
+                  (set session.phase nil))
                 (do
                   (view.create controls)
                   (let [groups (rules.catalog (. (config) :families))]
@@ -209,6 +216,7 @@
                            known))}))
                   (view.reserve-frame controls session)))
             (set closed-session nil)
+            (view.hide-types controls)
             (view.block controls session)
             (render session)
             (initialise-selection session)

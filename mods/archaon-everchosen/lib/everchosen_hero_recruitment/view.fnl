@@ -138,6 +138,13 @@
   (controls.selection:SetInteractive false)
   (gate controls state false))
 
+(fn hide-types [controls]
+  ;; The native 73x450 column is fixed; mask only its inner button list.
+  (when controls.types (controls.types:SetVisible false)))
+
+(fn show-types [controls]
+  (when controls.types (controls.types:SetVisible true)))
+
 (fn restore-types [controls state]
   (each [subtype address (pairs state.hidden)]
     (let [button (and controls.types
@@ -147,13 +154,23 @@
   (set state.hidden {}))
 
 (fn filter-types [controls state group]
-  (restore-types controls state)
+  ;; Read native child visibility in one synchronous, masked update. Restore
+  ;; only this family, rather than exposing every other family for a frame.
+  (show-types controls)
+  (each [subtype address (pairs state.hidden)]
+    (when (. group.members subtype)
+      (let [button (and controls.types
+                       (find_uicomponent controls.types subtype))]
+        (when (and button (= (button:Address) address))
+          (button:SetVisible true)))
+      (tset state.hidden subtype nil)))
   (each [_ button (ipairs (children controls.types))]
     (when (and (. state.native-subtypes (button:Id))
                (not (. group.members (button:Id))) (button:Visible))
       (tset state.hidden (button:Id) (button:Address))
       (button:SetVisible false)))
-  (when controls.types (controls.types:Layout)))
+  (when controls.types (controls.types:Layout))
+  (hide-types controls))
 
 (fn matches? [controls group]
   "Require the selected subtype and every visible native candidate to match."
@@ -188,6 +205,7 @@
   (when controls.private (controls.private:SetVisible false))
   (controls.agents:SetVisible true)
   (controls.selection:SetInteractive true)
+  (show-types controls)
   (release-buttons controls state)
   (when (and controls.load-character state.load-character
              (= (controls.load-character:Address) state.load-character.address))
@@ -201,5 +219,6 @@
     (.. frame-context ".ListLayoutContext.SetSizeToContents(true)")))
 
 {: controls : children : clicked? : create : reserve-frame : show-page
- : gate : block : restore-types : filter-types : matches? : show-capacity
+ : gate : block : hide-types : show-types : restore-types : filter-types
+ : matches? : show-capacity
  : close}

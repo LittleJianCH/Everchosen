@@ -13,6 +13,7 @@
            :subtype-clicks [] :enabled? false :pending? pending?
            :prepares 0 :creates 0 :closes 0 :restores 0
            :mutations 0
+           :types-visible? true
            :selected-class :wizard :selected-subtype :chaos-fire
            :snapshots {:a-sorcerer {:used 0 :limit 1}
                        :b-alluress {:used 0 :limit 1}
@@ -67,7 +68,10 @@
               :reserve-frame #(set s.prepares (+ s.prepares 1))
               :close #(set s.closes (+ s.closes 1))
               :restore-types #(set s.restores (+ s.restores 1))
-              :filter-types (fn []) :show-capacity (fn [])
+              :filter-types #(set s.types-visible? false)
+              :hide-types #(set s.types-visible? false)
+              :show-types #(set s.types-visible? true)
+              :show-capacity (fn [])
               :block (fn []
                        (set s.mutations (+ s.mutations 1))
                        (set s.enabled? false))
@@ -221,6 +225,49 @@
           (assert.is_true observed.native-visible?)
           (assert.is_false observed.proxy-visible?)
           (assert.equals :inactive (native:CurrentState)))))
+    (it "filters masked types without exposing another hidden family"
+      (fn []
+        (let [s (scenario)
+              observed {:fire false :castellan false :death true :list true
+                        :castellan-was-shown? false}
+              buttons
+              (icollect [index subtype (ipairs [:fire :castellan :death])]
+                {:Id (fn [] subtype) :Address (fn [] index)
+                 :Visible #(do (. observed subtype))
+                 :SetVisible (fn [_ visible?]
+                   (when (and (= subtype :castellan) visible?)
+                     (set observed.castellan-was-shown? true))
+                   (tset observed subtype visible?))})
+              types (native-list buttons)
+              state {:hidden {:fire 1 :castellan 2}
+                     :native-subtypes {:fire true :castellan true :death true}}
+              controls {: types}]
+          (each [_ button (ipairs buttons)] (tset types (button:Id) button))
+          (set types.SetVisible #(set observed.list $2))
+          (set types.Layout (fn []))
+          (s.native-view.filter-types controls state {:members {:fire true}})
+          (assert.is_false observed.list)
+          (assert.is_false observed.castellan-was-shown?)
+          (s.native-view.show-types controls)
+          (assert.is_true observed.list)
+          (assert.is_true observed.fire)
+          (assert.is_false observed.castellan)
+          (assert.is_false observed.death))))
+    (it "keeps type icons masked between native class and subtype updates"
+      (fn []
+        (let [s (scenario)]
+          (assert.is_false s.types-visible?)
+          (s.drain)
+          (assert.is_true s.types-visible?)
+          (s.click :everchosen_hero_slot_2 :private)
+          (assert.same [:engineer] s.class-clicks)
+          (assert.is_false s.types-visible?)
+          (s.step)
+          (assert.same [:slaanesh] s.subtype-clicks)
+          (assert.is_false s.types-visible?)
+          (s.drain)
+          (assert.is_true s.types-visible?)
+          (assert.equals 0 s.restores))))
     (it "prepares once immediately and paginates all families in one catalog"
       (fn []
         (let [s (scenario)]
