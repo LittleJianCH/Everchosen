@@ -1,5 +1,6 @@
 key	text	tooltip
 #Loc;1;text/db/everchosen_subjugation.loc		
+effects_additional_tooltip_details_localised_description_wh3_dlc29_chs_archaon_confederation_dummy	击败敌对混沌传奇领主将触发抉择事件，允许你收服被击败的人物及其派系\\n\\n{{tr:wh3_dlc29_archaon_subjugation_tooltip}}\\n\\n只有属于以下文化的人物可以被收服：\\n[[img:icon_corruption_kho]][[//img]]恐虐\\n[[img:icon_corruption_nur]][[//img]]纳垢\\n[[img:icon_corruption_sla]][[//img]]色孽\\n[[img:icon_corruption_tze]][[//img]]奸奇\\n[[img:icon_corruption_chs]][[//img]]混沌勇士\\n[[img:bullet_nor_units]][[/img]]诺斯卡\\n[[img:bullet_chd_units]][[/img]]混沌矮人\\n[[img:bullet_bst_units]][[/img]]野兽人\\n[[img:bullet_dae_daemonic_progression]][[/img]]混沌恶魔（恶魔亲王）	false
 character_skills_localised_name_everchosen_subjugation_world_walker	{{tr:character_skills_localised_name_wh_dlc08_skill_nor_wulfrik_unique_world_walker}}	false
 character_skills_localised_description_everchosen_subjugation_world_walker	{{tr:character_skills_localised_description_wh_dlc08_skill_nor_wulfrik_unique_world_walker}}	false
 character_skills_localised_name_everchosen_subjugation_titans_of_the_deep_forest	{{tr:character_skills_localised_name_wh2_dlc17_skill_bst_taurox_unique_titans_of_the_deep_forest}}	false
