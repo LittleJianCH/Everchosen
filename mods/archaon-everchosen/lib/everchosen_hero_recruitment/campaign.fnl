@@ -80,12 +80,16 @@
     (let [controls (view.controls)
           group (group-by-key state state.selected)]
       (view.filter-types controls state group)
-      (view.show-types controls)
-      (set state.busy? false)
-      (set state.phase nil)
-      (controls.selection:SetInteractive true)
-      (refresh-gate state)
-      (render state))))
+      (if (view.settled? controls group)
+          (do
+            (view.show-types controls)
+            (view.reveal-selection controls state)
+            (set state.busy? false)
+            (set state.phase nil)
+            (controls.selection:SetInteractive true)
+            (refresh-gate state)
+            (render state))
+          (later finish-selection state 0.1)))))
 
 (fn choose-subtype [state]
   (when (current? state)
@@ -152,6 +156,7 @@
     (set state.busy? true)
     (set state.phase :class)
     (view.block (view.controls) state)
+    (view.mask-selection (view.controls) state)
     (view.hide-types (view.controls))
     (render state)
     (refresh-gate state)

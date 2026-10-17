@@ -15,6 +15,7 @@
            :mutations 0
            :types-visible? true
            :selected-class :wizard :selected-subtype :chaos-fire
+           :cards-subtype :chaos-fire :selection-visible? true
            :snapshots {:a-sorcerer {:used 0 :limit 1}
                        :b-alluress {:used 0 :limit 1}
                        :c-shaman {:used 1 :limit 1}
@@ -51,7 +52,9 @@
                                       :selected :active)
                    :SimulateLClick (fn []
                      (table.insert s.subtype-clicks subtype)
-                     (set s.selected-subtype subtype))}))
+                     (set s.selected-subtype subtype)
+                     (when (not s.defer-cards?)
+                       (set s.cards-subtype subtype)))}))
         confirm {:Address (fn [] 4)}
         controls {: agents : types : confirm :private {:kind :private}
                   :panel {:Address (fn [] 1)}
@@ -71,6 +74,8 @@
               :filter-types #(set s.types-visible? false)
               :hide-types #(set s.types-visible? false)
               :show-types #(set s.types-visible? true)
+              :mask-selection #(set s.selection-visible? false)
+              :reveal-selection #(set s.selection-visible? true)
               :show-capacity (fn [_ _ group snapshot]
                                (set s.capacity-family group.key)
                                (set s.capacity snapshot))
@@ -82,6 +87,7 @@
                       (set s.enabled? (not (not enabled?)))
                       (set s.reason reason))
               :matches? (fn [] true)
+              :settled? #(= s.selected-subtype s.cards-subtype)
               :children (fn [parent]
                           (assert.equals types parent)
                           (icollect [_ subtype
@@ -120,7 +126,11 @@
         {:CurrentState #(if (= agent s.selected-class) :selected_hover :active)
          :SimulateLClick (fn []
                            (table.insert s.class-clicks agent)
-                           (set s.selected-class agent))}))
+                           (set s.selected-class agent)
+                           (when s.defer-cards?
+                             ;; Observe a class default before delayed cards.
+                             (set s.selected-subtype :castellan)
+                             (set s.cards-subtype :castellan)))}))
     (set env.require
       (fn [key]
         (when (not (. env.package.loaded key))
@@ -179,6 +189,7 @@
           (assert.is_falsy (s.native-view.matches? controls group))
           (set controls.selection.character_list {:list_box (native-list [])})
           (assert.is_falsy (s.native-view.matches? controls group))
+          (assert.is_truthy (s.native-view.settled? controls group))
           (let [observed {:subtype :fire}
                 character {:Call (fn [_ query]
                                    (assert.equals :AgentSubtypeRecordContext.Key
@@ -193,7 +204,25 @@
               (native-list [card]))
             (assert.is_truthy (s.native-view.matches? controls group))
             (set observed.subtype :castellan)
-            (assert.is_falsy (s.native-view.matches? controls group))))))
+            (assert.is_falsy (s.native-view.matches? controls group))
+            (assert.is_falsy (s.native-view.settled? controls group))))))
+    (it "masks native defaults until the chosen family's cards arrive"
+      (fn []
+        (let [s (scenario)]
+          (s.drain)
+          (set s.defer-cards? true)
+          (s.click :everchosen_hero_slot_2 :private)
+          (assert.equals :castellan s.cards-subtype)
+          (assert.is_false s.selection-visible?)
+          (s.step)
+          (assert.equals :slaanesh s.selected-subtype)
+          (s.step)
+          (assert.is_false s.selection-visible?)
+          (assert.is_false s.enabled?)
+          (set s.cards-subtype :slaanesh)
+          (s.drain)
+          (assert.is_true s.selection-visible?)
+          (assert.is_true s.enabled?))))
     (it "shows its own disabled copy without changing native recruitment state"
       (fn []
         (let [s (scenario)

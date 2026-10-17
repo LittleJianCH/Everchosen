@@ -151,6 +151,16 @@
 (fn show-types [controls]
   (when controls.types (controls.types:SetVisible true)))
 
+(fn mask-selection [controls state]
+  ;; Keep layout and native callbacks alive while the class default changes.
+  (when (= state.selection-opacity nil)
+    (set state.selection-opacity (controls.selection:Opacity)))
+  (controls.selection:SetOpacity 0))
+
+(fn reveal-selection [controls state]
+  (when state.selection-opacity
+    (controls.selection:SetOpacity state.selection-opacity)))
+
 (fn restore-types [controls state]
   (each [subtype address (pairs state.hidden)]
     (let [button (and controls.types
@@ -178,12 +188,11 @@
   (when controls.types (controls.types:Layout))
   (hide-types controls))
 
-(fn matches? [controls group]
-  "Require the selected subtype and every visible native candidate to match."
+(fn selection-matches? [controls group require-candidates?]
   (let [list (find_uicomponent controls.selection :character_list :list_box)
         cards (icollect [_ card (ipairs (children list))]
                 (when (card:Visible) card))]
-    (and (> (length cards) 0)
+    (and (or (not require-candidates?) (> (length cards) 0))
          (accumulate [selected false _ button
                      (ipairs (children controls.types)) &until selected]
            (and (. group.members (button:Id))
@@ -194,6 +203,14 @@
              (and character
                   (. group.members
                     (character:Call :AgentSubtypeRecordContext.Key))))))))
+
+(fn matches? [controls group]
+  "Require a matching selected subtype and a nonempty matching candidate list."
+  (selection-matches? controls group true))
+
+(fn settled? [controls group]
+  "Allow an empty pool, but never show another family's native candidates."
+  (selection-matches? controls group false))
 
 (fn show-capacity [controls state group snapshot]
   (when controls.capacity
@@ -213,6 +230,7 @@
     (controls.native-capacity:SetOpacity state.capacity-opacity))
   (controls.agents:SetVisible true)
   (controls.selection:SetInteractive true)
+  (reveal-selection controls state)
   (show-types controls)
   (release-buttons controls state)
   (when (and controls.load-character state.load-character
@@ -228,5 +246,5 @@
 
 {: controls : children : clicked? : create : reserve-frame : show-page
  : gate : block : hide-types : show-types : restore-types : filter-types
- : matches? : show-capacity
+ : matches? : settled? : mask-selection : reveal-selection : show-capacity
  : close}
