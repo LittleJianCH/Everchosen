@@ -1,3 +1,11 @@
+function ConvertTo-PackResourcePaths {
+    param([string[]]$OutputLines)
+    # RPFM emits startup logs on stdout alongside the resource paths.
+    $OutputLines | Where-Object {
+        $_ -and $_ -notmatch '^\d{2}:\d{2}:\d{2} \[[A-Z]+\] '
+    }
+}
+
 function Assert-PackResourcePreservation {
     param(
         [string[]]$PreviousPaths,

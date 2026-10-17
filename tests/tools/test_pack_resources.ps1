@@ -3,6 +3,14 @@ $ErrorActionPreference = 'Stop'
 
 $existing = @('script/campaign/mod/everchosen_archaon.lua',
               'ui/everchosen/hero_families.twui.xml')
+$listed = @(ConvertTo-PackResourcePaths -OutputLines @(
+    '18:55:38 [INFO] Logger initialized.'
+    '18:55:38 [INFO] Sentry Logging support enabled. Starting...'
+    $existing
+))
+if ($listed.Count -ne 2 -or (Compare-Object $existing $listed)) {
+    throw 'RPFM startup logs must not be treated as resource paths.'
+}
 Assert-PackResourcePreservation -PreviousPaths $existing -NewPaths @(
     $existing + 'text/everchosen_portal_heroes.loc')
 

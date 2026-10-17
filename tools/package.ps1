@@ -91,7 +91,8 @@ try {
         Invoke-Rpfm @('pack', 'create', '-p', $pack)
         Invoke-Rpfm @('pack', 'add', '-p', $pack, '-t', $Schema, '-F', "$source;/")
 
-        $packPaths = @(Invoke-Rpfm @('pack', 'list', '-p', $pack))
+        $packPaths = @(ConvertTo-PackResourcePaths -OutputLines @(
+            Invoke-Rpfm @('pack', 'list', '-p', $pack)))
         # Confirm DB encoding and source preservation before replacing a deliverable.
         $decoded = Join-Path $work "$item-roundtrip"
         Invoke-Rpfm @('pack', 'extract', '-p', $pack, '-t', $Schema, '-F', "/;$decoded")
@@ -122,7 +123,8 @@ try {
         }
         $destination = Join-Path $dist $name
         if (Test-Path -LiteralPath $destination) {
-            $previousPaths = @(Invoke-Rpfm @('pack', 'list', '-p', $destination))
+            $previousPaths = @(ConvertTo-PackResourcePaths -OutputLines @(
+                Invoke-Rpfm @('pack', 'list', '-p', $destination)))
             Assert-PackResourcePreservation -PreviousPaths $previousPaths `
                 -NewPaths $packPaths -AllowResourceRemoval:$AllowResourceRemoval
         }
