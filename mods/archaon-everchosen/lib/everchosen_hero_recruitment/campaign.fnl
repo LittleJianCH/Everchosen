@@ -154,6 +154,7 @@
     (view.block (view.controls) state)
     (view.hide-types (view.controls))
     (render state)
+    (refresh-gate state)
     (navigate-family state)))
 
 (fn initialise-selection [state]

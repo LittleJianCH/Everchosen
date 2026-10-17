@@ -19,6 +19,7 @@ NATIVE_INPUTS = (
 )
 ANCHORS = {
     "container": "3A620DFB-CB4E-4BC3-BF1B230582AA59C4",
+    "capacity": "26AF3113-37D9-4E9B-9E2A437572056C45",
     "label": "6664E522-0080-4756-BBDFE1C21F2C9297",
     "icon": "83BE0492-8E0D-4ED0-9B2CCDB88B331291",
     "previous": "7A17A59C-96C3-4E6A-A1B07F368A212C21",
@@ -151,6 +152,14 @@ def write_ui(native_root, output):
         node = ET.SubElement(parent, name, this=part.get("this"))
         components.append(part)
     panel = node
+
+    # Own the displayed family quota; native callbacks still update their
+    # original class counter, which the host-only view masks at runtime.
+    capacity = clone(sources["capacity"], "everchosen_hero_capacity")
+    capacity.set("visible", "false")
+    capacity.set("priority", "20")
+    ET.SubElement(panel, capacity.tag, this=capacity.get("this"))
+    components.append(capacity)
 
     for index in range(1, PAGE_SIZE + 1):
         name = f"everchosen_hero_slot_{index}"

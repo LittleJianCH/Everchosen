@@ -26,7 +26,9 @@
                (or include-hidden? (and (panel:Visible) (parent:Visible))))
       {: panel : parent
        : frame : agents
-       :capacity (find_uicomponent parent :dy_agent_cap)
+       :native-capacity (find_uicomponent parent :dy_agent_cap)
+       :capacity (find_uicomponent parent :everchosen_hero_families
+                   :everchosen_hero_capacity)
        :load-character (find_uicomponent panel :footer :button_load_character)
        : confirm
        :raise (find_uicomponent panel :footer :button_raise)
@@ -60,6 +62,10 @@
 
 (fn reserve-frame [controls state]
   ;; Prepare once on opening; neither family nor settlement cycling resizes it.
+  (when controls.native-capacity
+    ;; Native selection callbacks own the class counter, even between frames.
+    (set state.capacity-opacity (controls.native-capacity:Opacity))
+    (controls.native-capacity:SetOpacity 0))
   (set state.frame-height (controls.frame:Height))
   (set state.header-height (controls.parent:Height))
   (set state.agents-height (controls.agents:Height))
@@ -191,18 +197,20 @@
 
 (fn show-capacity [controls state group snapshot]
   (when controls.capacity
-    (controls.capacity:SetVisible true)
     (controls.capacity:SetState
       (if (>= snapshot.used snapshot.limit) :maxed :NewState))
     (controls.capacity:SetStateText
       (string.format "%d/%d" snapshot.used snapshot.limit))
     (controls.capacity:SetTooltipText
-      (common.get_localised_string group.description-key) "" true)))
+      (common.get_localised_string group.description-key) "" true)
+    (controls.capacity:SetVisible true)))
 
 (fn close [controls state]
   ;; A queued native hire may still read its selected subtype after closing.
   ;; Restore those buttons on the next open, never while submitting the hire.
   (when controls.private (controls.private:SetVisible false))
+  (when controls.native-capacity
+    (controls.native-capacity:SetOpacity state.capacity-opacity))
   (controls.agents:SetVisible true)
   (controls.selection:SetInteractive true)
   (show-types controls)

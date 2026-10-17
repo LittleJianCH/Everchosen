@@ -71,7 +71,9 @@
               :filter-types #(set s.types-visible? false)
               :hide-types #(set s.types-visible? false)
               :show-types #(set s.types-visible? true)
-              :show-capacity (fn [])
+              :show-capacity (fn [_ _ group snapshot]
+                               (set s.capacity-family group.key)
+                               (set s.capacity snapshot))
               :block (fn []
                        (set s.mutations (+ s.mutations 1))
                        (set s.enabled? false))
@@ -225,6 +227,26 @@
           (assert.is_true observed.native-visible?)
           (assert.is_false observed.proxy-visible?)
           (assert.equals :inactive (native:CurrentState)))))
+    (it "keeps the family counter separate from native class refreshes"
+      (fn []
+        (let [s (scenario)
+              shown {:native "4/9" :visible? false}
+              controls
+              {:native-capacity {:SetStateText #(set shown.native $2)}
+               :capacity {:SetState #(set shown.state $2)
+                          :SetStateText #(set shown.family $2)
+                          :SetTooltipText #(set shown.tooltip $2)
+                          :SetVisible (fn [_ visible?]
+                            (assert.equals "1/1" shown.family)
+                            (set shown.visible? visible?))}}]
+          (s.native-view.show-capacity controls {}
+            {:description-key :native-description} {:used 1 :limit 1})
+          (assert.is_true shown.visible?)
+          (assert.equals :maxed shown.state)
+          (assert.equals :native-description shown.tooltip)
+          (assert.equals "4/9" shown.native)
+          (controls.native-capacity:SetStateText "5/9")
+          (assert.equals "1/1" shown.family))))
     (it "filters masked types without exposing another hidden family"
       (fn []
         (let [s (scenario)
@@ -308,6 +330,8 @@
           (assert.is_true s.enabled?)
           (s.click :everchosen_hero_next :private)
           (s.click :everchosen_hero_slot_1 :private)
+          (assert.equals :c-shaman s.capacity-family)
+          (assert.same {:used 1 :limit 1} s.capacity)
           (s.drain)
           (assert.is_false s.enabled?)
           (assert.equals :everchosen_hero_capacity_full s.reason)
