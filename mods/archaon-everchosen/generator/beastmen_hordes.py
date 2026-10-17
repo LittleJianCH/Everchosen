@@ -11,7 +11,7 @@ START_BUNDLE = PREFIX + "new_horde"
 SETTLE_BUNDLE = PREFIX + "settle"
 POOL_SOURCE = PREFIX + "camp_stock"
 UNIT_SET = PREFIX + "warband_units"
-AVAILABILITY = PREFIX + "availability"
+AVAILABILITY = "wh_main_bas_chs"
 SLOTS = {"primary": PREFIX + "primary", "secondary": PREFIX + "secondary"}
 START_SET = PREFIX + "starting_buildings"
 HORN_CHAIN = "wh2_dlc17_horde_beastmen_army_buffs_terror"
@@ -204,14 +204,10 @@ def building_rows(native):
 
 
 def access_rows(native):
-    used = native["building_chain_availabilities"].column("id")
-    base = native["building_chain_availabilities"].one(
-        set_id="wh_main_bas_chs", faction="", campaign="")
-    yield "building_chain_availabilities", dict(
-        base, id=stable_id(AVAILABILITY, used), set_id=AVAILABILITY,
-        faction=HOST, campaign=CAMPAIGN)
-    for row in native["building_chain_availability_sets"].where(id=base["set_id"]):
-        yield "building_chain_availability_sets", dict(row, id=AVAILABILITY)
+    # Keep the native selector so other mods can extend the same city list.
+    # Private camp slots and faction-specific culture variants gate our chains.
+    native["building_chain_availabilities"].one(
+        set_id=AVAILABILITY, faction="", campaign="")
     for kind in SUBTYPES.values():
         row = native["military_force_type_horde_details"].one(force_type=kind)
         yield "military_force_type_horde_details", dict(row,
@@ -375,7 +371,9 @@ def validate(native, generated, authored=None):
     for name, fields in references.items():
         for row in own[name]:
             for field, (target, column) in fields.items():
-                keys = native[target].column(column) | {r[column] for r in own[target]}
+                keys = native[target].column(column) | {
+                    r[column] for r in generated.get(target, [])
+                } | {r[column] for r in authored.get(target, [])}
                 if row[field] and row[field] not in keys:
                     raise ValueError(f"Invalid horde reference: {name}.{field}: {row[field]}")
     validate_scope(native, own)
@@ -413,16 +411,16 @@ def validate_scope(native, own):
                   if r["slot_template"] == SLOTS[role]}
         if actual != selected | {PREFIX + key for key in selected}:
             raise ValueError(f"Private camp slot escaped Beastmen chains: {role}")
-    base = {r["building_chain"] for r in native[
-        "building_chain_availability_sets"].where(id="wh_main_bas_chs")}
     actual = {r["building_chain"] for r in own["building_chain_availability_sets"]}
-    if actual != base | {PREFIX + key for key in chains}:
-        raise ValueError("Host building availability lost native city chains")
+    if (actual != {PREFIX + key for key in chains}
+            or any(r["id"] != AVAILABILITY
+                   for r in own["building_chain_availability_sets"])):
+        raise ValueError("Camp chains must extend the native Chaos building list")
     if own["main_units"] or own["agent_subtype_military_force_creation_overrides"]:
         raise ValueError("Private camps must preserve native units and subtype selectors")
     allowed = own["building_chain_availabilities"]
-    if len(allowed) != 1 or allowed[0]["faction"] != HOST or allowed[0]["campaign"] != CAMPAIGN:
-        raise ValueError("Private camp availability must stay with Archaon in IE")
+    if allowed:
+        raise ValueError("Private camps must not replace native building selectors")
     if any(r["faction"] != HOST or r["culture"] != CULTURE
            for r in own["building_culture_variants"]):
         raise ValueError("Private camp display permissions escaped the host")
@@ -430,7 +428,9 @@ def validate_scope(native, own):
     native_effects = [dict(r, building=PREFIX + r["building"])
                       for r in native["building_effects_junction"].rows
                       if r["building"] in levels and r["effect"] not in REMOVED_EFFECTS]
-    retained = [r for r in own["building_effects_junction"] if not r["effect"].startswith(PREFIX)]
+    retained = [r for r in own["building_effects_junction"]
+                if not r["effect"].startswith((
+                    PREFIX, "everchosen_hero_capacity_source_"))]
     order = lambda row: (row["building"], row["effect"], row["effect_scope"])
     if sorted(native_effects, key=order) != sorted(retained, key=order):
         raise ValueError("Private camps must preserve applicable native building effects")

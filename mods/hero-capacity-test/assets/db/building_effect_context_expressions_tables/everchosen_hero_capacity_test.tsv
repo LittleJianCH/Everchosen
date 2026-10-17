@@ -1,0 +1,3 @@
+key	expression	display_only_active_effects	always_show_display_text
+#building_effect_context_expressions_tables;2;db/building_effect_context_expressions_tables/everchosen_hero_capacity_test			
+everchosen_hero_capacity_test_host	Region.Owner.RecordKey == "wh_main_chs_chaos"	true	false

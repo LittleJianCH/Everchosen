@@ -1,0 +1,4 @@
+effect	icon	priority	icon_negative	category	is_positive_value_good
+#effects_tables;0;db/effects_tables/everchosen_vassal_recruitment					
+everchosen_vassal_recruit_cost_norsca	treasury.png	101	treasury.png	campaign	false
+everchosen_vassal_recruit_cost_chd	treasury.png	101	treasury.png	campaign	false

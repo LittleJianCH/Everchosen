@@ -9,11 +9,15 @@ This repository contains Total War: WARHAMMER III mods. The earlier prototype wo
 | **Archaon: The Everchosen** — main mod | `mods/archaon-everchosen/` |
 | **Tamurkhan Chieftain Progression** — separate submod | `mods/tamurkhan-chieftains/` |
 | **Chaos Equipment for Warriors of Chaos** — separate submod | `mods/chaos-equipment/` |
+| **Daemon Portal Heroes** — separate submod | `mods/daemon-portal-heroes/` |
+| **Hero Capacity Test** — opt-in capacity test pack | `mods/hero-capacity-test/` |
 
 - Equipment eligibility covers Khorne, Nurgle, Tzeentch, Slaanesh, Norsca, Beastmen, and Chaos Dwarfs, and adds Warriors of Chaos culture eligibility for weapons, armour, talismans, enchanted/arcane items, and mounts. Preserve native access and character/skill/rank restrictions; do not grant items or bypass acquisition quests. Keep this data patch out of the other products.
 - Keep all other gameplay in the main mod, including blessings, subjugation, portals, Beastmen hordes, and Norscan outposts. Split out another submod only when the user explicitly selects it; future submods stay in this repository.
 - Give each product distinct build outputs and packaging boundaries. A separate submod does not by itself imply a dependency on the main mod. Define dependencies and coexistence when implementing them, and prevent duplicate listeners or rewards when both packs are loaded.
+- Keep the hero-capacity test pack opt-in: `all` builds and packages only the four production products. It supplies starting capacity and native hero recruitment at Archaon's Dark Fortress main buildings; it must not grant characters directly.
 - Equipment eligibility and chieftain progression are independently loadable. Enable the equipment submod alongside progression when chieftains in Warriors of Chaos need their native equipment permissions; do not duplicate the permission patch in progression.
+- Daemon Portal Heroes requires the Workshop `daemon_portals.pack`, but not the main mod. It replaces `woc_heroes_portals.pack`; do not enable both. Equipment and mount eligibility stays in Chaos Equipment. Package with `-DaemonPortals <pack>` or `WH3_DAEMON_PORTALS`; only building definitions are extracted as validation inputs, never redistributed.
 - Share helpers when needed, without duplicating gameplay or building a general framework ahead of requirements.
 - Do not add a README unless requested.
 - Do not record development progress, completion status, task checklists, session summaries, handoff notes, or temporary next steps in repository files, including documentation and code comments. Keep progress reports in the conversation. Repository guidance should describe durable rules, design decisions, usage contracts, and technical evidence with its limits.
@@ -47,6 +51,7 @@ Normal saving and loading within a campaign created with the current version rem
 - Prefer small modules with explicit dependencies. Separate pure rules from game-event adapters where that makes the implementation easier to reason about. In `tamurkhan-chieftains`, `data` holds keys and defaults, `rules` is pure, `world` queries the campaign model, `settings` and `mct` handle configuration, and `campaign` owns listeners and commands.
 - Preserve original game packs and Workshop inputs; extract references for inspection. Do not commit proprietary dumps or credentials. Check redistribution permission before publishing reused assets or code.
 - When installing a requested build, confirm the game is closed, retain an appropriate previous artifact, and verify the installed pack matches the build. A build request alone is not a publishing request.
+- Before replacing an installed pack, check its source branch and existing feature set against the intended build. Do not overwrite features installed from another branch with an older checkout; integrate their source first. Packaging records branch/commit provenance beside each pack and rejects removed resource paths. Use `-AllowResourceRemoval` only after reviewing an intentional removal; this check does not establish gameplay equivalence or detect removed rows within retained fragments.
 
 ## Fennel style
 

@@ -1,0 +1,11 @@
+effect	icon	priority	icon_negative	category	is_positive_value_good
+#effects_tables;0;db/effects_tables/everchosen_portal_heroes					
+everchosen_portal_heroes_enable_kho_bloodreaper_province_hidden		0		campaign	true
+everchosen_portal_heroes_unlock_kho_cultist_hint	kho_cultist.png	103	kho_cultist.png	campaign	true
+everchosen_portal_heroes_enable_nur_plagueridden_province_hidden		0		campaign	true
+everchosen_portal_heroes_unlock_nur_cultist_hint	nur_cultist.png	103	nur_cultist.png	campaign	true
+everchosen_portal_heroes_enable_tze_iridescent_horror_province_hidden		0		campaign	true
+everchosen_portal_heroes_unlock_tze_cultist_hint	tze_cultist.png	103	tze_cultist.png	campaign	true
+everchosen_portal_heroes_enable_sla_alluress_province_hidden		0		campaign	true
+everchosen_portal_heroes_unlock_sla_cultist_hint	sla_cultist.png	103	sla_cultist.png	campaign	true
+everchosen_portal_heroes_enable_druchii_anointed	wh3_dlc27_sla_druchii_anointed.png	4	wh3_dlc27_sla_druchii_anointed.png	campaign	true

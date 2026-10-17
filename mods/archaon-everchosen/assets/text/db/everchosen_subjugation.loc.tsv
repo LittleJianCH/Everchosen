@@ -1,5 +1,6 @@
 key	text	tooltip
 #Loc;1;text/db/everchosen_subjugation.loc		
+effects_additional_tooltip_details_localised_description_wh3_dlc29_chs_archaon_confederation_dummy	击败可收服的敌对传奇领主后，可在战后抉择中接受其臣服，使其加入你的招募池。\\n\\n原版收服范围：恐虐、纳垢、色孽、奸奇与混沌勇士。\\n\\n额外可收服：\\n诺斯卡：乌弗瑞克、索隆格、萨尔\\n混沌矮人：阿斯特戈斯、德拉兹霍斯、扎坦\\n野兽人：卡扎克、马拉戈、魔古尔、陶诺斯\\n混沌大军：恶魔亲王\\n\\n上述诺斯卡、混沌矮人与野兽人领主的剩余势力归入同族仆从军；恶魔亲王由新领主继任，其派系保留为附庸。派系覆灭后，仍可通过挑战收服。	false
 character_skills_localised_name_everchosen_subjugation_world_walker	{{tr:character_skills_localised_name_wh_dlc08_skill_nor_wulfrik_unique_world_walker}}	false
 character_skills_localised_description_everchosen_subjugation_world_walker	{{tr:character_skills_localised_description_wh_dlc08_skill_nor_wulfrik_unique_world_walker}}	false
 character_skills_localised_name_everchosen_subjugation_titans_of_the_deep_forest	{{tr:character_skills_localised_name_wh2_dlc17_skill_bst_taurox_unique_titans_of_the_deep_forest}}	false

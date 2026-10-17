@@ -6,7 +6,7 @@ from pathlib import Path
 MOD = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(Path(__file__).resolve().parent),
                 str(MOD.parents[1] / "tools")]
-from db_tables import (read_authored, read_table, run_generator,
+from db_tables import (lua_literal, read_authored, read_table, run_generator,
                        write_localisation, write_table)
 import inheritance
 import subjugation
@@ -18,17 +18,29 @@ import roster_permissions
 import beastmen_hordes
 import beastmen_horde_ui
 import beastmen_horde_heroes
+import recruitment_ui
+import vassal_military_buildings
+import vassal_recruitment_discount
+import hero_recruitment_ui
+import hero_families
+import hero_appearance
+import hero_capacity
+import beastmen_hero_economy
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
 BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
-                daemon_legion, beastmen_hordes)
+                daemon_legion, beastmen_hordes, vassal_military_buildings,
+                recruitment_ui)
 MODULES = (*BASE_MODULES, beastmen_horde_heroes, daemon_skills,
-           beastmen_horde_ui)
+           beastmen_horde_ui, vassal_recruitment_discount, hero_recruitment_ui,
+           hero_families, hero_appearance, hero_capacity, beastmen_hero_economy)
 TABLES = sorted({table for module in MODULES for table in module.TABLES})
 NATIVE_INPUTS = {
     "db.pack": [f"db/{name}_tables" for name in TABLES],
+    **hero_appearance.NATIVE_INPUTS,
     "ui3.pack": [*inheritance.UI_ADAPTATIONS, *daemon_prince.UI_ADAPTATIONS,
+                 *hero_recruitment_ui.NATIVE_INPUTS,
                  "ui/templates/square_medium_text_button.twui.xml",
                  *beastmen_horde_ui.NATIVE_INPUTS],
     # Loaded by the adapter regressions, not by this generator.
@@ -58,25 +70,12 @@ def script_data(native):
         daemon_skills.PRINCE: daemon_skills.skill_mapping(native)}
     data["daemon_prince"] = daemon_prince.script_data(native)
     data["hordes"] = beastmen_hordes.script_data(native)
+    data["vassal_military_buildings"] = vassal_military_buildings.script_data(native)
+    data["hero_recruitment"] = {
+        "subtypes": hero_families.script_data(native),
+        "icons": hero_recruitment_ui.script_data(native),
+        "page_size": hero_recruitment_ui.PAGE_SIZE}
     return data
-
-
-def lua_literal(value):
-    """Serialize strings, booleans, lists, and string-keyed dicts as Lua."""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, (int, float)):
-        return str(value)
-    if isinstance(value, str):
-        escaped = (value.replace("\\", "\\\\").replace('"', '\\"')
-                   .replace("\n", "\\n"))
-        return f'"{escaped}"'
-    if isinstance(value, dict):
-        return "{" + ",".join(f"[{lua_literal(key)}]={lua_literal(item)}"
-                              for key, item in value.items()) + "}"
-    if isinstance(value, (list, tuple)):
-        return "{" + ",".join(lua_literal(item) for item in value) + "}"
-    raise TypeError(f"No Lua literal for {type(value).__name__}")
 
 
 def adapt_ui(native_root, output, native):
@@ -98,10 +97,15 @@ def generate(native_root, output):
     native = {name: read_table(native_root / "db", name) for name in TABLES}
     authored = read_authored(MOD / "assets/db", native)
     generated = generated_rows(native)
+    building_data = vassal_military_buildings.script_data(native)
+    for table, row in vassal_recruitment_discount.rows(native, building_data):
+        generated.setdefault(table, []).append(row)
     subjugation.validate(native, generated, authored)
     # Subjugation validates legendary-lord permissions before ordinary camp
     # heroes add their separate, native-derived recruitment permissions.
     for table, row in beastmen_horde_heroes.rows(native):
+        generated.setdefault(table, []).append(row)
+    for table, row in vassal_military_buildings.hero_rows(native):
         generated.setdefault(table, []).append(row)
     # Prince validation requires its isolated tree; global prerequisite
     # validation below must see both that tree and the transferred lords.
@@ -112,17 +116,30 @@ def generate(native_root, output):
     for table, rows in prince_tree.items():
         generated.setdefault(table, []).extend(rows)
     skill_slots.validate_trees(native, generated)
-    inheritance.validate(native, generated, authored)
+    capacities = {}
+    for table, row in hero_capacity.rows(native):
+        capacities.setdefault(table, []).append(row)
+    validation = {table: generated.get(table, []) + capacities.get(table, [])
+                  for table in generated.keys() | capacities.keys()}
+    inheritance.validate(native, validation, authored)
     daemon_legion.validate(native, generated, authored)
-    beastmen_hordes.validate(native, generated, authored)
-    beastmen_horde_heroes.validate(native, generated, authored)
+    beastmen_hordes.validate(native, validation, authored)
+    beastmen_horde_heroes.validate(native, validation, authored)
+    vassal_recruitment_discount.validate(native, generated, authored,
+                                         building_data)
     for table, rows in generated.items():
         write_table(output, native[table], rows, FRAGMENT)
+    heroes, _ = hero_appearance.supported_heroes(native)
+    hero_appearance.write_assets(native_root, output, native, heroes)
+    hero_capacity.write_assets(native, output)
+    beastmen_hero_economy.write_assets(native, output)
+    recruitment_ui.write_culture_override(native_root, output, native)
     write_localisation(output, beastmen_hordes.localisation(native),
                        "everchosen_horde_names")
-    write_localisation(output, beastmen_horde_ui.capacity_localisation(native),
-                       "everchosen_horde_capacity")
+    write_localisation(output, vassal_military_buildings.localisation(native),
+                       "everchosen_vassal_buildings")
     ui_count = adapt_ui(native_root, output, native)
+    ui_count += hero_recruitment_ui.write_ui(native_root, output)
     beastmen_horde_ui.write_cco(output, native)
     path = output / f"script/campaign/mod/{STATIC_DATA}.lua"
     path.parent.mkdir(parents=True, exist_ok=True)

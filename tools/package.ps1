@@ -1,20 +1,23 @@
 #Requires -Version 7.0
 param(
-    [ValidateSet('all', 'archaon-everchosen', 'tamurkhan-chieftains', 'chaos-equipment')]
+    [ValidateSet('all', 'archaon-everchosen', 'tamurkhan-chieftains', 'chaos-equipment', 'daemon-portal-heroes', 'hero-capacity-test')]
     [string]$Mod = 'all',
     [string]$Rpfm = $env:RPFM_CLI,
     [string]$Schema = $env:WH3_SCHEMA,
     [string]$GameData = $env:WH3_DATA,
+    [string]$DaemonPortals = $env:WH3_DAEMON_PORTALS,
+    [switch]$AllowResourceRemoval,
     [string]$Distribution = 'Ubuntu'
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'pack-resources.ps1')
 if (-not $Rpfm -or -not $Schema) {
     throw 'Supply -Rpfm and -Schema, or set RPFM_CLI and WH3_SCHEMA.'
 }
 $Rpfm = (Resolve-Path -LiteralPath $Rpfm).Path
 $Schema = (Resolve-Path -LiteralPath $Schema).Path
-$mods = if ($Mod -eq 'all') { @('archaon-everchosen', 'tamurkhan-chieftains', 'chaos-equipment') } else { @($Mod) }
+$mods = if ($Mod -eq 'all') { @('archaon-everchosen', 'tamurkhan-chieftains', 'chaos-equipment', 'daemon-portal-heroes') } else { @($Mod) }
 $localRoot = [System.IO.Path]::GetFullPath((Join-Path $projectRoot '.local'))
 $work = Join-Path $localRoot ('package-' + [guid]::NewGuid().ToString('N'))
 [System.IO.Directory]::CreateDirectory($work) | Out-Null
@@ -45,12 +48,22 @@ try {
         if (-not $GameData) { throw 'These generators require -GameData or WH3_DATA.' }
         $native = Join-Path $work 'vanilla'
         foreach ($packName in ($inputs.Keys | Sort-Object)) {
-            $gamePack = (Resolve-Path -LiteralPath (Join-Path $GameData $packName)).Path
+            $inputPack = if ($packName -eq 'daemon_portals.pack' -and $DaemonPortals) {
+                $DaemonPortals
+            } else {
+                Join-Path $GameData $packName
+            }
+            $gamePack = (Resolve-Path -LiteralPath $inputPack).Path
             $extract = @('pack', 'extract', '-p', $gamePack, '-t', $Schema)
             foreach ($path in ($inputs[$packName] | Where-Object { $_ } | Sort-Object -Unique)) {
                 $extract += @('-F', "$path;$native")
             }
             Invoke-Rpfm $extract
+        }
+        foreach ($portrait in Get-ChildItem -LiteralPath $native -Recurse -File -Filter 'portrait_settings*.bin') {
+            Invoke-Rpfm @('portrait-settings', 'to-json',
+                '--bin-path', $portrait.FullName,
+                '--json-path', ($portrait.FullName + '.json'))
         }
     }
 
@@ -59,6 +72,20 @@ try {
     [System.IO.Directory]::CreateDirectory($dist) | Out-Null
     foreach ($item in $mods) {
         $source = Join-Path $projectRoot "build/$item"
+        foreach ($portrait in Get-ChildItem -LiteralPath $source -Recurse -File -Filter 'portrait_settings*.bin.json') {
+            $binary = $portrait.FullName.Substring(0, $portrait.FullName.Length - 5)
+            Invoke-Rpfm @('portrait-settings', 'from-json',
+                '--json-path', $portrait.FullName, '--bin-path', $binary)
+            $portraitCheck = Join-Path $work ($item + '-' + $portrait.Name)
+            Invoke-Rpfm @('portrait-settings', 'to-json',
+                '--bin-path', $binary, '--json-path', $portraitCheck)
+            $before = Get-Content -LiteralPath $portrait.FullName -Raw |
+                ConvertFrom-Json -Depth 100 | ConvertTo-Json -Depth 100 -Compress
+            $after = Get-Content -LiteralPath $portraitCheck -Raw |
+                ConvertFrom-Json -Depth 100 | ConvertTo-Json -Depth 100 -Compress
+            if ($before -cne $after) { throw 'Portrait settings round-trip changed generated records.' }
+            Remove-Item -LiteralPath $portrait.FullName
+        }
         $name = 'everchosen_' + $item.Replace('-', '_') + '.pack'
         $pack = Join-Path $work $name
         Invoke-Rpfm @('pack', 'create', '-p', $pack)
@@ -94,8 +121,28 @@ try {
             }
         }
         $destination = Join-Path $dist $name
+        if (Test-Path -LiteralPath $destination) {
+            $previousPaths = @(Invoke-Rpfm @('pack', 'list', '-p', $destination))
+            Assert-PackResourcePreservation -PreviousPaths $previousPaths `
+                -NewPaths $packPaths -AllowResourceRemoval:$AllowResourceRemoval
+        }
         Move-Item -LiteralPath $pack -Destination $destination -Force
-        Get-FileHash -LiteralPath $destination -Algorithm SHA256
+        $hash = Get-FileHash -LiteralPath $destination -Algorithm SHA256
+        $hash
+        $revision = & git -C $projectRoot rev-parse HEAD
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot record build commit.' }
+        $branch = & git -C $projectRoot branch --show-current
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot record build branch.' }
+        $changes = @(& git -C $projectRoot status --porcelain)
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot record build source status.' }
+        [ordered]@{
+            product = $item
+            branch = $branch
+            commit = $revision
+            dirty = ($changes.Count -gt 0)
+            packSha256 = $hash.Hash
+            resourceCount = $packPaths.Count
+        } | ConvertTo-Json | Set-Content -LiteralPath ($destination + '.build.json') -Encoding utf8
     }
 } finally {
     # The disposable extraction directory must resolve inside this repository's .local.

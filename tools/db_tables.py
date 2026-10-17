@@ -4,6 +4,24 @@ import zlib
 from dataclasses import dataclass
 
 
+def lua_literal(value):
+    """Serialize strings, booleans, lists, and string-keyed dicts as Lua."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        escaped = (value.replace("\\", "\\\\").replace('"', '\\"')
+                   .replace("\n", "\\n"))
+        return f'"{escaped}"'
+    if isinstance(value, dict):
+        return "{" + ",".join(f"[{lua_literal(key)}]={lua_literal(item)}"
+                              for key, item in value.items()) + "}"
+    if isinstance(value, (list, tuple)):
+        return "{" + ",".join(lua_literal(item) for item in value) + "}"
+    raise TypeError(f"No Lua literal for {type(value).__name__}")
+
+
 @dataclass
 class Table:
     """Rows of one DB table as dicts, with the layout RPFM exported them in."""

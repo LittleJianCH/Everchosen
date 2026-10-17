@@ -1,0 +1,7 @@
+key	text	tooltip
+#Loc;1;text/db/everchosen_hero_recruitment.loc		
+everchosen_hero_page	第 %d / %d 页	false
+everchosen_hero_unavailable	当前地区暂时无法招募此类英雄	false
+everchosen_hero_recruit_label	招募	false
+everchosen_hero_capacity_full	此类英雄的招募容量已满	false
+everchosen_hero_recruit_pending	正在确认招募条件	false

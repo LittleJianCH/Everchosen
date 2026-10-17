@@ -1,0 +1,4 @@
+key	localised_description	localised_title	bundle_target	priority	ui_icon	is_global_effect	show_in_3d_space	owner_only
+#effect_bundles_tables;4;db/effect_bundles_tables/everchosen_vassal_recruitment								
+everchosen_vassal_recruitment_norsca			faction	10		false	false	true
+everchosen_vassal_recruitment_chd			faction	10		false	false	true

@@ -16,6 +16,10 @@
   (accumulate [count 0 _ call (ipairs s.calls)]
     (+ count (if (= (. call 1) kind) 1 0))))
 
+(fn building-restrictions [s]
+  (icollect [_ call (ipairs s.calls)]
+    (when (= (. call 1) :building_restriction) (. call 2))))
+
 (fn hud-component [s id]
   {:visible? true :state :inactive
    :SetVisible
@@ -144,6 +148,9 @@
    (fn [_ owner features enable?]
      (assert (and (= owner (. s.factions host)) enable?))
      (record s :features features))
+   :restrict_buildings_for_faction
+   (fn [_ owner levels restricted?]
+     (record s :building_restriction [owner levels restricted?]))
    :apply_effect_bundle (fn [_ key owner] (apply-bundle s key owner))
    :remove_effect_bundle (fn [_ key owner] (remove-bundle s key owner))
    :unlock_ritual
@@ -194,6 +201,10 @@
     (set env.core.get_env (fn [] env))
     ;; Each campaign session has a fresh cache for Fennel's bundled loaders.
     (set env.package {:preload {} :loaded {}})
+    ;; Hero recruitment has its own model/UI boundary regressions.
+    (each [_ module (ipairs [:everchosen_hero_capacity.campaign
+                             :everchosen_hero_recruitment.campaign])]
+      (tset env.package.preload module (fn [] {:start (fn [])})))
     (set env.require #(require-module env $1))
     env))
 
@@ -469,6 +480,32 @@
                 loaded.factions.wh3_main_chs_shadow_legion false)
               (assert.equals (+ count 4) (loaded:count :unlock)))))))
 
+    (it "locks both military trees before independently unlocking each race"
+      (fn []
+        (let [s (sandbox)]
+          (s:start)
+          (let [trees s.objects.everchosen_core_data.vassal_military_buildings
+                refresh (. s.listeners
+                           :everchosen_vassal_recruitment_turn 3)]
+            (assert.equals 2 (s:count :building_restriction))
+            (assert.same [[host trees.norsca.levels true]
+                          [host trees.chaos_dwarfs.levels true]]
+                         (building-restrictions s))
+            (tset s.saved :everchosen_subjugation_completed
+                  {:wh3_dlc23_chd_zhatan true})
+            (refresh)
+            (assert.equals 3 (s:count :building_restriction))
+            (assert.same [host trees.chaos_dwarfs.levels false]
+                         (. (building-restrictions s) 3))
+            (tset s.saved.everchosen_subjugation_completed
+                  :wh_dlc08_nor_norsca true)
+            (refresh)
+            (assert.equals 4 (s:count :building_restriction))
+            (assert.same [host trees.norsca.levels false]
+                         (. (building-restrictions s) 4))
+            (refresh)
+            (assert.equals 4 (s:count :building_restriction))))))
+
     (it "does not initialize inheritance for another player or multiplayer"
       (fn []
         (each [_ settings (ipairs [{:player :wh3_dlc20_chs_festus}
@@ -477,6 +514,13 @@
             (set s.multiplayer? settings.multiplayer?)
             (s:start)
             (assert.is_nil s.objects.everchosen_inheritance)
+            (assert.equals 2 (s:count :building_restriction))
+            (each [_ call (ipairs s.calls)]
+              (when (= (. call 1) :building_restriction)
+                (let [[owner levels restricted?] (. call 2)]
+                  (assert.equals host owner)
+                  (assert.is_true (> (length levels) 0))
+                  (assert.is_true restricted?))))
             (assert.equals 0 (s:count :features))
             (assert.is_nil (. s.bundles (.. prefix "infections_locked")))
             (assert.equals 0 (s:count :portal))

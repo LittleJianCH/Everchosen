@@ -7,12 +7,12 @@ source "$script_dir/activate.sh"
 cd -- "$root"
 target=${1:-all}
 if (($# > 1)); then
-    printf 'Usage: bash tools/wsl/build.sh [all|archaon-everchosen|tamurkhan-chieftains|chaos-equipment]\n' >&2
+    printf 'Usage: bash tools/wsl/build.sh [all|archaon-everchosen|tamurkhan-chieftains|chaos-equipment|daemon-portal-heroes|hero-capacity-test]\n' >&2
     exit 2
 fi
 case "$target" in
-    all) targets=(archaon-everchosen tamurkhan-chieftains chaos-equipment) ;;
-    archaon-everchosen|tamurkhan-chieftains|chaos-equipment) targets=("$target") ;;
+    all) targets=(archaon-everchosen tamurkhan-chieftains chaos-equipment daemon-portal-heroes) ;;
+    archaon-everchosen|tamurkhan-chieftains|chaos-equipment|daemon-portal-heroes|hero-capacity-test) targets=("$target") ;;
     *) printf 'Unknown mod: %s\n' "$target" >&2; exit 2 ;;
 esac
 command -v fennel >/dev/null
@@ -26,11 +26,19 @@ for mod in "${targets[@]}"; do
         archaon-everchosen)
             globals=cm,core,out,common,nurgle_plagues,find_uicomponent,cco,UIComponent,CampaignUI
             ;;
-        tamurkhan-chieftains|chaos-equipment)
+        tamurkhan-chieftains|chaos-equipment|daemon-portal-heroes)
             globals=cm,core,out,common
+            ;;
+        hero-capacity-test)
+            globals=cm,core,out,common,find_uicomponent,cco,UIComponent
             ;;
     esac
     source_dir="$root/mods/$mod"
+    library_path="$source_dir/lib/?.fnl"
+    if [[ "$mod" == hero-capacity-test ]]; then
+        # Reuse the capacity controller and private hero selector.
+        library_path+=";$root/mods/archaon-everchosen/lib/?.fnl"
+    fi
     stage=$(mktemp -d "$root/build/.$mod.XXXXXXXX")
     # Asset paths are relative to the pack root. Ignore directory placeholders.
     while IFS= read -r -d '' asset; do
@@ -38,6 +46,11 @@ for mod in "${targets[@]}"; do
         mkdir -p -- "$stage/$(dirname -- "$relative")"
         cp -- "$asset" "$stage/$relative"
     done < <(find "$source_dir/assets" -type f ! -name .gitkeep -print0)
+    if [[ "$mod" == hero-capacity-test ]]; then
+        mkdir -p -- "$stage/text/db"
+        cp -- "$root/mods/archaon-everchosen/assets/text/db/everchosen_hero_recruitment.loc.tsv" \
+            "$stage/text/db/everchosen_hero_recruitment.loc.tsv"
+    fi
     if [[ -f "$source_dir/generator/generate.py" ]]; then
         python3 "$source_dir/generator/generate.py" --vanilla "${EVERCHOSEN_VANILLA_DB:-$root/.local/vanilla}" --output "$stage"
     fi
@@ -50,7 +63,7 @@ for mod in "${targets[@]}"; do
             exit 1
         fi
         mkdir -p -- "$(dirname -- "$destination")"
-        fennel --add-fennel-path "$source_dir/lib/?.fnl" --globals "$globals" --compile "$source" > "$destination"
+        fennel --add-fennel-path "$library_path" --globals "$globals" --compile "$source" > "$destination"
         count=$((count + 1))
     done < <(find "$source_dir/src" -type f -name '*.fnl' -print0)
     # Check all Lua, including any deliberately authored Lua assets.

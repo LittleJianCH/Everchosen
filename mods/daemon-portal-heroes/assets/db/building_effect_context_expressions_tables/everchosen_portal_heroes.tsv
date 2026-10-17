@@ -1,0 +1,11 @@
+key	expression	display_only_active_effects	always_show_display_text
+#building_effect_context_expressions_tables;2;db/building_effect_context_expressions_tables/everchosen_portal_heroes			
+everchosen_portal_heroes_kho_factions	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_valkia")	true	false
+everchosen_portal_heroes_kho_cult_tech	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_valkia") && Owner.IsTechnologyResearched("wh3_dlc20_chs_kho_shared_gift_upgrade_authority")	true	false
+everchosen_portal_heroes_nur_factions	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_festus")	true	false
+everchosen_portal_heroes_nur_cult_tech	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_festus") && Owner.IsTechnologyResearched("wh3_dlc20_chs_nur_shared_gift_upgrade_authority")	true	false
+everchosen_portal_heroes_tze_factions	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_vilitch")	true	false
+everchosen_portal_heroes_tze_cult_tech	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_vilitch") && Owner.IsTechnologyResearched("wh3_dlc20_chs_tze_shared_gift_upgrade_authority")	true	false
+everchosen_portal_heroes_sla_factions	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_azazel")	true	false
+everchosen_portal_heroes_sla_cult_tech	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_azazel") && Owner.IsTechnologyResearched("wh3_dlc20_chs_sla_shared_gift_upgrade_authority")	true	false
+everchosen_portal_heroes_anointed_allowed	Owner.RecordKeyIsOneOf("wh_main_chs_chaos", "wh3_main_chs_shadow_legion", "wh3_dlc20_chs_kholek", "wh3_dlc20_chs_sigvald", "wh3_dlc20_chs_azazel") && Owner.IsOwnershipProductUnlocked("TW_WH3_TIDES_OF_TORMENT_SLA") == true	true	false
