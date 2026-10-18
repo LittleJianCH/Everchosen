@@ -203,7 +203,8 @@
     (set env.package {:preload {} :loaded {}})
     ;; Hero recruitment has its own model/UI boundary regressions.
     (each [_ module (ipairs [:everchosen_hero_capacity.campaign
-                             :everchosen_hero_recruitment.campaign])]
+                             :everchosen_hero_recruitment.campaign
+                             :everchosen_regiments.campaign])]
       (tset env.package.preload module (fn [] {:start (fn [])})))
     (set env.require #(require-module env $1))
     env))

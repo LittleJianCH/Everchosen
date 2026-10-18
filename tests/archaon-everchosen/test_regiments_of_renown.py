@@ -36,6 +36,7 @@ class RegimentsOfRenownTests(unittest.TestCase):
             "units_to_exclusive_faction_permissions": [
                 {"key": "denied", "faction": ror.HOST, "allowed": "false"}],
             "mercenary_pools": [{"key": f + "_pool",
+                                 "recruitment_source": "native_renown_source",
                                  "ui_recruitment_info": "renown"}
                                 for f in factions],
             "faction_to_mercenary_set_junctions": [
@@ -63,10 +64,8 @@ class RegimentsOfRenownTests(unittest.TestCase):
 
     def test_adds_only_recruitable_rors_without_extra_native_stock(self):
         before = deepcopy(self.native)
-        rows = list(ror.rows(self.native))
-        self.assertEqual([table for table, _ in rows],
-                         ["mercenary_pool_to_groups_junctions"] * 2)
-        actual = {row["group"]: row for _, row in rows}
+        rows = list(ror.additions(self.native))
+        actual = {row["group"]: row for row in rows}
         self.assertEqual(set(actual), {"new_group", "gated_group"})
         for row in actual.values():
             self.assertEqual(row["pool"], ror.HOST + "_pool")
@@ -80,7 +79,7 @@ class RegimentsOfRenownTests(unittest.TestCase):
     def test_does_not_mistake_another_factions_stock_for_host_stock(self):
         entries = self.native["mercenary_pool_to_groups_junctions"].rows
         entries[-1]["faction_requirement"] = "unrelated_faction"
-        actual = {row["group"] for _, row in ror.rows(self.native)}
+        actual = {row["group"] for row in ror.additions(self.native)}
         self.assertEqual(actual, {"native_group", "new_group", "gated_group"})
 
     def test_adds_the_sourguts_with_its_native_group_and_host_permission(self):
@@ -95,9 +94,7 @@ class RegimentsOfRenownTests(unittest.TestCase):
                   "subculture_requirement": "", "tech_requirement": ""}
         self.native["mercenary_pool_to_groups_junctions"].rows.append(source)
         actual = list(ror.rows(self.native))
-        pools = [row for table, row in actual
-                 if table == "mercenary_pool_to_groups_junctions"
-                 and row["group"] == unit]
+        pools = [row for row in ror.additions(self.native) if row["group"] == unit]
         self.assertEqual(len(pools), 1)
         self.assertEqual(pools[0]["pool"], ror.HOST + "_pool")
         self.assertEqual(pools[0]["faction_requirement"], ror.HOST)
@@ -105,6 +102,20 @@ class RegimentsOfRenownTests(unittest.TestCase):
                        {"unit": unit, "military_group": ror.HOST + "_group"}),
                       actual)
         self.assertEqual(source["faction_requirement"], faction)
+
+    def test_runtime_registration_retains_native_source_stock_and_cooldown(self):
+        actual = {row["unit"]: row for row in ror.script_data(self.native)}
+        self.assertEqual(set(actual), {"new", "gated"})
+        self.assertEqual(actual["gated"], {
+            "unit": "gated", "group": "gated_group",
+            "source": "native_renown_source", "count": 0, "chance": 100.0,
+            "maximum": 1, "rate": 0.1, "partial": True,
+            "faction": ror.HOST, "subculture": "",
+            "technology": "native_technology",
+        })
+        self.assertEqual(actual["new"]["count"], 1)
+        self.assertFalse(any(table == "mercenary_pool_to_groups_junctions"
+                             for table, _ in ror.rows(self.native)))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 """Extend Archaon's RoR pool while retaining native units and replenishment."""
-from db_tables import stable_id
 from host import HOST
 from roster_permissions import SOURCE_FACTIONS, campaign_units, regular_units
 from roster_permissions import TABLES as ROSTER_TABLES
@@ -40,8 +39,8 @@ def pool_entries(native, faction):
             and row["subculture_requirement"] in ("", subculture)]
 
 
-def rows(native):
-    """Reuse native groups, retaining their stock, replenishment and unit IDs."""
+def additions(native):
+    """Select new host entries; the engine precompiles these DB links in startpos."""
     host_entries = pool_entries(native, HOST)
     pools = renown_pools(native, HOST)
     if len(pools) != 1:
@@ -52,7 +51,6 @@ def rows(native):
     denied = native["units_to_exclusive_faction_permissions"].where(
         faction=HOST, allowed="false")
     available.update(row["key"] for row in denied)
-    used = native["mercenary_pool_to_groups_junctions"].column("key")
     for faction in (*SOURCE_FACTIONS, *EXTRA_RORS):
         troops = (EXTRA_RORS[faction] if faction in EXTRA_RORS
                   else regular_units(native, faction))
@@ -64,14 +62,42 @@ def rows(native):
                     or native["main_units"].one(unit=unit)["is_renown"] != "true"):
                 continue
             available.add(unit)
-            yield "mercenary_pool_to_groups_junctions", dict(
-                row, key=stable_id("everchosen_ror_" + row["group"], used),
+            yield dict(
+                row,
                 pool=pool, faction_requirement=HOST, subculture_requirement="")
-            # The three race rosters already supply their troop permissions.
-            # Extra native faction-exclusive RoRs need the host permission too.
-            if faction in EXTRA_RORS and unit not in campaign_units(native, HOST):
-                yield "units_to_groupings_military_permissions", {
-                    "unit": unit,
-                    "military_group": native["factions"].one(key=HOST)[
-                        "military_group"],
-                }
+
+
+def rows(native):
+    """The three race rosters already supply their troop permissions."""
+    extras = set().union(*EXTRA_RORS.values())
+    permitted = campaign_units(native, HOST)
+    for row in additions(native):
+        unit = native["mercenary_unit_groups"].one(key=row["group"])["unit_record"]
+        if unit in extras and unit not in permitted:
+            yield "units_to_groupings_military_permissions", {
+                "unit": unit,
+                "military_group": native["factions"].one(key=HOST)[
+                    "military_group"],
+            }
+
+
+def script_data(native):
+    """Runtime registration uses recruitment_sources keys, not UI info keys."""
+    groups = {row["key"]: row for row in native["mercenary_unit_groups"].rows}
+    result = []
+    for row in additions(native):
+        group = groups[row["group"]]
+        pool = native["mercenary_pools"].one(key=row["pool"])
+        result.append({
+            "unit": group["unit_record"], "group": row["group"],
+            "source": pool["recruitment_source"],
+            "count": int(row["initial_unit_count"]),
+            "chance": float(group["chance_to_replenish"]),
+            "maximum": int(group["max_count"]),
+            "rate": float(group["max_replenish_per_turn"]),
+            "partial": group["use_partial_replenishment"] == "true",
+            "faction": row["faction_requirement"],
+            "subculture": row["subculture_requirement"],
+            "technology": row["tech_requirement"],
+        })
+    return result

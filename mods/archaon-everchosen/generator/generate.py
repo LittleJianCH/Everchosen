@@ -73,6 +73,7 @@ def script_data(native):
     data["daemon_prince"] = daemon_prince.script_data(native)
     data["hordes"] = beastmen_hordes.script_data(native)
     data["vassal_military_buildings"] = vassal_military_buildings.script_data(native)
+    data["regiments_of_renown"] = regiments_of_renown.script_data(native)
     data["hero_recruitment"] = {
         "subtypes": hero_families.script_data(native),
         "icons": hero_recruitment_ui.script_data(native),
