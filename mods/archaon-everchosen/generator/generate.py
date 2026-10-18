@@ -15,6 +15,7 @@ import daemon_legion
 import daemon_skills
 import skill_slots
 import roster_permissions
+import regiments_of_renown
 import beastmen_hordes
 import beastmen_horde_ui
 import beastmen_horde_heroes
@@ -29,7 +30,8 @@ import beastmen_hero_economy
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
-BASE_MODULES = (inheritance, roster_permissions, subjugation, daemon_prince,
+BASE_MODULES = (inheritance, roster_permissions, regiments_of_renown,
+                subjugation, daemon_prince,
                 daemon_legion, beastmen_hordes, vassal_military_buildings,
                 recruitment_ui)
 MODULES = (*BASE_MODULES, beastmen_horde_heroes, daemon_skills,
