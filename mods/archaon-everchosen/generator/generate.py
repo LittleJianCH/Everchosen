@@ -27,10 +27,12 @@ import hero_families
 import hero_appearance
 import hero_capacity
 import beastmen_hero_economy
+import beastmen_troop_economy
 
 FRAGMENT = "everchosen_inheritance_data"
 STATIC_DATA = "everchosen_core_data"
 BASE_MODULES = (inheritance, roster_permissions, regiments_of_renown,
+                beastmen_troop_economy,
                 subjugation, daemon_prince,
                 daemon_legion, beastmen_hordes, vassal_military_buildings,
                 recruitment_ui)
