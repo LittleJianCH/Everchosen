@@ -9,7 +9,7 @@ trap 'rm -rf -- "$stage"' EXIT
 lua5.1 -e 'assert(_VERSION == "Lua 5.1")'
 target=${1:-all}
 case "$target" in
-    all|archaon-everchosen|tamurkhan-chieftains|hero-capacity-test) ;;
+    all|archaon-everchosen|tamurkhan-chieftains|hero-capacity-test|strategic-movement-zh) ;;
     *) printf 'Unknown gameplay test target: %s\n' "$target" >&2; exit 2 ;;
 esac
 python3 -I -m unittest discover -s "$root/tests/tools" -p 'test_*.py'
@@ -45,4 +45,9 @@ if [[ "$target" == hero-capacity-test ]]; then
         luac5.1 -p "$stage/${spec}_spec.lua"
         busted "$stage/${spec}_spec.lua"
     done
+fi
+if [[ "$target" == strategic-movement-zh ]]; then
+    export EVERCHOSEN_ROOT="$root"
+    bash "$script_dir/build.sh" strategic-movement-zh
+    busted "$root/tests/strategic-movement-zh/mct_spec.lua"
 fi

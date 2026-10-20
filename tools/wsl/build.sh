@@ -7,12 +7,12 @@ source "$script_dir/activate.sh"
 cd -- "$root"
 target=${1:-all}
 if (($# > 1)); then
-    printf 'Usage: bash tools/wsl/build.sh [all|archaon-everchosen|tamurkhan-chieftains|chaos-equipment|daemon-portal-heroes|hero-capacity-test]\n' >&2
+    printf 'Usage: bash tools/wsl/build.sh [all|archaon-everchosen|tamurkhan-chieftains|chaos-equipment|daemon-portal-heroes|hero-capacity-test|strategic-movement-zh]\n' >&2
     exit 2
 fi
 case "$target" in
     all) targets=(archaon-everchosen tamurkhan-chieftains chaos-equipment daemon-portal-heroes) ;;
-    archaon-everchosen|tamurkhan-chieftains|chaos-equipment|daemon-portal-heroes|hero-capacity-test) targets=("$target") ;;
+    archaon-everchosen|tamurkhan-chieftains|chaos-equipment|daemon-portal-heroes|hero-capacity-test|strategic-movement-zh) targets=("$target") ;;
     *) printf 'Unknown mod: %s\n' "$target" >&2; exit 2 ;;
 esac
 command -v fennel >/dev/null
@@ -31,6 +31,9 @@ for mod in "${targets[@]}"; do
             ;;
         hero-capacity-test)
             globals=cm,core,out,common,find_uicomponent,cco,UIComponent
+            ;;
+        strategic-movement-zh)
+            globals=core,common,find_uicomponent
             ;;
     esac
     source_dir="$root/mods/$mod"

@@ -60,6 +60,7 @@
 | Chaos Equipment for Warriors of Chaos | `everchosen_chaos_equipment.pack` | 扩展混沌系装备在混沌勇士派系中的使用资格；可独立加载，保留角色、技能、等级与获取条件 |
 | Daemon Portal Heroes | `everchosen_daemon_portal_heroes.pack` | 为混沌勇士提供恶魔传送门事务官、教徒与杜鲁齐受祝者；依赖 [Daemon Portals](https://steamcommunity.com/sharedfiles/filedetails/?id=3545940377)，不依赖主模组 |
 | Hero Capacity Test | `everchosen_hero_capacity_test.pack` | 可选测试包，开场为 21 种英雄各加一格容量，并在艾查恩一级暗黑要塞开放英雄招募；正常游玩无需启用 |
+| Strategic Movement Chinese | `everchosen_strategic_movement_zh.pack` | [Strategic Movement](https://steamcommunity.com/sharedfiles/filedetails/?id=3697013323) 的独立简体中文汉化，包含战役提示与 MCT 设置；需要原模组，不依赖永世神选 |
 
 氏族长成长、装备权限与传送门事务官是独立内容。主模组不内置 Daemon Portals 的建筑或资源；需要这些内容时另行安装并启用。
 

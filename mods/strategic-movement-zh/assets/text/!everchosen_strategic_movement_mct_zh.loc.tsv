@@ -1,0 +1,119 @@
+key	text	tooltip
+#Loc;1;text/!everchosen_strategic_movement_mct_zh.loc		
+mct_pwd5032_dynamic_movement_title	战略机动（Strategic Movement）	false
+mct_pwd5032_dynamic_movement_description	根据军队编成调整战略地图移动距离：骑兵与飞行部队行动更快，炮兵等慢速部队会拖慢全军。\\n\\n【速度评分】\\n以各部队战斗速度的调和平均值为基础，再扣除军队规模惩罚。慢速部队的拖累大于快速部队的提速作用；默认每支部队使评分降低 1%，典型的 20 支混编军队评分约为 30。\\n\\n【移动距离】\\n以评分 30 为基准，分两段换算为移动距离修正：低于基准时向下限较快下降，高于基准时向上限缓慢增加。地区设施、气候适应、海上航速与穿行姿态等修正另外叠加，可在同一状态图标的提示中逐项查看。\\n\\n【海上与劫掠】\\n海上改用舰队规模计算移动距离。海上修正的上下限相同时，所有舰队获得相同修正；不同时按规模分为五档。劫掠收入随陆上军队编成变化，也可单独调整。\\n\\n【英雄】\\n可让独立行动的英雄根据战斗速度调整移动距离。采用对数缩放，突出步行与骑乘的差距，同时缩小骑乘与飞行之间的差距；新战役默认关闭。\\n\\n【设置】\\n可选择温和、标准、严苛或原版预设，也可启用自定义方案。原版预设只关闭军队编成与劫掠收入修正，其他项目仍可单独设置。统一修正模式跳过军队编成计算，直接使用基准值。地区和气候也有各自的预设与自定义方案。确认 MCT 设置或改变军队编成后会重新计算，各项设置按战役保存。	false
+mct_pwd5032_dynamic_movement_movement_speed_section_text	行军方案	false
+mct_pwd5032_dynamic_movement_movement_speed_section_description	速度评分取各部队战斗速度的调和平均值，再按军队规模扣减。默认每支部队扣减 1%：20 支满编军队的评分会降低 20%。炮兵等慢速部队拖累明显，小股精锐通常比满编大军更快。\\n\\n典型的 20 支混编军队评分约为 30，是移动距离换算曲线的基准。\\n\\n预设（基准／下限／上限；劫掠收入修正为下限／基准／上限）：\\n温和：−20%／−45%／+85%；劫掠 0%／+75%／+200%\\n标准：−35%／−60%／+60%；劫掠 0%／+75%／+200%\\n严苛：−50%／−75%／+35%；劫掠 0%／+75%／+200%\\n原版：只关闭军队编成与劫掠收入修正，地区、气候、海上和英雄仍可单独设置。	false
+mct_pwd5032_dynamic_movement_custom_settings_section_text	自定义行军参数	false
+mct_pwd5032_dynamic_movement_custom_settings_section_description	启用“自定义行军方案”后，以下滑块生效。\\n\\n基准值对应典型混编军队（速度评分约 30）。更慢的军队向下限靠近，更快的军队向上限靠近；低速一侧的变化更陡。劫掠收入修正也采用同样的换算方式。\\n\\n下限必须不高于基准，上限必须不低于基准；设置不符时，原模组会在回合开始时自动限制数值。劫掠收入同理。\\n\\n军队规模惩罚先作用于速度评分，再换算为移动距离，不是直接扣减同等比例的移动距离。	false
+mct_pwd5032_dynamic_movement_territory_bonuses_section_text	本土行军加成	false
+mct_pwd5032_dynamic_movement_territory_bonuses_section_description	己方领土的熟悉地形、补给线与地方支援有助于行军。城镇主建筑等级越高，地区设施带来的支援越好。盟友、敌人及无人占据的领土不提供这项加成。\\n\\n标准：一级 +5%，二级 +10%，三级及以上 +15%。\\n温和：一级 +2.5%，二级 +5%，三级及以上 +7.5%。\\n\\n启用自定义方案后，分别设置三个等级档位，步长为 0.5 个百分点。	false
+mct_pwd5032_dynamic_movement_climate_effects_section_text	气候适应修正	false
+mct_pwd5032_dynamic_movement_climate_effects_section_description	依据派系对当地气候的适应程度调整移动距离，分为宜居、不宜居、无法居住三档。\\n\\n均衡方案为宜居地区提供加成、为无法居住地区施加惩罚；仅惩罚方案不提供正向加成。\\n\\n以下依次为宜居／不宜居／无法居住：\\n均衡·温和：+2.5%／0%／−2.5%\\n均衡·标准：+5%／0%／−5%\\n仅惩罚·温和：0%／−2.5%／−5%\\n仅惩罚·标准：0%／−5%／−10%\\n\\n启用自定义方案后，分别设置三个适应档位，步长为 0.5 个百分点。	false
+mct_pwd5032_dynamic_movement_tunneling_bonus_section_text	穿行姿态修正	false
+mct_pwd5032_dynamic_movement_tunneling_bonus_section_description	军队使用地道、兽径、世界根须、暗影通道、传送或飞艇穿行等特殊移动姿态时，获得额外的移动距离修正。正值增加距离，负值减少距离；与本模组其他修正及原版相应加成直接相加。	false
+mct_pwd5032_dynamic_movement_naval_speed_section_text	海上移动距离	false
+mct_pwd5032_dynamic_movement_naval_speed_section_description	军队出海后，海上移动修正取代军队编成修正。\\n\\n上下限相同：所有舰队使用同一修正。\\n上下限不同：按舰队规模分为五档，小舰队趋近上限，大舰队趋近下限。\\n\\n侦察船队：1～4 支部队\\n劫掠船队：5～8 支部队\\n舰队：9～12 支部队\\n作战舰队：13～16 支部队\\n庞大舰队：17～20 支部队\\n\\n中间各档等距换算。两项都设为 0 时，关闭这项修正。	false
+mct_pwd5032_dynamic_movement_seafaring_bonus_section_text	航海传统加成	false
+mct_pwd5032_dynamic_movement_seafaring_bonus_section_description	吸血鬼海岸、黑暗精灵、高等精灵与诺斯卡获得额外的海上移动距离加成。\\n可与海上移动修正叠加；设为 0 时关闭。	false
+mct_pwd5032_dynamic_movement_hero_movement_section_text	英雄移动距离	false
+mct_pwd5032_dynamic_movement_hero_movement_section_description	独立行动、未编入军队的英雄可根据战斗速度获得战略地图移动距离修正，较快的英雄与坐骑每回合能走得更远。\\n\\n使用对数缩放：步行换为骑乘时提升较大，骑乘换为飞行时提升较小，飞行坐骑之间的差距进一步缩小。\\n\\n以速度 35 的典型步行英雄为基准，高于 35 向上限靠近，低于 35 向下限靠近。	false
+mct_pwd5032_dynamic_movement_debug_section_text	调试设置	false
+mct_pwd5032_dynamic_movement_debug_section_description	用于排查问题的日志选项。	false
+mct_pwd5032_dynamic_movement_movement_preset_text	行军预设	false
+mct_pwd5032_dynamic_movement_movement_preset_tooltip	选择行军方案。启用自定义行军方案后，此下拉菜单会锁定。	false
+mct_pwd5032_dynamic_movement_custom_profile_enabled_text	启用自定义行军方案	false
+mct_pwd5032_dynamic_movement_custom_profile_enabled_tooltip	启用后锁定行军预设，由下方滑块直接设置军队编成与劫掠收入修正。	false
+mct_pwd5032_dynamic_movement_movement_flat_text	统一行军修正	false
+mct_pwd5032_dynamic_movement_movement_flat_tooltip	所有军队直接使用基准移动修正和基准劫掠收入修正，不再按编成计算速度评分。移动与劫掠的上下限及军队规模惩罚均不生效。需要先启用自定义行军方案。	false
+mct_pwd5032_dynamic_movement_movement_baseline_text	基准移动距离修正（%）	false
+mct_pwd5032_dynamic_movement_movement_baseline_tooltip	典型混编军队（速度评分约 30）的移动距离修正。\\n预设：温和 −20%，标准 −35%，严苛 −50%。	false
+mct_pwd5032_dynamic_movement_movement_min_text	移动距离修正下限（%）	false
+mct_pwd5032_dynamic_movement_movement_min_tooltip	最慢军队（如纯炮兵、速度评分约 16）的移动距离修正下限。\\n必须不高于基准值；超过时会被自动限制。	false
+mct_pwd5032_dynamic_movement_movement_max_text	移动距离修正上限（%）	false
+mct_pwd5032_dynamic_movement_movement_max_tooltip	最快军队（如精锐骑兵或飞行部队、速度评分约 100）的移动距离修正上限。\\n必须不低于基准值；低于时会被自动限制。	false
+mct_pwd5032_dynamic_movement_raid_baseline_text	基准劫掠收入修正（%）	false
+mct_pwd5032_dynamic_movement_raid_baseline_tooltip	典型混编军队的劫掠收入加成，与移动距离的基准军队对应。\\n这是收入修正值：75 表示收入 +75%，不是仅获得原收入的 75%。	false
+mct_pwd5032_dynamic_movement_raid_min_text	劫掠收入修正下限（%）	false
+mct_pwd5032_dynamic_movement_raid_min_tooltip	最慢军队（如纯炮兵）的劫掠收入修正。\\n必须不高于基准劫掠收入修正；超过时会被自动限制。0 表示不额外修正。	false
+mct_pwd5032_dynamic_movement_raid_max_text	劫掠收入修正上限（%）	false
+mct_pwd5032_dynamic_movement_raid_max_tooltip	最快军队（如精锐骑兵或飞行部队）的劫掠收入修正。\\n必须不低于基准劫掠收入修正；低于时会被自动限制。200 表示收入 +200%。	false
+mct_pwd5032_dynamic_movement_army_size_penalty_text	每支部队的规模惩罚（%）	false
+mct_pwd5032_dynamic_movement_army_size_penalty_tooltip	军队每多一支部队，速度评分便按此百分比扣减；不是直接扣减同等比例的移动距离。\\n1.0：默认值；0：不考虑军队规模；2.0：更明显地限制大军。\\n例如，20 支部队在 1.0 设置下，先将速度评分降低 20%，再换算移动距离。	false
+mct_pwd5032_dynamic_movement_territory_mode_text	本土加成预设	false
+mct_pwd5032_dynamic_movement_territory_mode_tooltip	在己方已开发地区开始回合的军队获得移动距离加成。盟友、敌人及无人占据的领土不提供这项加成。	false
+mct_pwd5032_dynamic_movement_territory_custom_enabled_text	启用自定义本土加成	false
+mct_pwd5032_dynamic_movement_territory_custom_enabled_tooltip	启用后锁定本土加成预设，由三个城镇等级滑块分别设置加成。	false
+mct_pwd5032_dynamic_movement_territory_tier1_text	一级城镇加成（%）	false
+mct_pwd5032_dynamic_movement_territory_tier1_tooltip	己方地区主建筑为一级时的移动距离加成。	false
+mct_pwd5032_dynamic_movement_territory_tier2_text	二级城镇加成（%）	false
+mct_pwd5032_dynamic_movement_territory_tier2_tooltip	己方地区主建筑为二级时的移动距离加成。	false
+mct_pwd5032_dynamic_movement_territory_tier3_text	三级及以上城镇加成（%）	false
+mct_pwd5032_dynamic_movement_territory_tier3_tooltip	己方地区主建筑为三级或更高等级时的移动距离加成。	false
+mct_pwd5032_dynamic_movement_climate_mode_text	气候修正预设	false
+mct_pwd5032_dynamic_movement_climate_mode_tooltip	均衡方案为宜居地区提供加成、为无法居住地区施加惩罚。仅惩罚方案只惩罚不宜居与无法居住的气候。	false
+mct_pwd5032_dynamic_movement_climate_custom_enabled_text	启用自定义气候修正	false
+mct_pwd5032_dynamic_movement_climate_custom_enabled_tooltip	启用后锁定气候修正预设，由三个气候适应滑块分别设置修正。	false
+mct_pwd5032_dynamic_movement_climate_habitable_text	宜居气候修正（%）	false
+mct_pwd5032_dynamic_movement_climate_habitable_tooltip	派系适宜居住的气候中，军队获得的移动距离修正。	false
+mct_pwd5032_dynamic_movement_climate_unpleasant_text	不宜居气候修正（%）	false
+mct_pwd5032_dynamic_movement_climate_unpleasant_tooltip	派系不适宜居住的气候中，军队获得的移动距离加成或惩罚。	false
+mct_pwd5032_dynamic_movement_climate_uninhabitable_text	无法居住气候修正（%）	false
+mct_pwd5032_dynamic_movement_climate_uninhabitable_tooltip	派系无法居住的气候中，军队获得的移动距离加成或惩罚。	false
+mct_pwd5032_dynamic_movement_tunneling_bonus_pct_text	穿行姿态移动距离修正（%）	false
+mct_pwd5032_dynamic_movement_tunneling_bonus_pct_tooltip	使用地道、兽径、世界根须、暗影通道、传送或飞艇穿行等特殊姿态时，额外施加的移动距离修正。\\n\\n与本模组其他移动修正直接相加。正值增加距离，负值减少距离。默认 0，表示关闭。	false
+mct_pwd5032_dynamic_movement_naval_min_text	最大舰队移动修正（下限，%）	false
+mct_pwd5032_dynamic_movement_naval_min_tooltip	庞大舰队（17～20 支部队）使用的移动距离修正。设为与上限相同，即可让所有舰队获得同一修正。	false
+mct_pwd5032_dynamic_movement_naval_max_text	最小舰队移动修正（上限，%）	false
+mct_pwd5032_dynamic_movement_naval_max_tooltip	侦察船队（1～4 支部队）使用的移动距离修正。设为与下限相同，即可让所有舰队获得同一修正。	false
+mct_pwd5032_dynamic_movement_seafaring_bonus_text	航海传统加成（%）	false
+mct_pwd5032_dynamic_movement_seafaring_bonus_tooltip	吸血鬼海岸、黑暗精灵、高等精灵与诺斯卡获得的额外海上移动距离加成，可与海上移动修正叠加。设为 0 时关闭。	false
+mct_pwd5032_dynamic_movement_hero_enabled_text	启用英雄移动修正	false
+mct_pwd5032_dynamic_movement_hero_enabled_tooltip	独立行动的英雄根据战斗速度调整战略地图移动距离；关闭后使用原版英雄移动规则。新战役默认关闭。	false
+mct_pwd5032_dynamic_movement_hero_flat_text	统一英雄移动修正	false
+mct_pwd5032_dynamic_movement_hero_flat_tooltip	所有独立行动的英雄直接使用英雄基准值，不再读取战斗速度；英雄上下限不生效。需要先启用英雄移动修正。	false
+mct_pwd5032_dynamic_movement_hero_baseline_text	英雄基准移动修正（%）	false
+mct_pwd5032_dynamic_movement_hero_baseline_tooltip	典型步行英雄（速度 35，如帝国队长、符文铁匠、巫师）的移动距离修正。	false
+mct_pwd5032_dynamic_movement_hero_min_text	英雄移动修正下限（%）	false
+mct_pwd5032_dynamic_movement_hero_min_tooltip	最慢英雄（如乘坐运尸车的死灵法师，速度 23）的移动距离修正下限。\\n必须不高于英雄基准值；超过时会被自动限制。	false
+mct_pwd5032_dynamic_movement_hero_max_text	英雄移动修正上限（%）	false
+mct_pwd5032_dynamic_movement_hero_max_tooltip	最快英雄（如骑乘月鸟的炼丹师，速度 120）的移动距离修正上限。\\n必须不低于英雄基准值；低于时会被自动限制。	false
+mct_pwd5032_dynamic_movement_logging_enabled_text	启用详细日志	false
+mct_pwd5032_dynamic_movement_logging_enabled_tooltip	在脚本日志中记录速度评分、行军状态与各军队的效果数值，供排查问题使用。	false
+mct_pwd5032_dynamic_movement_movement_preset_light_text	温和	false
+mct_pwd5032_dynamic_movement_movement_preset_light_tooltip	基准 −20%，下限 −45%，上限 +85%。惩罚较轻，适合初次使用。\\n劫掠收入修正：下限 0%，基准 +75%，上限 +200%。	false
+mct_pwd5032_dynamic_movement_movement_preset_standard_text	标准	false
+mct_pwd5032_dynamic_movement_movement_preset_standard_tooltip	基准 −35%，下限 −60%，上限 +60%。适合熟悉游戏的玩家。\\n劫掠收入修正：下限 0%，基准 +75%，上限 +200%。	false
+mct_pwd5032_dynamic_movement_movement_preset_harsh_text	严苛	false
+mct_pwd5032_dynamic_movement_movement_preset_harsh_tooltip	基准 −50%，下限 −75%，上限 +35%。更严格地限制慢速军队。\\n劫掠收入修正：下限 0%，基准 +75%，上限 +200%。	false
+mct_pwd5032_dynamic_movement_movement_preset_vanilla_text	原版	false
+mct_pwd5032_dynamic_movement_movement_preset_vanilla_tooltip	仅关闭军队编成与劫掠收入修正。地区、气候、海上、航海传统和英雄移动仍可单独设置。	false
+mct_pwd5032_dynamic_movement_territory_mode_moderate_text	标准	false
+mct_pwd5032_dynamic_movement_territory_mode_moderate_tooltip	己方地区：一级 +5%，二级 +10%，三级及以上 +15%。	false
+mct_pwd5032_dynamic_movement_territory_mode_light_text	温和	false
+mct_pwd5032_dynamic_movement_territory_mode_light_tooltip	己方地区：一级 +2.5%，二级 +5%，三级及以上 +7.5%。	false
+mct_pwd5032_dynamic_movement_territory_mode_off_text	关闭	false
+mct_pwd5032_dynamic_movement_territory_mode_off_tooltip	关闭本土行军加成。	false
+mct_pwd5032_dynamic_movement_climate_mode_balanced_light_text	均衡·温和	false
+mct_pwd5032_dynamic_movement_climate_mode_balanced_light_tooltip	宜居 +2.5%，不宜居 0%，无法居住 −2.5%。	false
+mct_pwd5032_dynamic_movement_climate_mode_balanced_standard_text	均衡·标准	false
+mct_pwd5032_dynamic_movement_climate_mode_balanced_standard_tooltip	宜居 +5%，不宜居 0%，无法居住 −5%。	false
+mct_pwd5032_dynamic_movement_climate_mode_penalty_light_text	仅惩罚·温和	false
+mct_pwd5032_dynamic_movement_climate_mode_penalty_light_tooltip	宜居 0%，不宜居 −2.5%，无法居住 −5%。	false
+mct_pwd5032_dynamic_movement_climate_mode_penalty_standard_text	仅惩罚·标准	false
+mct_pwd5032_dynamic_movement_climate_mode_penalty_standard_tooltip	宜居 0%，不宜居 −5%，无法居住 −10%。	false
+mct_pwd5032_dynamic_movement_climate_mode_off_text	关闭	false
+mct_pwd5032_dynamic_movement_climate_mode_off_tooltip	关闭气候适应修正。	false
+mct_pwd5032_dynamic_movement_lock_custom	请先启用自定义行军方案。	false
+mct_pwd5032_dynamic_movement_lock_preset	请先关闭自定义行军方案，再选择预设。	false
+mct_pwd5032_dynamic_movement_lock_hero	请先启用英雄移动修正。	false
+mct_pwd5032_dynamic_movement_lock_flat	已启用统一行军修正，所有军队直接使用基准值。	false
+mct_pwd5032_dynamic_movement_lock_flat_custom	请先启用自定义行军方案。	false
+mct_pwd5032_dynamic_movement_lock_hero_flat	已启用统一英雄移动修正，所有英雄直接使用基准值。	false
+mct_pwd5032_dynamic_movement_lock_hero_flat_enabled	请先启用英雄移动修正。	false
+mct_pwd5032_dynamic_movement_lock_territory_custom	请先启用自定义本土加成。	false
+mct_pwd5032_dynamic_movement_lock_territory_preset	请先关闭自定义本土加成，再选择预设。	false
+mct_pwd5032_dynamic_movement_lock_climate_custom	请先启用自定义气候修正。	false
+mct_pwd5032_dynamic_movement_lock_climate_preset	请先关闭自定义气候修正，再选择预设。	false
+mct_pwd5032_dynamic_movement_page_movement	行军、地区与气候	false
+mct_pwd5032_dynamic_movement_page_naval	海上、英雄与调试	false
