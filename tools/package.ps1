@@ -145,6 +145,14 @@ try {
             packSha256 = $hash.Hash
             resourceCount = $packPaths.Count
         } | ConvertTo-Json | Set-Content -LiteralPath ($destination + '.build.json') -Encoding utf8
+        $preview = Join-Path $projectRoot "mods/$item/workshop/preview.png"
+        if (Test-Path -LiteralPath $preview -PathType Leaf) {
+            if ((Get-Item -LiteralPath $preview).Length -ge 1MB) {
+                throw "Workshop preview must be smaller than 1 MB: $preview"
+            }
+            Copy-Item -LiteralPath $preview `
+                -Destination ([System.IO.Path]::ChangeExtension($destination, '.png')) -Force
+        }
     }
 } finally {
     # The disposable extraction directory must resolve inside this repository's .local.
