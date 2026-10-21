@@ -242,8 +242,22 @@ def access_rows(native):
     yield "campaign_stances_composite_scenes", dict(scene, group=group)
 
 
+def tooltip_rows(data):
+    """Match each display set to its building for direct UI record lookup."""
+    for building, units in data["buildings"].items():
+        yield "unit_sets", {"key": building,
+            "use_unit_exp_level_range": "false",
+            "min_unit_exp_level_inclusive": "-1",
+            "max_unit_exp_level_inclusive": "-1", "special_category": ""}
+        for unit in units:
+            yield "unit_set_to_unit_junctions", {
+                "unit_caste": "", "unit_category": "", "unit_class": "",
+                "unit_record": unit, "unit_set": building, "exclude": "false"}
+
+
 def stock_rows(native):
     data = script_data(native)
+    yield from tooltip_rows(data)
     used = native["mercenary_pool_to_groups_junctions"].column("key")
     for unit in data["units"]:
         group = PREFIX + "stock_" + unit
@@ -447,12 +461,27 @@ def validate_scope(native, own):
                 "chance_to_replenish", "max_count", "max_replenish_per_turn")):
             raise ValueError("Camp stock must have no automatic replenishment")
     data = script_data(native)
-    members = own["unit_set_to_unit_junctions"]
+    members = [r for r in own["unit_set_to_unit_junctions"]
+               if r["unit_set"] == UNIT_SET]
     if ({r["unit_record"] for r in members} != set(data["units"])
             or any(r["unit_set"] != UNIT_SET or r["exclude"] != "false"
                    or r["unit_caste"] or r["unit_class"] or r["unit_category"]
                    for r in members)):
         raise ValueError("Camp capacity and tooltip set must cover exactly the stock units")
+    display_members = [r for r in own["unit_set_to_unit_junctions"]
+                       if r["unit_set"] != UNIT_SET]
+    expected_display = {(building, unit)
+                        for building, units in data["buildings"].items()
+                        for unit in units}
+    if ({(r["unit_set"], r["unit_record"]) for r in display_members}
+            != expected_display or len(display_members) != len(expected_display)
+            or any(r["exclude"] != "false" or r["unit_caste"]
+                   or r["unit_class"] or r["unit_category"]
+                   for r in display_members)):
+        raise ValueError("Camp display sets must match each building's stock units")
+    if ({r["key"] for r in own["unit_sets"]}
+            != {UNIT_SET, *data["buildings"]}):
+        raise ValueError("Camp display sets must use their building keys")
     for row in own["campaign_group_member_criteria_factions"]:
         if row["faction"] != HOST or row["context"] != "ORIGINATOR":
             raise ValueError("Camp stance visuals escaped Archaon")

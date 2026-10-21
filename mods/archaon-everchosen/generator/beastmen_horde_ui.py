@@ -14,7 +14,6 @@ import beastmen_hordes
 
 TABLES = beastmen_hordes.TABLES
 PREFIX = "everchosen_horde_"
-UNIT_SET = PREFIX + "warband_units"
 CCO_NAME = "EverchosenHordeUI"
 UI_FOLDER = Path("ui/campaign ui")
 UI_NAMES = ("building_construction_popup", "building_information",
@@ -262,10 +261,6 @@ def cco_source(data):
         raise ValueError("Horde UI stock capacity must be a positive integer")
     keys = " || ".join(f"building.Key == {json.dumps(key)}"
                        for key in sorted(buildings))
-    conditions = " || ".join(
-        f"(building.Key == {json.dumps(key)} && (" + " || ".join(
-            f"unit.Key == {json.dumps(unit)}" for unit in sorted(members)) + "))"
-        for key, members in sorted(buildings.items()))
     capacity = "0"
     for key, rule in reversed(sorted(units.items())):
         capacity = (f"GetIfElse(unit.Key == {json.dumps(key)}, "
@@ -280,9 +275,8 @@ def cco_source(data):
             "  Capacity(CcoMainUnitRecord unit)\n  {\n"
             f"    {capacity}\n  }}\n"
             "  Units(CcoBuildingLevelRecord building)\n  {\n"
-            f'    DatabaseRecordContext("CcoUnitSetRecord", "{UNIT_SET}")'
-            ".UnitsInSetList\n"
-            f"      .Filter((unit) => {conditions})\n  }}\n"
+            '    DatabaseRecordContext("CcoUnitSetRecord", building.Key)'
+            ".UnitsInSetList\n  }\n"
             "  Pairs(CcoBuildingLevelRecord building)\n  {\n"
             f"    {CCO_NAME}.Units(building)\n"
             f"      .Transform((unit) => MakePair(unit, {CCO_NAME}.Capacity(unit)))\n"
