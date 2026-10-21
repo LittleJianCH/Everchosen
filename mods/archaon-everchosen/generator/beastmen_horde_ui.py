@@ -5,6 +5,7 @@ Only cost presentation, the growth panel position, and private stock lists chang
 """
 import json
 import xml.etree.ElementTree as ET
+from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
@@ -185,13 +186,12 @@ def adapt_tooltip(root, template):
         panel.remove(native_callbacks)
     callback(panel, "ContextVisibilitySetter", f"{CCO_NAME}.IsPrivate(this)",
              "CcoBuildingLevelRecord", update_constant="")
-    # Native recruitment entries are filled by BuildingInfoUnitEntry. Our
-    # private stock uses explicit unit contexts with the same visual parts.
+    # The miniature cards and tooltip consume the same unit/amount pairs.
     entry = hierarchy.find("entry_parent/unit_entry")
     entry.remove(entry.find("experience"))
     del parts["experience"]
     callback(parts["entry_parent"], "ContextList",
-             f"{CCO_NAME}.Units(this)", "CcoBuildingLevelRecord",
+             f"{CCO_NAME}.Pairs(this)", "CcoBuildingLevelRecord",
              hide_if_empty="")
     use_state(parts["tx_enables"], "capacity_positive_light")
     use_state(parts["unit_name"], "light")
@@ -202,18 +202,18 @@ def adapt_tooltip(root, template):
             text.attrib.pop("textlabel", None)
             text.attrib.pop("text", None)
     callback(parts["unit_name"], "ContextTextLabel",
-             "Name", "CcoMainUnitRecord")
+             "First.Name", "CcoPair")
     callback(parts["garrison_size"], "ContextTextLabel",
-             f"{CCO_NAME}.Capacity(this)", "CcoMainUnitRecord")
+             "Second", "CcoPair")
     callback(parts["unit_category_icon"], "ContextImageSetter",
-             "CategoryIcon", "CcoMainUnitRecord")
+             "First.CategoryIcon", "CcoPair")
     height = 'MaxNumericValue(32, self.ChildContext("unit_name").Dimensions.y)'
     resize = (f"DoIf(self.Dimensions.y != {height}, "
               f"self.Resize(390, {height}, false))")
     callback(parts["unit_entry"], "ContextCommandGiverOnVisibilityChanged",
-             resize, "CcoMainUnitRecord", on_hide_and_show="")
+             resize, "CcoPair", on_hide_and_show="")
     callback(parts["unit_entry"], "ContextCommandEvent", resize,
-             "CcoMainUnitRecord",
+             "CcoPair",
              event0="LayoutFinished_building_information")
     for name, x in (("tx_enables", 38), ("unit_name", 52)):
         parts[name].set("docking", "Top Left")
@@ -261,10 +261,20 @@ def cco_source(data):
         raise ValueError("Horde UI stock capacity must be a positive integer")
     keys = " || ".join(f"building.Key == {json.dumps(key)}"
                        for key in sorted(buildings))
+    capacities = defaultdict(list)
+    for key, rule in sorted(units.items()):
+        capacities[rule["cap"]].append(key)
     capacity = "0"
-    for key, rule in reversed(sorted(units.items())):
-        capacity = (f"GetIfElse(unit.Key == {json.dumps(key)}, "
-                    f"{rule['cap']}, {capacity})")
+    for amount, members in sorted(capacities.items(), reverse=True):
+        matches = " || ".join(f"unit.Key == {json.dumps(key)}"
+                              for key in members)
+        capacity = f"GetIfElse({matches}, {amount}, {capacity})"
+    unit_keys = '""'
+    # Native TigerMercenaries.GetUnitsForCategory constructs unit contexts from
+    # keys this way. Display membership comes directly from the camp's stock.
+    for key, members in reversed(sorted(buildings.items())):
+        unit_keys = (f"GetIfElse(building.Key == {json.dumps(key)}, "
+                     f"{json.dumps(';'.join(members))}, {unit_keys})")
     scope = character_scope("character", data["subtypes"])
     return (f"{CCO_NAME}\n{{\n"
             "  IsCharacter(CcoCampaignCharacter character)\n  {\n"
@@ -275,8 +285,9 @@ def cco_source(data):
             "  Capacity(CcoMainUnitRecord unit)\n  {\n"
             f"    {capacity}\n  }}\n"
             "  Units(CcoBuildingLevelRecord building)\n  {\n"
-            '    DatabaseRecordContext("CcoUnitSetRecord", building.Key)'
-            ".UnitsInSetList\n  }\n"
+            f"    GetIf({CCO_NAME}.IsPrivate(building),\n"
+            f"      {unit_keys}.Split(\";\").Transform(\n"
+            '        (unit_key) => DatabaseRecordContext("CcoMainUnitRecord", unit_key)))\n  }\n'
             "  Pairs(CcoBuildingLevelRecord building)\n  {\n"
             f"    {CCO_NAME}.Units(building)\n"
             f"      .Transform((unit) => MakePair(unit, {CCO_NAME}.Capacity(unit)))\n"

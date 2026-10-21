@@ -1,5 +1,4 @@
-"""Building display sets must select exact stock without replacing unit caps."""
-from copy import deepcopy
+"""Building presentation must not replace the shared gameplay unit cap."""
 from pathlib import Path
 import sys
 import unittest
@@ -13,28 +12,6 @@ import beastmen_hordes as hordes
 
 
 class BeastmenHordeTooltipTests(unittest.TestCase):
-    def test_each_building_gets_its_own_exact_recruitment_list(self):
-        data = {"buildings": {
-            hordes.PREFIX + "gors_1": ["ungor", "ungor_spears"],
-            hordes.PREFIX + "gors_2": ["gor", "ungor", "ungor_spears"],
-            hordes.PREFIX + "minotaurs_1": ["minotaur"],
-        }}
-        before = deepcopy(data)
-        rows = list(hordes.tooltip_rows(data))
-        sets = {r["key"] for table, r in rows if table == "unit_sets"}
-        self.assertEqual(sets, set(data["buildings"]))
-        members = [r for table, r in rows
-                   if table == "unit_set_to_unit_junctions"]
-        self.assertEqual(len(members), 6)
-        for building, expected in data["buildings"].items():
-            selected = [r for r in members if r["unit_set"] == building]
-            self.assertEqual({r["unit_record"] for r in selected}, set(expected))
-            self.assertTrue(all(r["exclude"] == "false" and not r["unit_caste"]
-                                and not r["unit_class"] and not r["unit_category"]
-                                for r in selected))
-        self.assertNotIn(hordes.UNIT_SET, sets)
-        self.assertEqual(data, before)
-
     def test_shared_capacity_set_keeps_all_stock_units(self):
         data = {"buildings": {hordes.PREFIX + "gors_1": ["ungor"]},
                 "units": {"ungor": {"cap": 4, "chance": 40},
