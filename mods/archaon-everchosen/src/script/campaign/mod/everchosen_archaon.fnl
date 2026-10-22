@@ -2,6 +2,7 @@
 (local subjugation (include :everchosen_subjugation.campaign))
 (local daemon (include :everchosen_daemon.campaign))
 (local hordes (include :everchosen_hordes.campaign))
+(local horde-display (include :everchosen_hordes.display))
 (local river (include :everchosen_subjugation.river_of_blood))
 (local vassal-recruitment (include :everchosen_vassal_recruitment.campaign))
 (local hero-recruitment (include :everchosen_hero_recruitment.campaign))
@@ -12,6 +13,7 @@
 ;; The game separately loads generated static data before first tick;
 ;; modules must defer reading it until these callbacks run.
 (cm:add_first_tick_callback hordes.start)
+(cm:add_first_tick_callback #(cm:callback horde-display.check 0.2))
 (cm:add_first_tick_callback river.start)
 (cm:add_first_tick_callback daemon.start)
 ;; Extend the native subjugation config before inheritance checks its lords.

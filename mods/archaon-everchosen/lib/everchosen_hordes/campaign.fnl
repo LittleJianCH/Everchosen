@@ -54,7 +54,7 @@
 
 (fn sync-pool [entry unit active?]
   (let [config (data.config)
-        pool (world.pool entry.region unit)]
+        (pool reason) (world.pool entry.region unit active?)]
     (if pool
         (let [before (pool:unit_count)
               previous (pool:scripted_capacity_bonus_for_source
@@ -74,7 +74,8 @@
                 (or active? (> target 0))
                 (do (log (.. "Pool capacity update not confirmed: "
                              entry.region "/" unit)) true))))
-        (do (log (.. "Missing host pool: " entry.region "/" unit)) true))))
+        (do (log (.. "Missing host pool: " entry.region "/" unit
+                     " (" reason ")")) true))))
 
 (fn sync-capacities [state active]
   (remember state active)

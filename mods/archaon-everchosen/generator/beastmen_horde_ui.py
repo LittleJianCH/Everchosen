@@ -275,12 +275,12 @@ def cco_source(data):
     for key, members in reversed(sorted(buildings.items())):
         unit_keys = (f"GetIfElse(building.Key == {json.dumps(key)}, "
                      f"{json.dumps(';'.join(members))}, {unit_keys})")
-    scope = character_scope("character", data["subtypes"])
     return (f"{CCO_NAME}\n{{\n"
-            "  IsCharacter(CcoCampaignCharacter character)\n  {\n"
-            f"    {scope}\n  }}\n"
             "  IsPrivate(CcoBuildingLevelRecord building)\n  {\n"
-            f"    IsContextValid(building) && {CCO_NAME}.IsCharacter(SelectedCharacter) "
+            # Building previews do not require a selected campaign character.
+            # These private levels already have host-only construction access.
+            f'    PlayersFaction.FactionRecordContext.Key == "{HOST}" && '
+            "IsContextValid(building) "
             f"&& ({keys})\n  }}\n"
             "  Capacity(CcoMainUnitRecord unit)\n  {\n"
             f"    {capacity}\n  }}\n"

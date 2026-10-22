@@ -116,9 +116,22 @@
             (fn [_ key cqi] (tset (. s.forces cqi :bundles) key true))
             :remove_effect_bundle_from_force
             (fn [_ key cqi] (tset (. s.forces cqi :bundles) key nil))
+            :add_unit_to_province_mercenary_pool
+            (fn [_ region unit count chance maximum per-turn
+                 restriction subculture technology]
+              (assert.equals s.region region)
+              (assert.same [:ungor 0 0 0 0 host "" ""]
+                           [unit count chance maximum per-turn
+                            restriction subculture technology])
+              (set s.registrations (+ s.registrations 1))
+              (table.insert s.commands :register)
+              (when (not s.block-registration?)
+                (set s.pool (make-pool unit restriction))
+                (table.insert s.entries s.pool)))
             :set_mercenary_pool_unit_scripted_capacity_bonus
             (fn [_ pool amount key]
               (assert.equals source key)
+              (table.insert s.commands :capacity)
               (when (not s.block-capacity?)
                 (tset pool.sources key amount)
                 ;; Native Glottkin documents stock clamping when max falls.
@@ -133,6 +146,7 @@
               (assert.equals :region region)
               (assert.equals :ungor unit)
               (assert.equals 1 amount)
+              (table.insert s.commands :stock)
               (set s.additions (+ s.additions 1))
               (when (not s.block-stock?)
                 (set s.pool.stock
@@ -154,6 +168,7 @@
   (let [s {:player host :campaign :main_warhammer :multiplayer? false
            :turn 1 :saved {} :characters [] :forces {} :bundles {} :logs []
            :callbacks [] :listeners [] :rolls 0 :roll 1 :additions 0
+           :registrations 0 :commands []
            :pool (make-pool :ungor host)}
         province {:is_null_interface #(or s.null-province? false)
                   :key (fn [] (assert (not s.null-province?)) :province)
@@ -164,7 +179,8 @@
                      :mercenary_pool_units
                      (fn []
                        (assert (not s.null-pool?))
-                       (game-list [s.pool]))})}]
+                       (game-list s.entries))})}]
+    (set s.entries [s.pool])
     (set s.region {:is_null_interface (fn [] false) :name (fn [] :region)
                    :province (fn [] province)})
     s))
@@ -177,6 +193,44 @@
 
 (describe "Bound Beastmen camp supply"
   (fn []
+    (it "registers absent camp stock before capacity and turn replenishment"
+      (fn []
+        (let [s (scenario)
+              (lord force) (actor s :wh2_dlc17_bst_taurox :HORDE_TAUROX 1)]
+          (set s.entries [])
+          (set force.stance :MILITARY_FORCE_ACTIVE_STANCE_TYPE_DEFAULT)
+          (reload s)
+          (assert.equals 0 s.registrations)
+          (set force.stance settle)
+          (select s lord)
+          (assert.same [:register :capacity] s.commands)
+          (assert.equals 4 (. s.pool.sources source))
+          (assert.equals 0 s.pool.stock)
+          (turn s)
+          (assert.same [:register :capacity :stock] s.commands)
+          (assert.equals 1 s.pool.stock)
+          (select s lord) (reload s) (turn s)
+          (assert.equals 1 s.registrations)
+          (assert.equals 1 s.pool.stock))))
+    (it "preserves shared and foreign stock instead of replacing its entry"
+      (fn []
+        (each [_ restriction (ipairs ["" :foreign])]
+          (let [s (scenario)]
+            (actor s :wh2_dlc17_bst_taurox :HORDE_TAUROX 1)
+            (set s.pool.restriction restriction)
+            (set s.pool.stock 2)
+            (set s.pool.base 3)
+            (tset s.pool.sources :other 4)
+            (reload s) (turn s)
+            (assert.equals 0 s.registrations)
+            (assert.equals 0 s.additions)
+            (assert.equals 2 s.pool.stock)
+            (assert.equals 3 s.pool.base)
+            (assert.same {:other 4} s.pool.sources)
+            (assert.is_truthy
+              (: (. s.logs (length s.logs)) :find
+                 (.. "conflicting restrictions: "
+                     (string.format "%q" restriction)) 1 true))))))
     (it "requires host ownership, matching horde and an active force"
       (fn []
         (let [s (scenario)
@@ -227,6 +281,7 @@
               (lord force) (actor s :wh2_dlc17_bst_taurox :HORDE_TAUROX 1)]
           (tset s.pool.sources :other 2)
           (reload s)
+          (assert.equals 0 s.registrations)
           (set s.pool.stock 5)
           (set force.stance :MILITARY_FORCE_ACTIVE_STANCE_TYPE_DEFAULT)
           (emit s :ForceAdoptsStance {:military_force (fn [] force)})
@@ -246,6 +301,15 @@
       (fn []
         (let [s (scenario)
               (lord _force) (actor s :wh2_dlc17_bst_taurox :HORDE_TAUROX 1)]
+          (set s.entries [])
+          (set s.block-registration? true)
+          (reload s) (turn s)
+          (assert.equals 0 s.rolls)
+          (assert.equals 0 s.additions)
+          (assert.same {} s.pool.sources)
+          (assert.is_truthy
+            (: (. s.logs (length s.logs)) :find "registration not confirmed"))
+          (set s.entries [s.pool])
           (set s.pool.restriction :foreign)
           (reload s) (turn s)
           (assert.equals 0 s.additions)

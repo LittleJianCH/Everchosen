@@ -52,16 +52,36 @@
               {:region (region:name) :province (province:key)
                :units (rules.camp-units (data.config) buildings)})))))))
 
-(fn pool [region-key unit]
-  "Require the DB-created host-only entry; never fall back to a shared pool."
+(fn pool [region-key unit initialize?]
+  "Find/register camp stock; failures return nil and a diagnostic reason."
   (let [region (cm:get_region region-key)
         province (and (shared.valid? region) (region:province))
-        pool (and (shared.valid? province) (province:mercenary_pool))]
-    (when (shared.valid? pool)
-      (accumulate [found nil entry
-                   (shared.items (pool:mercenary_pool_units)) &until found]
-        (when (and (= (: (entry:unit_record) :key) unit)
-                   (= (entry:faction_restriction_key) scope.host))
-          entry)))))
+        province-pool (and (shared.valid? province) (province:mercenary_pool))]
+    (if (not (shared.valid? region)) (values nil "invalid region")
+        (not (shared.valid? province)) (values nil "invalid province")
+        (not (shared.valid? province-pool)) (values nil "invalid province pool")
+        (let [matches (icollect [entry (shared.items
+                                        (province-pool:mercenary_pool_units))]
+                        (when (= (: (entry:unit_record) :key) unit) entry))
+              own (accumulate [found nil _ entry (ipairs matches) &until found]
+                    (when (= (entry:faction_restriction_key) scope.host) entry))]
+          (if own own
+              (> (length matches) 0)
+              (values nil
+                (.. "conflicting restrictions: "
+                    (table.concat
+                      (icollect [_ entry (ipairs matches)]
+                        (string.format "%q" (entry:faction_restriction_key)))
+                      ", ")))
+              initialize?
+              (do
+                ;; Creation replaces stock and caps: never touch an existing
+                ;; entry, including one shared with another mechanic or faction.
+                (cm:add_unit_to_province_mercenary_pool
+                  region unit 0 0 0 0 scope.host "" "")
+                (let [(registered reason) (pool region-key unit)]
+                  (if registered registered
+                      (values nil (.. "registration not confirmed: " reason)))))
+              (values nil "unit not represented"))))))
 
 {: eligible-force : forces : related-character? : camps : pool}
